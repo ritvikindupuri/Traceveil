@@ -120,3 +120,11 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@keyframes ax-dash { to { stroke-dashoffset: -24; } }
+@keyframes ax-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes ax-pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+@utility ax-flow { stroke-dasharray: 4 8; animation: ax-dash 1.2s linear infinite; }
+@utility ax-rise { animation: ax-rise .7s cubic-bezier(.2,.7,.2,1) both; }
+@utility ax-pulse { animation: ax-pulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ax-flow, .ax-rise, .ax-pulse { animation: none; } }
