@@ -28,3 +28,5 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Scans stream NDJSON from the `/api/scan` server route (`src/lib/scan/*`); agents run in parallel, then a JSON verdict agent — keeps progress live without a database.
