@@ -1,6 +1,7 @@
 import {describe,it,expect} from 'vitest';
 import {defaultRuntimePolicy,evaluateRuntimePolicy,runtimePolicySchema} from './runtime-policy';
 import type {Verdict} from './types';
+import {eligibleTools,runtimeDestinationAllowed} from './policy';
 const endpoint='https://mcp.deepwiki.com/mcp';
 const name='read_wiki_structure';
 const verdict:Verdict={verdict:'allow',risk:20,summary:'',tools:[{tool:name,risk:15,class:'read-public'}],findings:[],guardrails:[]};
@@ -16,4 +17,6 @@ describe('Pre-call policy decisions',()=>{
  it('blocks unscored tools',()=>expect(evaluateRuntimePolicy(defaultRuntimePolicy(),endpoint,name,{...verdict,tools:[]})).toBe('Tool risk unavailable'));
  it('rejects wildcards and URLs in hostname policy',()=>{expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),hosts:['*.deepwiki.com']}).success).toBe(false);expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),hosts:[endpoint]}).success).toBe(false);});
  it('rejects thresholds outside 0–100',()=>expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),maxToolRisk:101}).success).toBe(false));
+ it('cannot override the independent hard risk ceiling',()=>{const risky={...verdict,tools:[{tool:name,risk:40,class:'read-public'}]};const permissive={...defaultRuntimePolicy(),maxToolRisk:100,maxAuditRisk:100};expect(evaluateRuntimePolicy(permissive,endpoint,name,risky)).toBeNull();expect(eligibleTools([{name,description:'Read public docs',inputSchema:{}}],risky)).toEqual([]);});
+ it('cannot grant custom-host network authority',()=>{const custom='https://custom.example.com/mcp';expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),hosts:['custom.example.com']},custom,name,verdict)).toBeNull();expect(runtimeDestinationAllowed(custom,name)).toBe(false);});
 });
