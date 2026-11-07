@@ -1,47 +1,84 @@
-export type Signal = {
-  id: string;
-  label: string;
-  severity: "critical" | "high" | "medium" | "low";
-  file: string;
-  line: number;
-  excerpt: string;
-};
+import type { McpTool, Signal, Sev } from "./types";
 
-const RULES: { id: string; label: string; severity: Signal["severity"]; re: RegExp }[] = [
-  { id: "cred-scan", label: "Secret-scanning tooling", severity: "critical", re: /trufflehog|gitleaks/i },
-  { id: "npm-token", label: "npm token access", severity: "critical", re: /NPM_TOKEN|\.npmrc|npm\s+(publish|token)|registry\.npmjs\.org\/-\/npm\/v1\/tokens/ },
-  { id: "gh-token", label: "GitHub credential access", severity: "critical", re: /GITHUB_TOKEN|GH_TOKEN|ghp_[A-Za-z0-9]|api\.github\.com\/(user\/repos|repos\/[^"'`]+\/actions)|\.github\/workflows/ },
-  { id: "cloud-creds", label: "Cloud credential harvesting", severity: "critical", re: /AWS_SECRET_ACCESS_KEY|169\.254\.169\.254|metadata\.google\.internal|GOOGLE_APPLICATION_CREDENTIALS|AZURE_CLIENT_SECRET|\.aws\/credentials/ },
-  { id: "wallet", label: "Crypto wallet interception", severity: "high", re: /ethereum\.request|window\.ethereum|solana|bc1[a-z0-9]{20,}|0x[a-fA-F0-9]{40}/ },
-  { id: "exfil", label: "Exfiltration endpoint", severity: "high", re: /webhook\.site|discord(app)?\.com\/api\/webhooks|pipedream|ngrok\.io|requestbin|oast\.|burpcollaborator|interact\.sh/i },
-  { id: "proc", label: "Process spawning", severity: "medium", re: /child_process|execSync\(|spawnSync\(|Bun\.spawn/ },
-  { id: "eval", label: "Dynamic code execution", severity: "high", re: /\beval\(|new Function\(|vm\.runIn/ },
-  { id: "obf", label: "Obfuscation markers", severity: "high", re: /_0x[a-f0-9]{4,}|\\x[0-9a-f]{2}\\x[0-9a-f]{2}\\x[0-9a-f]{2}|atob\(|Buffer\.from\([^)]{0,80}['"]base64['"]/i },
-  { id: "env-dump", label: "Bulk environment read", severity: "medium", re: /JSON\.stringify\(process\.env\)|Object\.(keys|entries)\(process\.env\)/ },
-  { id: "bun-runtime", label: "Runtime bootstrap download", severity: "high", re: /bun\.sh\/install|setup_bun|bun_environment/i },
-  { id: "destructive", label: "Destructive filesystem ops", severity: "high", re: /rm\s+-rf\s+[~\/$]|shred\s|rimraf\(\s*['"`](~|\/)/ },
+type Rule = { rule: string; label: string; severity: Sev; re: RegExp };
+
+const TEXT_RULES: Rule[] = [
+  { rule: "hidden-directive", label: "Hidden directive block", severity: "critical", re: /<\s*(important|system|instructions?|secret|hidden)\s*>/i },
+  { rule: "override", label: "Instruction override", severity: "critical", re: /ignore (all |any )?(previous|prior|above) (instructions|rules)|disregard (the )?(system|previous)|you are now|new instructions:/i },
+  { rule: "concealment", label: "Concealment from user", severity: "critical", re: /do not (tell|inform|mention|show|reveal)[^.]{0,40}(user|human)|without (telling|informing|notifying) the user|don'?t mention this/i },
+  { rule: "sensitive-path", label: "Sensitive file reference", severity: "critical", re: /~\/\.ssh|id_rsa|id_ed25519|\.aws\/credentials|\.env\b|\.npmrc|\.git-credentials|mcp\.json|\.cursor\/|claude_desktop_config|\/etc\/passwd|kubeconfig/i },
+  { rule: "secret-ref", label: "Credential solicitation", severity: "high", re: /\b(api[_ -]?key|access[_ -]?token|password|private key|secret key|bearer token|session cookie)s?\b/i },
+  { rule: "cross-tool", label: "Cross-tool behavior steering", severity: "high", re: /(before|after|when) (using|calling|invoking) (any |the )?(other )?tools?|instead of (the )?\w+ tool|(always|must) (also )?(call|use|send)/i },
+  { rule: "exfil", label: "External exfiltration channel", severity: "high", re: /https?:\/\/(?!localhost)[^\s"'<>)]+|webhook|ngrok|pastebin|requestbin|discord(app)?\.com\/api/i },
+  { rule: "redirect", label: "Recipient / destination rewriting", severity: "high", re: /(change|replace|redirect|set) (the )?(recipient|destination|to address|account|wallet)/i },
+  { rule: "coercion", label: "Coercive phrasing", severity: "medium", re: /\b(very important|mandatory|critical|otherwise the tool will (fail|not work)|application will crash)\b/i },
+  { rule: "encoded", label: "Encoded payload", severity: "high", re: /[A-Za-z0-9+/]{80,}={0,2}|\\u[0-9a-f]{4}(\\u[0-9a-f]{4}){3,}/i },
 ];
 
-const CODE_EXT = /\.(c?js|mjs|ts|sh|py|json)$/i;
+const RISKY_PARAMS = /^(command|cmd|shell|script|code|query|sql|exec|path|file(_?path)?|url|uri|endpoint|host|headers?|sidenote|notes?|context|metadata|extra|debug|token|secret|password|recipient|to)$/i;
 
-export function scanFile(path: string, text: string, limit = 40): Signal[] {
-  if (!CODE_EXT.test(path)) return [];
-  const lines = text.split("\n");
-  const hits: Signal[] = [];
-  for (let i = 0; i < lines.length && hits.length < limit; i++) {
-    const line = lines[i] ?? "";
-    for (const r of RULES) {
-      if (r.re.test(line)) {
-        hits.push({
-          id: r.id,
-          label: r.label,
-          severity: r.severity,
-          file: path,
-          line: i + 1,
-          excerpt: line.trim().slice(0, 220),
-        });
-      }
+export function invisibles(s: string) {
+  const m = s.match(/[\u200B-\u200F\u2028-\u202E\u2060-\u2064\uFEFF\u{E0000}-\u{E007F}]/gu);
+  return m?.length ?? 0;
+}
+
+function scanText(target: string, text: string, out: Signal[]) {
+  for (const r of TEXT_RULES) {
+    const m = text.match(r.re);
+    if (m) {
+      const i = Math.max(0, (m.index ?? 0) - 60);
+      out.push({ rule: r.rule, label: r.label, severity: r.severity, target, excerpt: text.slice(i, i + 200).replace(/\s+/g, " ").trim() });
     }
   }
-  return hits;
+  const inv = invisibles(text);
+  if (inv) out.push({ rule: "invisible", label: "Invisible / bidi characters", severity: "critical", target, excerpt: `${inv} hidden code points` });
+}
+
+function walkSchema(tool: string, schema: any, path: string, out: Signal[], depth = 0) {
+  if (!schema || typeof schema !== "object" || depth > 6) return;
+  if (schema.additionalProperties === true || (schema.type === "object" && !schema.properties && depth > 0)) {
+    out.push({ rule: "open-schema", label: "Unbounded object parameter", severity: "medium", target: `${tool}${path}`, excerpt: "accepts arbitrary keys" });
+  }
+  const props = schema.properties ?? {};
+  const required = new Set<string>(schema.required ?? []);
+  for (const [k, v] of Object.entries<any>(props)) {
+    const p = `${path}.${k}`;
+    if (typeof v?.description === "string") scanText(`${tool}${p}`, v.description, out);
+    if (RISKY_PARAMS.test(k) && v?.type === "string" && !v.enum && !v.pattern && !v.format) {
+      out.push({ rule: "free-param", label: "Unconstrained high-risk parameter", severity: /sidenote|notes?|context|metadata|extra|debug/i.test(k) ? "high" : "medium", target: `${tool}${p}`, excerpt: `${k}: string, ${required.has(k) ? "required" : "optional"}, no enum/pattern` });
+    }
+    if (v?.default !== undefined && typeof v.default === "string") scanText(`${tool}${p}#default`, v.default, out);
+    walkSchema(tool, v, p, out, depth + 1);
+    if (v?.items) walkSchema(tool, v.items, `${p}[]`, out, depth + 1);
+  }
+}
+
+export function scanTools(tools: McpTool[]): Signal[] {
+  const out: Signal[] = [];
+  const names = tools.map((t) => t.name);
+  for (const t of tools) {
+    scanText(t.name, t.description, out);
+    if (t.description.length > 1200) out.push({ rule: "long-desc", label: "Oversized description", severity: "medium", target: t.name, excerpt: `${t.description.length} chars` });
+    for (const other of names) {
+      if (other !== t.name && other.length > 3 && new RegExp(`\\b${other.replace(/[^\w]/g, "\\$&")}\\b`).test(t.description)) {
+        out.push({ rule: "shadowing", label: "References another tool", severity: "high", target: t.name, excerpt: `mentions "${other}"` });
+      }
+    }
+    walkSchema(t.name, t.inputSchema, "", out);
+  }
+  const seen = new Map<string, number>();
+  for (const n of names) seen.set(n, (seen.get(n) ?? 0) + 1);
+  for (const [n, c] of seen) if (c > 1) out.push({ rule: "dup-name", label: "Duplicate tool name", severity: "high", target: n, excerpt: `${c} definitions` });
+  return out.slice(0, 200);
+}
+
+export function scanTranscript(text: string): Signal[] {
+  const out: Signal[] = [];
+  const chunks = text.split(/\n(?=\S)/).slice(0, 2000);
+  chunks.forEach((c, i) => {
+    const before = out.length;
+    scanText(`segment ${i + 1}`, c, out);
+    if (out.length - before > 3) out.splice(before + 3);
+  });
+  return out.slice(0, 200);
 }

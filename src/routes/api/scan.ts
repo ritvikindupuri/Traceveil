@@ -1,20 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runScan } from "@/lib/scan/agents.server";
+import type { Mode } from "@/lib/scan/types";
+
+const MODES: Mode[] = ["definitions", "transcript", "endpoint"];
 
 export const Route = createFileRoute("/api/scan")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const { spec } = (await request.json().catch(() => ({}))) as { spec?: string };
-        if (!spec || typeof spec !== "string" || spec.length > 214) {
-          return Response.json({ error: "Provide a package name" }, { status: 400 });
+        const body = (await request.json().catch(() => ({}))) as { mode?: Mode; input?: string; token?: string };
+        if (!body.mode || !MODES.includes(body.mode) || typeof body.input !== "string" || !body.input.trim()) {
+          return Response.json({ error: "Provide input" }, { status: 400 });
         }
         const enc = new TextEncoder();
         const stream = new ReadableStream({
           async start(controller) {
             const emit = (e: Record<string, unknown>) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
             try {
-              await runScan(spec, emit, request.signal);
+              await runScan(body.mode!, body.input!, emit, request.signal, body.token || undefined);
             } catch (err: any) {
               const status = err?.statusCode ?? err?.status;
               let message = err?.message ?? "Scan failed";
