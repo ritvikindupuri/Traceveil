@@ -14,7 +14,11 @@ export const approveAudit = createServerFn({method:'POST'}).middleware([requireS
   const {eligibleTools,runtimeDestinationAllowed} = await import('./policy');
   const {validateVerdict} = await import('./validation');
   const tools = record.tools as unknown as import('./types').McpTool[];
-  const names = eligibleTools(tools,validateVerdict(record.verdict,tools.map(t => t.name))).filter(name=>runtimeDestinationAllowed(record.endpoint ?? '',name));
+  const verdict=validateVerdict(record.verdict,tools.map(t=>t.name));
+  const {loadRuntimePolicy}=await import('./runtime-policy.server');
+  const {evaluateRuntimePolicy}=await import('./runtime-policy');
+  const {policy}=await loadRuntimePolicy(context.supabase,context.userId);
+  const names = eligibleTools(tools,verdict).filter(name=>runtimeDestinationAllowed(record.endpoint ?? '',name)&&!evaluateRuntimePolicy(policy,record.endpoint,name,verdict));
   if (!names.length) throw new Error('No low-risk tools are eligible for approval');
   const {supabaseAdmin} = await import('@/integrations/supabase/client.server');
   const saved = await supabaseAdmin.from('tool_approvals').upsert({audit_id:record.id,user_id:context.userId,tools:names});
@@ -40,7 +44,15 @@ export const getEnforcement = createServerFn({method:'GET'}).middleware([require
   const {classifyTools}=await import('./guardrails');
   const {validateVerdict}=await import('./validation');
   const tools=record.data.tools as unknown as import('./types').McpTool[];
-  return {tools:approval.data?.tools ?? [], events:events.data ?? [], classifications:classifyTools(tools,validateVerdict(record.data.verdict,tools.map(t=>t.name)),approval.data?.tools ?? [],record.data.endpoint)};
+  const verdict=validateVerdict(record.data.verdict,tools.map(t=>t.name));
+  const {loadRuntimePolicy}=await import('./runtime-policy.server');
+  const {evaluateRuntimePolicy}=await import('./runtime-policy');
+  const {policy,revision}=await loadRuntimePolicy(context.supabase,context.userId);
+  const classifications=classifyTools(tools,verdict,approval.data?.tools ?? [],record.data.endpoint).map(t=>{
+    const reason=evaluateRuntimePolicy(policy,record.data.endpoint,t.name,verdict);
+    return reason?{...t,status:'blocked' as const,eligible:false,reason}:t;
+  });
+  return {tools:approval.data?.tools ?? [], events:events.data ?? [], classifications,policyRevision:revision};
 });
 
 export const sanitizeAudit=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator((v:unknown)=>z.object({id:z.string().uuid()}).parse(v)).handler(async({context,data})=>{
