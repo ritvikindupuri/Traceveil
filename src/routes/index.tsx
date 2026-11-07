@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowRight, Loader2, Square, Check, Circle } from "lucide-react";
 import { Logo } from "@/components/armorix/Logo";
+import { AuditVisuals } from "@/components/armorix/AuditVisuals";
+import { Button } from "@/components/ui/button";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 
@@ -92,29 +94,29 @@ function Index() {
     }
   }
 
-  const ph = MODES.find((m) => m.k === mode)!.ph;
+  const ph = MODES.find((m) => m.k === mode)?.ph ?? "";
 
   return (
     <div className="min-h-screen">
-      <header className="flex h-12 items-center justify-between border-b border-border px-5">
+      <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
         <div className="flex items-center gap-2.5">
           <Logo />
-          <span className="text-[15px] font-semibold tracking-tight">Armorix</span>
+          <span className="text-[15px] font-semibold">Armorix</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" /> gemini-4-argon
+        <div role="status" className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+          <span className={cn("h-1.5 w-1.5 rounded-full", stage === "error" ? "bg-warning" : "bg-primary")} /> Neural Guardrail Engine · <span className={stage === "error" ? "text-warning" : "text-primary"}>{stage === "error" ? "Attention" : running ? "Analyzing" : "Active"}</span>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1400px] gap-4 p-5 lg:grid-cols-[420px_1fr]">
-        <form onSubmit={scan} className="flex h-fit flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
+      <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <form onSubmit={scan} className="flex h-fit min-w-0 flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
           <div className="flex border-b border-border">
             {MODES.map((m) => (
-              <button key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
-                className={cn("flex-1 border-b-2 px-2 py-2.5 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+              <Button variant="ghost" key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
+                className={cn("h-10 flex-1 rounded-none border-b-2 px-2 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                 {m.l}
-              </button>
+              </Button>
             ))}
           </div>
           {mode === "endpoint" ? (
@@ -131,13 +133,13 @@ function Index() {
           <div className="flex items-center justify-between border-t border-border p-2.5">
             <span className="pl-1 font-mono text-[10px] text-muted-foreground">{input.length ? `${input.length.toLocaleString()} chars` : ""}</span>
             {running ? (
-              <button type="button" onClick={() => ctrl.current?.abort()} className="inline-flex h-8 items-center gap-2 rounded-md bg-secondary px-3 text-xs hover:bg-accent">
+              <Button variant="secondary" size="sm" type="button" onClick={() => ctrl.current?.abort()}>
                 <Square className="h-3 w-3" /> Stop
-              </button>
+              </Button>
             ) : (
-              <button type="submit" disabled={!input.trim()} className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-3.5 text-xs font-medium text-primary-foreground disabled:opacity-40">
+              <Button size="sm" type="submit" disabled={!input.trim()}>
                 Audit <ArrowRight className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -152,9 +154,10 @@ function Index() {
           )}
           {started && <Pipeline stage={stage} inv={inv} />}
           {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+          {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
           {started && (
-            <div className="grid gap-4 xl:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
               {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}
             </div>
           )}
@@ -196,7 +199,7 @@ const riskBar = (r: number) => (r >= 70 ? "bg-destructive" : r >= 40 ? "bg-warni
 function VerdictCard({ v }: { v: Verdict }) {
   const tone = v.verdict === "block" ? "text-destructive" : v.verdict === "review" ? "text-warning" : "text-success";
   return (
-    <section className="rounded-lg border border-border bg-card">
+    <section className="min-w-0 rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Verdict</div>
@@ -208,7 +211,7 @@ function VerdictCard({ v }: { v: Verdict }) {
         </div>
         <p className="min-w-[240px] flex-1 text-sm text-muted-foreground">{v.summary}</p>
       </div>
-      <div className="grid gap-px bg-border xl:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-px bg-border xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="bg-card p-4">
           <ul className="space-y-3">
             {(v.findings ?? []).map((f, i) => (
@@ -253,12 +256,12 @@ function VerdictCard({ v }: { v: Verdict }) {
 
 function AgentPanel({ name, state }: { name: string; state: AgentState }) {
   return (
-    <section className="rounded-lg border border-border bg-card">
+    <section className="min-w-0 rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <span className="text-xs font-medium">{name}</span>
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span>
       </div>
-      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-muted-foreground">
+      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap break-words p-4 text-[12px] leading-relaxed text-muted-foreground">
         {state?.declined && <span className="text-warning">Model declined this analysis. Verdict uses the other agents.</span>}
         {state?.text || (state && !state.done ? <span className="inline-block h-3.5 w-1.5 animate-pulse bg-primary" /> : null)}
       </div>

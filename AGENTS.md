@@ -30,3 +30,4 @@ use the editor.
 <!-- LOVABLE:END -->
 
 - Scans stream NDJSON from the `/api/scan` server route (`src/lib/scan/*`); agents run in parallel, then a JSON verdict agent — keeps progress live without a database.
+- Audit graphics derive categories and inferred reference edges only from static signals and inventory; model risk stays explicitly separate to avoid implying measured attacks or observed data flow.
