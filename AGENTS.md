@@ -29,5 +29,6 @@ use the editor.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
 
-- Scans stream NDJSON from the `/api/scan` server route (`src/lib/scan/*`); agents run in parallel, then a JSON verdict agent — keeps progress live without a database.
+- Authenticated scans stream NDJSON from `/api/scan`; validated results persist as server-written, owner-readable audit records because browser-authored evidence is not trustworthy.
+- Runtime calls require server-stored approval, schema validation and live SHA-256 baseline checks; arbitrary hosts fail closed until destination-pinned egress is available because DNS preflight alone cannot prevent rebinding.
 - Audit graphics derive categories and inferred reference edges only from static signals and inventory; model risk stays explicitly separate to avoid implying measured attacks or observed data flow.

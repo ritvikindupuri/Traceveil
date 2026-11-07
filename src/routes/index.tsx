@@ -1,6 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X } from "lucide-react";
+import {useServerFn} from '@tanstack/react-start';
+import {useQueryClient} from '@tanstack/react-query';
+import {supabase} from '@/integrations/supabase/client';
+import type {User} from '@supabase/supabase-js';
+import {AccountDialog} from '@/components/armorix/AccountDialog';
+import {EnforcementPanel} from '@/components/armorix/EnforcementPanel';
+import {listAudits} from '@/lib/scan/records.functions';
 import { Logo } from "@/components/armorix/Logo";
 import { AuditVisuals } from "@/components/armorix/AuditVisuals";
 import { Button } from "@/components/ui/button";
@@ -42,6 +49,13 @@ const AGENTS = [
 ];
 
 function Index() {
+  const [user,setUser] = useState<User|null>(null);
+  const [accountOpen,setAccountOpen] = useState(false);
+  const [historyOpen,setHistoryOpen] = useState(false);
+  const [records,setRecords] = useState<Awaited<ReturnType<typeof listAudits>>>([]);
+  const [record,setRecord] = useState<{id:string;fingerprint:string;changed:boolean|null;endpoint:string|null}|null>(null);
+  const list = useServerFn(listAudits);
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>("definitions");
   const [input, setInput] = useState("");
   const [token, setToken] = useState("");
@@ -54,15 +68,40 @@ function Index() {
   const ctrl = useRef<AbortController | null>(null);
   const running = stage === "collect" || stage === "agents" || stage === "verdict";
   const started = stage !== "idle" || inv !== null;
+  useEffect(()=>{
+    void supabase.auth.getUser().then(({data})=>setUser(data.user));
+    const {data} = supabase.auth.onAuthStateChange((event,session)=>{
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') setUser(session?.user ?? null);
+      if (event === 'SIGNED_OUT') {ctrl.current?.abort();setRecords([]);setRecord(null);setInv(null);setVerdict(null);setSignals([]);setAgents({});setStage('idle');setHistoryOpen(false);}
+    });
+    return ()=>data.subscription.unsubscribe();
+  },[]);
+
+  async function history() {setHistoryOpen(true);try {setRecords(await list());} catch {setError('Could not load audit records');}}
+  async function signOut() {ctrl.current?.abort();await queryClient.cancelQueries();queryClient.clear();await supabase.auth.signOut();}
+  function openRecord(r:Awaited<ReturnType<typeof listAudits>>[number]) {
+    ctrl.current?.abort();setInv(r.inventory as unknown as Inventory);setSignals(r.signals as unknown as Signal[]);setVerdict(r.verdict as unknown as Verdict);
+    const reports = r.reports as Record<string,string>;
+    setAgents(Object.fromEntries(Object.entries(reports).map(([k,text])=>[k,{text,done:true,declined:text === '(agent returned no output)'}])));
+    setRecord({id:r.id,fingerprint:r.fingerprint,changed:null,endpoint:r.endpoint});setStage('done');setError(null);setHistoryOpen(false);
+  }
+  function download() {
+    if (!record || !inv || !verdict) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify({record,inventory:inv,signals,verdict,agents},null,2)],{type:'application/json'}));
+    const anchor = document.createElement('a');anchor.href=url;anchor.download=`armorix-audit-${record.id}.json`;anchor.click();URL.revokeObjectURL(url);
+  }
 
   async function scan(e?: React.FormEvent) {
     e?.preventDefault();
     if (!input.trim() || running) return;
-    setInv(null); setSignals([]); setAgents({}); setVerdict(null); setError(null); setStage("collect");
+    if (!user) {setAccountOpen(true);return;}
+    setRecord(null);setInv(null); setSignals([]); setAgents({}); setVerdict(null); setError(null); setStage("collect");
     const ac = new AbortController();
     ctrl.current = ac;
     try {
-      const res = await fetch("/api/scan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode, input, token: mode === "endpoint" ? token : undefined }), signal: ac.signal });
+      const {data} = await supabase.auth.getSession();
+      if (!data.session) throw new Error('Sign in to audit');
+      const res = await fetch("/api/scan", { method: "POST", headers: { "content-type": "application/json", authorization:`Bearer ${data.session.access_token}` }, body: JSON.stringify({ mode, input, token: mode === "endpoint" ? token : undefined }), signal: ac.signal });
       if (!res.ok || !res.body) throw new Error((await res.json().catch(() => null))?.error ?? `Request failed (${res.status})`);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -89,6 +128,7 @@ function Index() {
       case "agent:delta": setAgents((a) => ({ ...a, [ev.agent]: { text: (a[ev.agent]?.text ?? "") + ev.text, done: false } })); break;
       case "agent:end": setAgents((a) => ({ ...a, [ev.agent]: { text: a[ev.agent]?.text ?? "", done: true, declined: Boolean(ev.declined) } })); break;
       case "verdict": setVerdict(ev); break;
+      case 'record': setRecord({id:ev.id,fingerprint:ev.fingerprint,changed:ev.changed,endpoint:mode === 'endpoint'?input:null}); break;
       case "done": setStage("done"); break;
       case "error": setError(ev.message); setStage("error"); break;
     }
@@ -104,7 +144,12 @@ function Index() {
           <span className="text-[15px] font-semibold">Armorix</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
+        <div className="flex items-center gap-1">
+          {user ? <><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
+        </div>
       </header>
+      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen}/>
+      {historyOpen && <section className="mx-auto max-w-[1400px] border-b border-border px-5 py-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-medium">Audit history</h2><Button variant="ghost" size="icon" aria-label="Close history" onClick={()=>setHistoryOpen(false)}><X/></Button></div>{records.length === 0?<p className="text-xs text-muted-foreground">No saved audits.</p>:<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{records.map(r=><Button key={r.id} variant="outline" className="h-auto justify-between gap-3 py-3 text-left" onClick={()=>openRecord(r)}><span className="min-w-0 truncate text-xs">{r.source}</span><span className="shrink-0 font-mono text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span></Button>)}</div>}</section>}
 
       <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
         <form onSubmit={scan} className="flex h-fit min-w-0 flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
@@ -153,6 +198,7 @@ function Index() {
           {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
+          {record && <div className="min-w-0 border-y border-border py-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved audit</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><div className="truncate font-mono text-[10px] text-muted-foreground" title={record.fingerprint}>SHA-256 · {record.fingerprint}</div><EnforcementPanel key={record.id} id={record.id} endpoint={record.endpoint} token={token}/></div>}
           {started && (
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
               {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}

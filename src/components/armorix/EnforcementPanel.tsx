@@ -30,7 +30,7 @@ export function EnforcementPanel({id,endpoint,token}:{id:string;endpoint:string|
   }
   return <section className="min-w-0 border-t border-border pt-4">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-medium">Runtime enforcement</h2>
-      <div className="flex gap-2"><Button variant="ghost" size="icon-sm" title="Refresh execution records" onClick={refresh}><RefreshCw className="size-3.5"/></Button>
+      <div className="flex gap-2"><Button variant="ghost" size="icon" title="Refresh execution records" onClick={refresh}><RefreshCw className="size-3.5"/></Button>
         {endpoint && (state?.tools.length ? <Button variant="outline" size="sm" disabled={busy} onClick={()=>action('revoke')}><ShieldOff className="size-3.5"/>Revoke approval</Button>:<Button variant="outline" size="sm" disabled={busy} onClick={()=>action('approve')}><ShieldCheck className="size-3.5"/>Approve low-risk tools</Button>)}
       </div>
     </div>

@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -88,6 +88,9 @@
   --border: oklch(1 0 0 / 16%);
   --input: oklch(1 0 0 / 20%);
   --ring: oklch(0.79 0.18 160 / 50%);
+  --google-background: oklch(0.188 0.002 285);
+  --google-border: oklch(0.655 0.004 150);
+  --google-foreground: oklch(0.91 0.004 150);
   --chart-1: oklch(0.79 0.18 160);
   --chart-2: oklch(0.8 0.15 75);
   --chart-3: oklch(0.65 0.22 25);
@@ -102,6 +105,8 @@
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.86 0.17 128 / 50%);
 }
+
+.google-auth { background: var(--google-background); border-color: var(--google-border); color: var(--google-foreground); }
 
 @layer base {
   * {
