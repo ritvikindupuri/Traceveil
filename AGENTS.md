@@ -35,3 +35,4 @@ use the editor.
 - MCP destination and independent read-tool allowlists share a browser-safe registry; user connection configuration cannot expand network authority, to prevent SSRF and unsafe tool execution.
 - Per-user connection tokens are AES-GCM encrypted server-side, bound to owner and exact endpoint, and never returned to browsers; disabled connections invalidate associated runtime access.
 - Sanitization creates a derived export with change evidence and mandatory re-audit, never mutates audited baselines or grants approval, because definition edits cannot guarantee upstream safety.
+- Runtime policies are owner-scoped, server-written restrictions on exact hosts/tools and audit/tool scores; approvals and per-call execution share their evaluator and recheck revisions before forwarding so policies cannot expand platform authority or bypass drift checks.

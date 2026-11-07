@@ -15,6 +15,13 @@
       "when": 1794068748766,
       "tag": "0001_mcp_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794069445201,
+      "tag": "0002_runtime_guardrail_policies",
+      "breakpoints": true
     }
   ]
 }

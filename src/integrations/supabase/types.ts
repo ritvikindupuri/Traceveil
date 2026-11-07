@@ -129,6 +129,27 @@ export type Database = {
           },
         ]
       }
+      guardrail_policies: {
+        Row: {
+          policy: Json
+          revision: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          policy: Json
+          revision?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          policy?: Json
+          revision?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mcp_connections: {
         Row: {
           created_at: string

@@ -25,7 +25,13 @@ export const Route = createFileRoute('/api/guard')({server:{handlers:{POST:async
     const {validateVerdict}=await import('@/lib/scan/validation');
     const {fetchEndpoint,rpc} = await import('@/lib/scan/ingest.server');
     const tools=record.data.tools as unknown as import('@/lib/scan/types').McpTool[];
-    const eligible=eligibleTools(tools,validateVerdict(record.data.verdict,tools.map(t=>t.name)));
+    const verdict=validateVerdict(record.data.verdict,tools.map(t=>t.name));
+    const {loadRuntimePolicy}=await import('@/lib/scan/runtime-policy.server');
+    const {evaluateRuntimePolicy}=await import('@/lib/scan/runtime-policy');
+    const snapshot=await loadRuntimePolicy(auth.client,auth.userId);
+    const policyReason=evaluateRuntimePolicy(snapshot.policy,record.data.endpoint,body.name,verdict);
+    if(policyReason){await log('blocked',policyReason);return Response.json({decision:'blocked',reason:policyReason,policyRevision:snapshot.revision},{status:403});}
+    const eligible=eligibleTools(tools,verdict);
     const reason = checkCall(tools,(approval.data?.tools ?? []).filter(name=>eligible.includes(name)),body.name,body.arguments);
     if (reason) {await log('blocked',reason); return Response.json({decision:'blocked',reason},{status:403});}
     // Until destination-IP-pinned egress is available, execution is restricted to this trusted public read-only MCP host.
@@ -48,11 +54,13 @@ export const Route = createFileRoute('/api/guard')({server:{handlers:{POST:async
     }
     const currentApproval=await auth.client.from('tool_approvals').select('tools').eq('audit_id',body.auditId).eq('user_id',auth.userId).maybeSingle();
     if(currentApproval.error||!currentApproval.data?.tools.includes(body.name)){await log('blocked','Approval revoked');return Response.json({decision:'blocked',reason:'Approval revoked'},{status:403});}
+    const currentPolicy=await loadRuntimePolicy(auth.client,auth.userId);
+    if(currentPolicy.revision!==snapshot.revision){await log('blocked','Policy changed during verification');return Response.json({decision:'blocked',reason:'Policy changed during verification; retry'},{status:409});}
     const result = await rpc(new URL(record.data.endpoint),{jsonrpc:'2.0',id:50,method:'tools/call',params:{name:body.name,arguments:body.arguments}},live.sid,signal,token);
     if (!result.msg?.result) throw new Error('No upstream result');
     if(result.msg.result.isError)throw new Error('Upstream tool error');
-    await log('forwarded','Approved schema and unchanged baseline; upstream responded');
-    return Response.json({decision:'forwarded',result:result.msg?.result ?? null},{headers:{'cache-control':'no-store'}});
+    await log('forwarded',`Policy ${snapshot.revision}; approved schema and unchanged baseline; upstream responded`);
+    return Response.json({decision:'forwarded',policyRevision:snapshot.revision,result:result.msg?.result ?? null},{headers:{'cache-control':'no-store'}});
   } catch {
     await log('failed','Upstream verification or execution failed');
     return Response.json({decision:'failed',reason:'Upstream verification or execution failed'},{status:502});
