@@ -1,6 +1,7 @@
 import {Validator, type Schema} from '@cfworker/json-schema';
 import type { McpTool, Verdict } from './types';
 import { scanTools, scanTranscript } from './signals';
+import {trustedDestination} from './destinations';
 
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
@@ -16,10 +17,11 @@ export function eligibleTools(tools: McpTool[], verdict: Verdict): string[] {
   if (verdict.verdict !== 'allow') return [];
   return tools.filter(t => verdict.tools.some(v => v.tool === t.name && v.risk < 40) && !scanTools([t]).some(s => s.severity === 'critical' || s.severity === 'high') && !/\b(write|delete|execute|shell|credential|secret|send|upload|payment)\b/i.test(t.name.replace(/_/g,' ')+' '+t.description)).map(t => t.name);
 }
-const TRUSTED_READ_TOOLS = ['read_wiki_structure','read_wiki_contents','ask_question'];
 export function runtimeDestinationAllowed(endpoint:string,name:string):boolean {
-  const url = new URL(endpoint);
-  return url.origin === 'https://mcp.deepwiki.com' && url.pathname === '/mcp' && !url.search && TRUSTED_READ_TOOLS.includes(name);
+  try {
+    const destination=trustedDestination(endpoint);
+    return Boolean(destination?.tools.some(tool=>tool===name));
+  } catch {return false;}
 }
 export function checkCall(tools: McpTool[], approved: string[], name: string, args: Record<string,unknown>): string | null {
   const tool = tools.find(t => t.name === name);

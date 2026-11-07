@@ -1,4 +1,9 @@
 # Roadmap
+- [x] Classify allowed, blocked and review tools in a guardrail dashboard
+- [x] Recheck audit eligibility on every server-side guarded call
+- [x] Configure vetted MCP connections and encrypted per-user tokens
+- [x] Export conservative sanitized definitions without changing source baselines
+- [x] Verify signed-in guardrail flows and policy tests
 - [x] Agent engine on latest Gemini (streaming multi-agent pipeline)
 - [x] Pivot: MCP tool poisoning & agentic guardrails auditor (tool defs JSON/YAML, transcripts, live MCP endpoint URL)
 - [x] Stages: static checks, semantic risk, adversarial fuzzing simulation, blast radius, verdict
@@ -11,5 +16,5 @@
 - [x] Add signed-in access and private durable audit records
 - [x] Add approved tool baselines, change detection and fail-closed runtime enforcement
 - [ ] Support arbitrary MCP destinations — blocked on destination-pinned egress service
-- [ ] Verify signed-in audit, saved history and guarded call end-to-end — blocked on first signed-in account
+- [x] Verify signed-in audit, saved history and guarded call end-to-end
 - [x] Verify security rules, public sign-in UI and mobile layout

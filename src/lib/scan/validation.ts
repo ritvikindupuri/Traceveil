@@ -5,6 +5,7 @@ export const scanRequestSchema = z.object({
   mode: z.enum(['definitions', 'transcript', 'endpoint']),
   input: z.string().trim().min(1).max(400_000),
   token: z.string().max(4096).optional(),
+  connectionId:z.string().uuid().optional(),
 }).strict();
 
 const score = z.number().int().min(0).max(100);

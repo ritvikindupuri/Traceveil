@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       audit_records: {
         Row: {
+          connection_id: string | null
           created_at: string
           endpoint: string | null
           fingerprint: string
@@ -31,6 +32,7 @@ export type Database = {
           verdict: Json
         }
         Insert: {
+          connection_id?: string | null
           created_at?: string
           endpoint?: string | null
           fingerprint: string
@@ -46,6 +48,7 @@ export type Database = {
           verdict: Json
         }
         Update: {
+          connection_id?: string | null
           created_at?: string
           endpoint?: string | null
           fingerprint?: string
@@ -60,7 +63,15 @@ export type Database = {
           user_id?: string
           verdict?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_records_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_usage: {
         Row: {
@@ -117,6 +128,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mcp_connections: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          endpoint: string
+          id: string
+          name: string
+          token_ciphertext: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          endpoint: string
+          id?: string
+          name: string
+          token_ciphertext?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          endpoint?: string
+          id?: string
+          name?: string
+          token_ciphertext?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       tool_approvals: {
         Row: {

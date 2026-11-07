@@ -8,6 +8,13 @@
       "when": 1794066349985,
       "tag": "0000_armorix_private_audits_and_enforcement",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794068748766,
+      "tag": "0001_mcp_connections",
+      "breakpoints": true
     }
   ]
 }
