@@ -32,3 +32,6 @@ use the editor.
 - Authenticated scans stream NDJSON from `/api/scan`; validated results persist as server-written, owner-readable audit records because browser-authored evidence is not trustworthy.
 - Live endpoint audits and runtime calls use a fixed trusted destination allowlist; arbitrary hosts fail closed until destination-pinned egress is available because DNS preflight alone cannot prevent rebinding. Runtime also requires explicit approval, an independent read-tool allowlist, interpreted Worker-safe schema validation and live SHA-256 baseline checks.
 - Audit graphics derive categories and inferred reference edges only from static signals and inventory; model risk stays explicitly separate to avoid implying measured attacks or observed data flow.
+- MCP destination and independent read-tool allowlists share a browser-safe registry; user connection configuration cannot expand network authority, to prevent SSRF and unsafe tool execution.
+- Per-user connection tokens are AES-GCM encrypted server-side, bound to owner and exact endpoint, and never returned to browsers; disabled connections invalidate associated runtime access.
+- Sanitization creates a derived export with change evidence and mandatory re-audit, never mutates audited baselines or grants approval, because definition edits cannot guarantee upstream safety.

@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X } from "lucide-react";
+import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
 import type {User} from '@supabase/supabase-js';
 import {AccountDialog} from '@/components/armorix/AccountDialog';
 import {EnforcementPanel} from '@/components/armorix/EnforcementPanel';
+import {ConnectionsPanel} from '@/components/armorix/ConnectionsPanel';
 import {listAudits} from '@/lib/scan/records.functions';
 import { Logo } from "@/components/armorix/Logo";
 import { AuditVisuals } from "@/components/armorix/AuditVisuals";
@@ -52,6 +53,8 @@ function Index() {
   const [user,setUser] = useState<User|null>(null);
   const [accountOpen,setAccountOpen] = useState(false);
   const [historyOpen,setHistoryOpen] = useState(false);
+  const [connectionsOpen,setConnectionsOpen]=useState(false);
+  const [connectionId,setConnectionId]=useState<string|undefined>();
   const [records,setRecords] = useState<Awaited<ReturnType<typeof listAudits>>>([]);
   const [record,setRecord] = useState<{id:string;fingerprint:string;changed:boolean|null;endpoint:string|null}|null>(null);
   const list = useServerFn(listAudits);
@@ -72,7 +75,7 @@ function Index() {
     void supabase.auth.getUser().then(({data})=>setUser(data.user));
     const {data} = supabase.auth.onAuthStateChange((event,session)=>{
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') setUser(session?.user ?? null);
-      if (event === 'SIGNED_OUT') {ctrl.current?.abort();setRecords([]);setRecord(null);setInv(null);setVerdict(null);setSignals([]);setAgents({});setStage('idle');setHistoryOpen(false);}
+      if (event === 'SIGNED_OUT') {ctrl.current?.abort();setRecords([]);setRecord(null);setInv(null);setVerdict(null);setSignals([]);setAgents({});setStage('idle');setHistoryOpen(false);setToken('');setInput('');setConnectionId(undefined);setConnectionsOpen(false);}
     });
     return ()=>data.subscription.unsubscribe();
   },[]);
@@ -80,6 +83,7 @@ function Index() {
   async function history() {setHistoryOpen(true);try {setRecords(await list());} catch {setError('Could not load audit records');}}
   async function signOut() {ctrl.current?.abort();await queryClient.cancelQueries();queryClient.clear();await supabase.auth.signOut();}
   function openRecord(r:Awaited<ReturnType<typeof listAudits>>[number]) {
+    setToken('');setConnectionId(undefined);
     ctrl.current?.abort();setInv(r.inventory as unknown as Inventory);setSignals(r.signals as unknown as Signal[]);setVerdict(r.verdict as unknown as Verdict);
     const reports = r.reports as Record<string,string>;
     setAgents(Object.fromEntries(Object.entries(reports).map(([k,text])=>[k,{text,done:true,declined:text === '(agent returned no output)'}])));
@@ -101,7 +105,7 @@ function Index() {
     try {
       const {data} = await supabase.auth.getSession();
       if (!data.session) throw new Error('Sign in to audit');
-      const res = await fetch("/api/scan", { method: "POST", headers: { "content-type": "application/json", authorization:`Bearer ${data.session.access_token}` }, body: JSON.stringify({ mode, input, token: mode === "endpoint" ? token : undefined }), signal: ac.signal });
+      const res = await fetch("/api/scan", { method: "POST", headers: { "content-type": "application/json", authorization:`Bearer ${data.session.access_token}` }, body: JSON.stringify({ mode, input, token: mode === "endpoint" && !connectionId ? token : undefined,connectionId:mode==='endpoint'?connectionId:undefined }), signal: ac.signal });
       if (!res.ok || !res.body) throw new Error((await res.json().catch(() => null))?.error ?? `Request failed (${res.status})`);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -145,17 +149,18 @@ function Index() {
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
         <div className="flex items-center gap-1">
-          {user ? <><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
+          {user ? <><Button variant="ghost" size="sm" onClick={()=>setConnectionsOpen(v=>!v)}><Server className="size-3.5"/>Connections</Button><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
         </div>
       </header>
       <AccountDialog open={accountOpen} onOpenChange={setAccountOpen}/>
+      {user&&connectionsOpen&&<ConnectionsPanel onClose={()=>setConnectionsOpen(false)} onSelect={(id,endpoint)=>{if(running)return;setConnectionId(id);setInput(endpoint);setToken('');setMode('endpoint');setConnectionsOpen(false);}}/>}
       {historyOpen && <section className="mx-auto max-w-[1400px] border-b border-border px-5 py-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-medium">Audit history</h2><Button variant="ghost" size="icon" aria-label="Close history" onClick={()=>setHistoryOpen(false)}><X/></Button></div>{records.length === 0?<p className="text-xs text-muted-foreground">No saved audits.</p>:<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{records.map(r=><Button key={r.id} variant="outline" className="h-auto justify-between gap-3 py-3 text-left" onClick={()=>openRecord(r)}><span className="min-w-0 truncate text-xs">{r.source}</span><span className="shrink-0 font-mono text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span></Button>)}</div>}</section>}
 
       <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
         <form onSubmit={scan} className="flex h-fit min-w-0 flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
           <div className="flex border-b border-border">
             {MODES.map((m) => (
-              <Button variant="ghost" key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
+              <Button variant="ghost" key={m.k} type="button" onClick={() => {setMode(m.k);setToken('');setConnectionId(undefined);}} disabled={running}
                 className={cn("h-10 flex-1 rounded-none border-b-2 px-2 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                 {m.l}
               </Button>
@@ -163,9 +168,9 @@ function Index() {
           </div>
           {mode === "endpoint" ? (
             <div className="space-y-2 p-3">
-              <input aria-label="MCP endpoint URL" value={input} onChange={(e) => setInput(e.target.value)} placeholder={ph} spellCheck={false}
+              <input aria-label="MCP endpoint URL" value={input} onChange={(e) => {setInput(e.target.value);setToken('');setConnectionId(undefined);}} placeholder={ph} spellCheck={false}
                 className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
-              <input aria-label="Bearer token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token (optional, not stored)" type="password"
+              <input aria-label="Bearer token" disabled={Boolean(connectionId)} value={token} onChange={(e) => setToken(e.target.value)} placeholder={connectionId?'Saved connection · token held server-side':'Bearer token (optional, not stored)'} type="password"
                 className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
             </div>
           ) : (
