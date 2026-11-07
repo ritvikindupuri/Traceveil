@@ -104,9 +104,6 @@ function Index() {
           <span className="text-[15px] font-semibold">Armorix</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
-        <div role="status" className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className={cn("h-1.5 w-1.5 rounded-full", stage === "error" ? "bg-warning" : "bg-primary")} /> Neural Guardrail Engine · <span className={stage === "error" ? "text-warning" : "text-primary"}>{stage === "error" ? "Attention" : running ? "Analyzing" : "Active"}</span>
-        </div>
       </header>
 
       <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
