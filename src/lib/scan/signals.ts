@@ -29,7 +29,7 @@ export function scanFile(path: string, text: string, limit = 40): Signal[] {
   const lines = text.split("\n");
   const hits: Signal[] = [];
   for (let i = 0; i < lines.length && hits.length < limit; i++) {
-    const line = lines[i];
+    const line = lines[i] ?? "";
     for (const r of RULES) {
       if (r.re.test(line)) {
         hits.push({

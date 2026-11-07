@@ -141,8 +141,8 @@ function Index() {
             {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
             {verdict && <VerdictCard v={verdict} />}
             <div className="grid gap-4 lg:grid-cols-2">
-              <AgentPanel name="Provenance" state={agents.provenance} />
-              <AgentPanel name="Code" state={agents.code} />
+              <AgentPanel name="Provenance" state={agents["provenance"]} />
+              <AgentPanel name="Code" state={agents["code"]} />
             </div>
             {recon && <ReconCard r={recon} />}
             {recon && <SignalTable signals={signals} />}
@@ -223,7 +223,7 @@ function VerdictCard({ v }: { v: Verdict }) {
   );
 }
 
-function AgentPanel({ name, state }: { name: string; state?: { text: string; done: boolean } }) {
+function AgentPanel({ name, state }: { name: string; state: { text: string; done: boolean } | undefined }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">

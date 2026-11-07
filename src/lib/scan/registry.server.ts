@@ -86,7 +86,7 @@ export async function collectEvidence(spec: string): Promise<Evidence> {
     recon: {
       name,
       version: v,
-      previousVersion: prev,
+      previousVersion: prev ?? null,
       publishedAt: doc.time?.[v] ?? null,
       previousPublishedAt: prev ? doc.time[prev] : null,
       totalVersions: ordered.length,
