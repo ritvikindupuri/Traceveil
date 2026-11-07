@@ -1,18 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X } from "lucide-react";
-import {useServerFn} from '@tanstack/react-start';
-import {useQueryClient} from '@tanstack/react-query';
-import {supabase} from '@/integrations/supabase/client';
-import type {User} from '@supabase/supabase-js';
-import {AccountDialog} from '@/components/armorix/AccountDialog';
-import {EnforcementPanel} from '@/components/armorix/EnforcementPanel';
-import {listAudits} from '@/lib/scan/records.functions';
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { ArrowRight, FileJson, Radio, ScrollText, ScanSearch, Swords, Network, ShieldCheck, Fingerprint, Lock, History } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { AccountDialog } from "@/components/armorix/AccountDialog";
 import { Logo } from "@/components/armorix/Logo";
-import { AuditVisuals } from "@/components/armorix/AuditVisuals";
 import { Button } from "@/components/ui/button";
-import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,318 +18,127 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: Index,
+  component: Landing,
 });
 
-type Stage = "idle" | "collect" | "agents" | "verdict" | "done" | "error";
-type AgentState = { text: string; done: boolean; declined?: boolean } | undefined;
-
-const sevClass: Record<Sev, string> = {
-  critical: "text-destructive bg-destructive/10 border-destructive/30",
-  high: "text-warning bg-warning/10 border-warning/30",
-  medium: "text-foreground bg-secondary border-border",
-  low: "text-muted-foreground bg-muted border-border",
-};
-const MODES: { k: Mode; l: string; ph: string }[] = [
-  { k: "definitions", l: "Tool definitions", ph: "Paste tools/list JSON or YAML" },
-  { k: "endpoint", l: "MCP endpoint", ph: "https://mcp.example.com/mcp" },
-  { k: "transcript", l: "Agent transcript", ph: "Paste agent session log / transcript" },
+const INPUTS = [{ i: FileJson, l: "Tool definitions" }, { i: Radio, l: "Live MCP endpoint" }, { i: ScrollText, l: "Agent transcript" }];
+const AGENTS = [{ i: ScanSearch, l: "Semantic risk" }, { i: Swords, l: "Adversarial fuzzing" }, { i: Network, l: "Blast radius" }];
+const FEATURES = [
+  { i: ShieldCheck, t: "Runtime approval", d: "Allowlisted read tools, explicit approval per call." },
+  { i: Fingerprint, t: "Drift detection", d: "SHA-256 baselines block changed tool definitions." },
+  { i: Lock, t: "Fail-closed egress", d: "Trusted destinations only. No private hosts." },
+  { i: History, t: "Private audit trail", d: "Server-written, owner-only records." },
 ];
-const AGENTS = [
-  { k: "semantic", l: "Semantic risk" },
-  { k: "fuzz", l: "Adversarial fuzzing" },
-  { k: "blast", l: "Blast radius" },
-];
+const THREATS = ["Tool poisoning", "Prompt injection", "Shadowing", "Parameter escalation", "Credential scraping", "Exfiltration"];
 
-function Index() {
-  const [user,setUser] = useState<User|null>(null);
-  const [accountOpen,setAccountOpen] = useState(false);
-  const [historyOpen,setHistoryOpen] = useState(false);
-  const [records,setRecords] = useState<Awaited<ReturnType<typeof listAudits>>>([]);
-  const [record,setRecord] = useState<{id:string;fingerprint:string;changed:boolean|null;endpoint:string|null}|null>(null);
-  const list = useServerFn(listAudits);
-  const queryClient = useQueryClient();
-  const [mode, setMode] = useState<Mode>("definitions");
-  const [input, setInput] = useState("");
-  const [token, setToken] = useState("");
-  const [stage, setStage] = useState<Stage>("idle");
-  const [inv, setInv] = useState<Inventory | null>(null);
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [agents, setAgents] = useState<Record<string, AgentState>>({});
-  const [verdict, setVerdict] = useState<Verdict | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const ctrl = useRef<AbortController | null>(null);
-  const running = stage === "collect" || stage === "agents" || stage === "verdict";
-  const started = stage !== "idle" || inv !== null;
-  useEffect(()=>{
-    void supabase.auth.getUser().then(({data})=>setUser(data.user));
-    const {data} = supabase.auth.onAuthStateChange((event,session)=>{
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') setUser(session?.user ?? null);
-      if (event === 'SIGNED_OUT') {ctrl.current?.abort();setRecords([]);setRecord(null);setInv(null);setVerdict(null);setSignals([]);setAgents({});setStage('idle');setHistoryOpen(false);}
+function Landing() {
+  const [user, setUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === "SIGNED_IN") void navigate({ to: "/console" });
     });
-    return ()=>data.subscription.unsubscribe();
-  },[]);
+    return () => data.subscription.unsubscribe();
+  }, [navigate]);
 
-  async function history() {setHistoryOpen(true);try {setRecords(await list());} catch {setError('Could not load audit records');}}
-  async function signOut() {ctrl.current?.abort();await queryClient.cancelQueries();queryClient.clear();await supabase.auth.signOut();}
-  function openRecord(r:Awaited<ReturnType<typeof listAudits>>[number]) {
-    ctrl.current?.abort();setInv(r.inventory as unknown as Inventory);setSignals(r.signals as unknown as Signal[]);setVerdict(r.verdict as unknown as Verdict);
-    const reports = r.reports as Record<string,string>;
-    setAgents(Object.fromEntries(Object.entries(reports).map(([k,text])=>[k,{text,done:true,declined:text === '(agent returned no output)'}])));
-    setRecord({id:r.id,fingerprint:r.fingerprint,changed:null,endpoint:r.endpoint});setStage('done');setError(null);setHistoryOpen(false);
-  }
-  function download() {
-    if (!record || !inv || !verdict) return;
-    const url = URL.createObjectURL(new Blob([JSON.stringify({record,inventory:inv,signals,verdict,agents},null,2)],{type:'application/json'}));
-    const anchor = document.createElement('a');anchor.href=url;anchor.download=`armorix-audit-${record.id}.json`;anchor.click();URL.revokeObjectURL(url);
-  }
-
-  async function scan(e?: React.FormEvent) {
-    e?.preventDefault();
-    if (!input.trim() || running) return;
-    if (!user) {setAccountOpen(true);return;}
-    setRecord(null);setInv(null); setSignals([]); setAgents({}); setVerdict(null); setError(null); setStage("collect");
-    const ac = new AbortController();
-    ctrl.current = ac;
-    try {
-      const {data} = await supabase.auth.getSession();
-      if (!data.session) throw new Error('Sign in to audit');
-      const res = await fetch("/api/scan", { method: "POST", headers: { "content-type": "application/json", authorization:`Bearer ${data.session.access_token}` }, body: JSON.stringify({ mode, input, token: mode === "endpoint" ? token : undefined }), signal: ac.signal });
-      if (!res.ok || !res.body) throw new Error((await res.json().catch(() => null))?.error ?? `Request failed (${res.status})`);
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const l of lines) if (l.trim()) handle(JSON.parse(l));
-      }
-    } catch (err: any) {
-      if (err?.name === "AbortError") { setStage("idle"); return; }
-      setError(err?.message ?? "Scan failed"); setStage("error");
-    }
-  }
-
-  function handle(ev: any) {
-    switch (ev.type) {
-      case "stage": setStage(ev.stage); break;
-      case "evidence": setInv(ev.inventory); setSignals(ev.signals); break;
-      case "agent:start": setAgents((a) => ({ ...a, [ev.agent]: { text: "", done: false } })); break;
-      case "agent:delta": setAgents((a) => ({ ...a, [ev.agent]: { text: (a[ev.agent]?.text ?? "") + ev.text, done: false } })); break;
-      case "agent:end": setAgents((a) => ({ ...a, [ev.agent]: { text: a[ev.agent]?.text ?? "", done: true, declined: Boolean(ev.declined) } })); break;
-      case "verdict": setVerdict(ev); break;
-      case 'record': setRecord({id:ev.id,fingerprint:ev.fingerprint,changed:ev.changed,endpoint:mode === 'endpoint'?input:null}); break;
-      case "done": setStage("done"); break;
-      case "error": setError(ev.message); setStage("error"); break;
-    }
-  }
-
-  const ph = MODES.find((m) => m.k === mode)?.ph ?? "";
+  const cta = user ? (
+    <Button asChild size="lg"><Link to="/console">Open console <ArrowRight className="size-4" /></Link></Button>
+  ) : (
+    <Button size="lg" onClick={() => setOpen(true)}>Sign in <ArrowRight className="size-4" /></Button>
+  );
 
   return (
-    <div className="min-h-screen">
-      <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
-        <div className="flex items-center gap-2.5">
-          <Logo />
-          <span className="text-[15px] font-semibold">Armorix</span>
-          <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {user ? <><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
-        </div>
+    <div className="relative min-h-screen overflow-hidden">
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(var(--foreground)_1px,transparent_1px),linear-gradient(90deg,var(--foreground)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+      <div aria-hidden className="ax-pulse pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+
+      <header className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="flex items-center gap-2.5"><Logo /><span className="text-[15px] font-semibold">Armorix</span></div>
+        {user ? <Button asChild variant="outline" size="sm"><Link to="/console">Console</Link></Button> : <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Sign in</Button>}
       </header>
-      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen}/>
-      {historyOpen && <section className="mx-auto max-w-[1400px] border-b border-border px-5 py-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-medium">Audit history</h2><Button variant="ghost" size="icon" aria-label="Close history" onClick={()=>setHistoryOpen(false)}><X/></Button></div>{records.length === 0?<p className="text-xs text-muted-foreground">No saved audits.</p>:<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{records.map(r=><Button key={r.id} variant="outline" className="h-auto justify-between gap-3 py-3 text-left" onClick={()=>openRecord(r)}><span className="min-w-0 truncate text-xs">{r.source}</span><span className="shrink-0 font-mono text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span></Button>)}</div>}</section>}
 
-      <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
-        <form onSubmit={scan} className="flex h-fit min-w-0 flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
-          <div className="flex border-b border-border">
-            {MODES.map((m) => (
-              <Button variant="ghost" key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
-                className={cn("h-10 flex-1 rounded-none border-b-2 px-2 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                {m.l}
-              </Button>
-            ))}
-          </div>
-          {mode === "endpoint" ? (
-            <div className="space-y-2 p-3">
-              <input aria-label="MCP endpoint URL" value={input} onChange={(e) => setInput(e.target.value)} placeholder={ph} spellCheck={false}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
-              <input aria-label="Bearer token" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token (optional, not stored)" type="password"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-          ) : (
-            <textarea aria-label="Input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={ph} spellCheck={false}
-              className="h-[min(60vh,520px)] resize-none bg-transparent p-3 font-mono text-xs leading-relaxed outline-none placeholder:text-muted-foreground/60" />
-          )}
-          <div className="flex items-center justify-between border-t border-border p-2.5">
-            <span className="pl-1 font-mono text-[10px] text-muted-foreground">{input.length ? `${input.length.toLocaleString()} chars` : ""}</span>
-            {running ? (
-              <Button variant="secondary" size="sm" type="button" onClick={() => ctrl.current?.abort()}>
-                <Square className="h-3 w-3" /> Stop
-              </Button>
-            ) : (
-              <Button size="sm" type="submit" disabled={!input.trim()}>
-                Audit <ArrowRight className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </form>
+      <main className="relative mx-auto max-w-6xl px-6">
+        <section className="flex flex-col items-center pb-14 pt-16 text-center sm:pt-24">
+          <div className="ax-rise"><Logo className="h-16 w-16 drop-shadow-[0_0_24px_color-mix(in_oklab,var(--primary)_45%,transparent)]" /></div>
+          <h1 className="ax-rise mt-8 max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl" style={{ animationDelay: ".08s" }}>
+            Audit tools before <span className="text-primary">agents trust them.</span>
+          </h1>
+          <p className="ax-rise mt-5 max-w-xl text-muted-foreground" style={{ animationDelay: ".16s" }}>
+            Agentic security for MCP servers and agent sessions.
+          </p>
+          <div className="ax-rise mt-8" style={{ animationDelay: ".24s" }}>{cta}</div>
+        </section>
 
-        <div className="min-w-0 space-y-4">
-          {!started && (
-            <div className="flex h-[min(60vh,560px)] flex-col items-center justify-center rounded-lg border border-dashed border-border text-center">
-              <Logo className="h-10 w-10 opacity-80" />
-              <div className="mt-4 text-lg font-medium tracking-tight">Audit tools before agents trust them.</div>
-              <div className="mt-1 text-xs text-muted-foreground">Poisoning · injection · shadowing · escalation · exfiltration</div>
+        <section className="ax-rise rounded-xl border border-border bg-card/60 p-4 backdrop-blur sm:p-8" style={{ animationDelay: ".32s" }}>
+          <Flow />
+        </section>
+
+        <section className="mt-6 flex flex-wrap justify-center gap-2">
+          {THREATS.map((t, i) => (
+            <span key={t} className="ax-rise rounded-full border border-border bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground" style={{ animationDelay: `${0.4 + i * 0.05}s` }}>{t}</span>
+          ))}
+        </section>
+
+        <section className="grid gap-px overflow-hidden rounded-xl border border-border bg-border my-16 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((f, i) => (
+            <div key={f.t} className="ax-rise group bg-card p-6 transition-colors hover:bg-secondary" style={{ animationDelay: `${0.5 + i * 0.07}s` }}>
+              <f.i className="size-5 text-primary transition-transform group-hover:-translate-y-0.5" />
+              <div className="mt-4 text-sm font-medium">{f.t}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{f.d}</div>
             </div>
-          )}
-          {started && <Pipeline stage={stage} inv={inv} />}
-          {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
-          {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
-          {verdict && <VerdictCard v={verdict} />}
-          {record && <div className="min-w-0 border-y border-border py-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved audit</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><div className="truncate font-mono text-[10px] text-muted-foreground" title={record.fingerprint}>SHA-256 · {record.fingerprint}</div><EnforcementPanel key={record.id} id={record.id} endpoint={record.endpoint} token={token}/></div>}
-          {started && (
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
-              {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}
-            </div>
-          )}
-          {inv && <SignalTable signals={signals} />}
-        </div>
+          ))}
+        </section>
+
+        <section className="mb-20 flex flex-col items-center gap-5 text-center">
+          <div className="text-2xl font-semibold tracking-tight">Run your first audit.</div>
+          {cta}
+        </section>
       </main>
+
+      <footer className="relative border-t border-border py-6 text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Armorix</footer>
+      <AccountDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }
 
-function Pipeline({ stage, inv }: { stage: Stage; inv: Inventory | null }) {
-  const steps = ["Ingest", "Analyze", "Decide"];
-  const order = ["collect", "agents", "verdict", "done"];
-  const cur = order.indexOf(stage);
+function Node({ icon: I, label, accent }: { icon: typeof FileJson; label: string; accent?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex min-w-0 items-center gap-4 font-mono text-xs">
-        <span className="truncate">{inv?.server ?? inv?.source ?? "…"}</span>
-        {inv && <span className="text-muted-foreground">{inv.tools.length} tools{inv.transcriptChars ? ` · ${inv.transcriptChars.toLocaleString()} chars` : ""}</span>}
-      </div>
-      <div className="flex items-center gap-5">
-        {steps.map((s, i) => {
-          const done = cur > i || stage === "done";
-          const active = cur === i;
-          return (
-            <div key={s} className={cn("flex items-center gap-1.5 text-xs", done ? "text-foreground" : active ? "text-primary" : "text-muted-foreground")}>
-              {done ? <Check className="h-3.5 w-3.5 text-primary" /> : active && stage !== "error" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Circle className="h-3 w-3" />}
-              {s}
-            </div>
-          );
-        })}
-      </div>
+    <div className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-xs ${accent ? "border-primary/40 bg-primary/10 text-foreground" : "border-border bg-background/60 text-muted-foreground"}`}>
+      <I className={`size-4 shrink-0 ${accent ? "text-primary" : ""}`} />
+      <span className="truncate">{label}</span>
     </div>
   );
 }
 
-const riskBar = (r: number) => (r >= 70 ? "bg-destructive" : r >= 40 ? "bg-warning" : "bg-success");
-
-function VerdictCard({ v }: { v: Verdict }) {
-  const tone = v.verdict === "block" ? "text-destructive" : v.verdict === "review" ? "text-warning" : "text-success";
+function Wire() {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
-        <div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Verdict</div>
-          <div className={cn("text-2xl font-semibold uppercase tracking-tight", tone)}>{v.verdict}</div>
-        </div>
-        <div className="w-36">
-          <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><span>Risk</span><span>{v.risk}</span></div>
-          <div className="mt-2 h-1.5 rounded-full bg-muted"><div className={cn("h-full rounded-full", riskBar(v.risk))} style={{ width: `${Math.min(100, Math.max(0, v.risk))}%` }} /></div>
-        </div>
-        <p className="min-w-[240px] flex-1 text-sm text-muted-foreground">{v.summary}</p>
-      </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-px bg-border xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="bg-card p-4">
-          <ul className="space-y-3">
-            {(v.findings ?? []).map((f, i) => (
-              <li key={i} className="flex gap-3">
-                <span className={cn("mt-0.5 h-fit rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase", sevClass[f.severity] ?? sevClass.low)}>{f.severity}</span>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{f.title}</div>
-                  <div className="text-sm text-muted-foreground">{f.detail}</div>
-                  {f.evidence && <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/80">{f.evidence}</div>}
-                </div>
-              </li>
-            ))}
-            {(v.findings ?? []).length === 0 && <li className="text-sm text-muted-foreground">No findings.</li>}
-          </ul>
-        </div>
-        <div className="space-y-5 bg-card p-4">
-          {(v.tools ?? []).length > 0 && (
-            <div>
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Tool risk</div>
-              <ul className="space-y-1.5">
-                {v.tools.map((t) => (
-                  <li key={t.tool} className="grid grid-cols-[1fr_60px_24px] items-center gap-2 text-xs">
-                    <span className="truncate font-mono" title={t.class}>{t.tool}</span>
-                    <span className="h-1 rounded-full bg-muted"><span className={cn("block h-full rounded-full", riskBar(t.risk))} style={{ width: `${t.risk}%` }} /></span>
-                    <span className="text-right font-mono text-muted-foreground">{t.risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div>
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Guardrails</div>
-            <ol className="space-y-2 text-xs">
-              {(v.guardrails ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="font-mono text-muted-foreground">{i + 1}</span>{a}</li>)}
-            </ol>
-          </div>
-        </div>
-      </div>
-    </section>
+    <svg aria-hidden viewBox="0 0 60 120" preserveAspectRatio="none" className="hidden h-full w-full md:block">
+      {[20, 60, 100].map((y) => <path key={y} d={`M0 ${y} C30 ${y} 30 60 60 60`} fill="none" stroke="var(--primary)" strokeOpacity=".6" strokeWidth="1.2" className="ax-flow" vectorEffect="non-scaling-stroke" />)}
+    </svg>
   );
 }
 
-function AgentPanel({ name, state }: { name: string; state: AgentState }) {
+function Flow() {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <span className="text-xs font-medium">{name}</span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span>
+    <div className="grid items-center gap-4 md:grid-cols-[1fr_48px_1fr_48px_1fr_48px_auto]">
+      <div className="space-y-2">{INPUTS.map((n) => <Node key={n.l} icon={n.i} label={n.l} />)}</div>
+      <Wire />
+      <div className="relative flex flex-col items-center justify-center rounded-lg border border-border bg-background/60 p-4 text-center">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Static signals</div>
+        <div className="mt-3 flex gap-1">{Array.from({ length: 8 }).map((_, i) => <span key={i} className="ax-pulse h-6 w-1.5 rounded-full bg-primary/70" style={{ animationDelay: `${i * 0.15}s` }} />)}</div>
       </div>
-      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap break-words p-4 text-[12px] leading-relaxed text-muted-foreground">
-        {state?.declined && <span className="text-warning">Model declined this analysis. Verdict uses the other agents.</span>}
-        {state?.text || (state && !state.done ? <span className="inline-block h-3.5 w-1.5 animate-pulse bg-primary" /> : null)}
-      </div>
-    </section>
-  );
-}
-
-function SignalTable({ signals }: { signals: Signal[] }) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <span className="text-xs font-medium">Static signals</span>
-        <span className="font-mono text-xs text-muted-foreground">{signals.length}</span>
-      </div>
-      {signals.length === 0 ? (
-        <div className="px-4 py-5 text-xs text-muted-foreground">No matches.</div>
-      ) : (
-        <div className="max-h-96 overflow-auto">
-          <table className="w-full text-left text-xs">
-            <tbody>
-              {signals.map((s, i) => (
-                <tr key={i} className="border-b border-border last:border-0">
-                  <td className="w-20 px-4 py-2"><span className={cn("rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase", sevClass[s.severity])}>{s.severity}</span></td>
-                  <td className="w-52 px-2 py-2">{s.label}</td>
-                  <td className="w-48 truncate px-2 py-2 font-mono text-muted-foreground">{s.target}</td>
-                  <td className="max-w-0 truncate px-2 py-2 pr-4 font-mono text-muted-foreground/80">{s.excerpt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Wire />
+      <div className="space-y-2">{AGENTS.map((n) => <Node key={n.l} icon={n.i} label={n.l} accent />)}</div>
+      <Wire />
+      <div className="flex flex-col items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-5 py-4">
+        <Logo className="h-8 w-8" />
+        <div className="flex gap-1 font-mono text-[10px] uppercase">
+          <span className="text-success">allow</span><span className="text-muted-foreground">·</span><span className="text-warning">review</span><span className="text-muted-foreground">·</span><span className="text-destructive">block</span>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }

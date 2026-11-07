@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConsoleRouteImport } from './routes/console'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ApiGuardRouteImport } from './routes/api/guard'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
@@ -17,6 +18,11 @@ import { Route as ApiScanRouteImport } from './routes/api/scan'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsoleRoute = ConsoleRouteImport.update({
+  id: '/console',
+  path: '/console',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -37,12 +43,14 @@ const ApiScanRoute = ApiScanRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
@@ -50,20 +58,28 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/console': typeof ConsoleRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/reset-password' | '/api/guard' | '/api/scan'
+  fullPaths: '/' | '/console' | '/reset-password' | '/api/guard' | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reset-password' | '/api/guard' | '/api/scan'
-  id: '__root__' | '/' | '/reset-password' | '/api/guard' | '/api/scan'
+  to: '/' | '/console' | '/reset-password' | '/api/guard' | '/api/scan'
+  id:
+    | '__root__'
+    | '/'
+    | '/console'
+    | '/reset-password'
+    | '/api/guard'
+    | '/api/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConsoleRoute: typeof ConsoleRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiGuardRoute: typeof ApiGuardRoute
   ApiScanRoute: typeof ApiScanRoute
@@ -76,6 +92,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/console': {
+      id: '/console'
+      path: '/console'
+      fullPath: '/console'
+      preLoaderRoute: typeof ConsoleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -104,6 +127,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConsoleRoute: ConsoleRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiGuardRoute: ApiGuardRoute,
   ApiScanRoute: ApiScanRoute,
