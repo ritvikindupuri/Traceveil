@@ -36,7 +36,7 @@ function Landing() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    void supabase.auth.getUser().then(({ data }) => { setUser(data.user); if (data.user) void navigate({ to: "/console", replace: true }); });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (event === "SIGNED_IN") void navigate({ to: "/console" });
@@ -57,7 +57,6 @@ function Landing() {
 
       <header className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <div className="flex items-center gap-2.5"><Logo /><span className="text-[15px] font-semibold">Armorix</span></div>
-        {user ? <Button asChild variant="outline" size="sm"><Link to="/console">Console</Link></Button> : <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Sign in</Button>}
       </header>
 
       <main className="relative mx-auto max-w-6xl px-6">
@@ -92,10 +91,7 @@ function Landing() {
           ))}
         </section>
 
-        <section className="mb-20 flex flex-col items-center gap-5 text-center">
-          <div className="text-2xl font-semibold tracking-tight">Run your first audit.</div>
-          {cta}
-        </section>
+        <div className="mb-20" />
       </main>
 
       <footer className="relative border-t border-border py-6 text-center font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Armorix</footer>
