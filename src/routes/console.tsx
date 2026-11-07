@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown } from "lucide-react";
+import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import type {User} from '@supabase/supabase-js';
 import {AccountDialog} from '@/components/armorix/AccountDialog';
 import {EnforcementPanel} from '@/components/armorix/EnforcementPanel';
 import {ConnectionsPanel} from '@/components/armorix/ConnectionsPanel';
+import {PolicyBuilder} from '@/components/armorix/PolicyBuilder';
 import {listAudits} from '@/lib/scan/records.functions';
 import { Logo } from "@/components/armorix/Logo";
 import { AuditVisuals } from "@/components/armorix/AuditVisuals";
@@ -54,6 +55,8 @@ function Index() {
   const [accountOpen,setAccountOpen] = useState(false);
   const [historyOpen,setHistoryOpen] = useState(false);
   const [connectionsOpen,setConnectionsOpen]=useState(false);
+  const [policyOpen,setPolicyOpen]=useState(false);
+  const [policyEpoch,setPolicyEpoch]=useState(0);
   const [connectionId,setConnectionId]=useState<string|undefined>();
   const [records,setRecords] = useState<Awaited<ReturnType<typeof listAudits>>>([]);
   const [record,setRecord] = useState<{id:string;fingerprint:string;changed:boolean|null;endpoint:string|null}|null>(null);
@@ -149,10 +152,11 @@ function Index() {
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
         <div className="flex items-center gap-1">
-          {user ? <><Button variant="ghost" size="sm" onClick={()=>setConnectionsOpen(v=>!v)}><Server className="size-3.5"/>Connections</Button><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
+          {user ? <><Button variant="ghost" size="sm" onClick={()=>setPolicyOpen(v=>!v)}><SlidersHorizontal className="size-3.5"/>Policy</Button><Button variant="ghost" size="sm" onClick={()=>setConnectionsOpen(v=>!v)}><Server className="size-3.5"/>Connections</Button><Button variant="ghost" size="sm" onClick={history}><History className="size-3.5"/>Audit history</Button><Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={signOut}><LogOut className="size-4"/></Button></>:<Button variant="outline" size="sm" onClick={()=>setAccountOpen(true)}>Sign in</Button>}
         </div>
       </header>
       <AccountDialog open={accountOpen} onOpenChange={setAccountOpen}/>
+      {user&&policyOpen&&<PolicyBuilder key={user.id} onClose={()=>setPolicyOpen(false)} onSaved={()=>setPolicyEpoch(v=>v+1)} endpoint={record?.endpoint??null} verdict={verdict}/>}
       {user&&connectionsOpen&&<ConnectionsPanel onClose={()=>setConnectionsOpen(false)} onSelect={(id,endpoint)=>{if(running)return;setConnectionId(id);setInput(endpoint);setToken('');setMode('endpoint');setConnectionsOpen(false);}}/>}
       {historyOpen && <section className="mx-auto max-w-[1400px] border-b border-border px-5 py-4"><div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-medium">Audit history</h2><Button variant="ghost" size="icon" aria-label="Close history" onClick={()=>setHistoryOpen(false)}><X/></Button></div>{records.length === 0?<p className="text-xs text-muted-foreground">No saved audits.</p>:<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{records.map(r=><Button key={r.id} variant="outline" className="h-auto justify-between gap-3 py-3 text-left" onClick={()=>openRecord(r)}><span className="min-w-0 truncate text-xs">{r.source}</span><span className="shrink-0 font-mono text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span></Button>)}</div>}</section>}
 
@@ -203,7 +207,7 @@ function Index() {
           {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
-          {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={record.id} id={record.id} endpoint={record.endpoint} token={token}/></div>}
+          {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={`${record.id}-${policyEpoch}`} id={record.id} endpoint={record.endpoint} token={token}/></div>}
           {started && (
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
               {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}
