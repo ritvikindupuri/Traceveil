@@ -1,4 +1,7 @@
 # Roadmap
+- [ ] Add saved host/tool/risk policies and per-call guard decisions
+- [ ] Verify policy saving, denial and approved forwarding with real audits
+- [ ] Configure fixed-IP destination-pinned egress — requires an external provisioned service
 - [x] Reduce audit text density with expandable evidence and compact tool states
 - [x] Classify allowed, blocked and review tools in a guardrail dashboard
 - [x] Recheck audit eligibility on every server-side guarded call

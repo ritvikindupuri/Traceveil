@@ -1,0 +1,19 @@
+import {describe,it,expect} from 'vitest';
+import {defaultRuntimePolicy,evaluateRuntimePolicy,runtimePolicySchema} from './runtime-policy';
+import type {Verdict} from './types';
+const endpoint='https://mcp.deepwiki.com/mcp';
+const name='read_wiki_structure';
+const verdict:Verdict={verdict:'allow',risk:20,summary:'',tools:[{tool:name,risk:15,class:'read-public'}],findings:[],guardrails:[]};
+describe('Pre-call policy decisions',()=>{
+ it('allows a matching host and tool within both thresholds',()=>expect(evaluateRuntimePolicy(defaultRuntimePolicy(),endpoint,name,verdict)).toBeNull());
+ it('blocks a host outside the saved host list',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),hosts:['learn.microsoft.com']},endpoint,name,verdict)).toBe('Host denied by policy'));
+ it('blocks a tool outside the saved tool list',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),tools:[]},endpoint,name,verdict)).toBe('Tool denied by policy'));
+ it('blocks tool risk above its configured threshold',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),maxToolRisk:14},endpoint,name,verdict)).toBe('Tool risk exceeds policy threshold'));
+ it('blocks audit risk above its configured threshold',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),maxAuditRisk:19},endpoint,name,verdict)).toBe('Audit risk exceeds policy threshold'));
+ it('accepts a score equal to the configured maximum',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),maxToolRisk:15,maxAuditRisk:20},endpoint,name,verdict)).toBeNull());
+ it('blocks all forwarding when disabled',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),enabled:false},endpoint,name,verdict)).toBe('Runtime forwarding disabled by policy'));
+ it('blocks a review verdict regardless of thresholds',()=>expect(evaluateRuntimePolicy({...defaultRuntimePolicy(),maxToolRisk:100,maxAuditRisk:100},endpoint,name,{...verdict,verdict:'review'})).toBe('Audit requires review or is blocked'));
+ it('blocks unscored tools',()=>expect(evaluateRuntimePolicy(defaultRuntimePolicy(),endpoint,name,{...verdict,tools:[]})).toBe('Tool risk unavailable'));
+ it('rejects wildcards and URLs in hostname policy',()=>{expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),hosts:['*.deepwiki.com']}).success).toBe(false);expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),hosts:[endpoint]}).success).toBe(false);});
+ it('rejects thresholds outside 0–100',()=>expect(runtimePolicySchema.safeParse({...defaultRuntimePolicy(),maxToolRisk:101}).success).toBe(false));
+});
