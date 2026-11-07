@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowRight, Loader2, Square, Check, Circle } from "lucide-react";
-import { Logo } from "@/components/vigil/Logo";
+import { Logo } from "@/components/armorix/Logo";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Vigil — MCP tool poisoning & agent guardrails" },
+      { title: "Armorix — MCP tool poisoning & agent guardrails" },
       { name: "description", content: "Audit MCP tool definitions, live MCP servers and agent transcripts for prompt injection, tool poisoning and exfiltration." },
-      { property: "og:title", content: "Vigil — MCP tool poisoning & agent guardrails" },
+      { property: "og:title", content: "Armorix — MCP tool poisoning & agent guardrails" },
       { property: "og:description", content: "Agentic audits of MCP servers and agent transcripts for injection, poisoning and exfiltration." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -99,7 +99,7 @@ function Index() {
       <header className="flex h-12 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-2.5">
           <Logo />
-          <span className="text-[15px] font-semibold tracking-tight">Vigil</span>
+          <span className="text-[15px] font-semibold tracking-tight">Armorix</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
         <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
