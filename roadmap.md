@@ -1,7 +1,7 @@
 # Roadmap
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits
-- [ ] Configure fixed-IP destination-pinned egress — requires an external provisioned service
+- [ ] Provision secure fixed-IP egress and connect custom-host audits — awaiting AWS resource inspection and paid-infrastructure approval
 - [x] Reduce audit text density with expandable evidence and compact tool states
 - [x] Classify allowed, blocked and review tools in a guardrail dashboard
 - [x] Recheck audit eligibility on every server-side guarded call
