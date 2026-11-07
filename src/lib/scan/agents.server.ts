@@ -44,7 +44,7 @@ async function runAgent(
 }
 
 export async function runScan(spec: string, emit: Emit, signal: AbortSignal) {
-  const key = process.env.LOVABLE_API_KEY;
+  const key = process.env["LOVABLE_API_KEY"];
   if (!key) throw new Error("AI key not configured");
   const gateway = createLovableAiGatewayProvider(key, undefined, { baseURL: "https://ai.gateway.lovable.dev/v1" });
 

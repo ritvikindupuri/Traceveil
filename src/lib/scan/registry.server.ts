@@ -58,7 +58,7 @@ export async function collectEvidence(spec: string): Promise<Evidence> {
   const scriptRefs = new Set<string>();
   for (const k of LIFECYCLE) {
     const cmd = scripts[k];
-    if (cmd) for (const m of cmd.matchAll(/([\w./-]+\.(?:c?js|mjs|sh|ts))/g)) scriptRefs.add(m[1].replace(/^\.\//, ""));
+    if (cmd) for (const m of cmd.matchAll(/([\w./-]+\.(?:c?js|mjs|sh|ts))/g)) scriptRefs.add((m[1] ?? "").replace(/^\.\//, ""));
   }
 
   const signals: Signal[] = [];
