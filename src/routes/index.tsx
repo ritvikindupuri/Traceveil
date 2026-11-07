@@ -109,8 +109,8 @@ function Index() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1400px] gap-4 p-5 lg:grid-cols-[420px_1fr]">
-        <form onSubmit={scan} className="flex h-fit flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
+      <main className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-4 p-5 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <form onSubmit={scan} className="flex h-fit min-w-0 flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
           <div className="flex border-b border-border">
             {MODES.map((m) => (
               <Button variant="ghost" key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
@@ -157,7 +157,7 @@ function Index() {
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
           {started && (
-            <div className="grid gap-4 xl:grid-cols-3">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
               {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}
             </div>
           )}
@@ -199,7 +199,7 @@ const riskBar = (r: number) => (r >= 70 ? "bg-destructive" : r >= 40 ? "bg-warni
 function VerdictCard({ v }: { v: Verdict }) {
   const tone = v.verdict === "block" ? "text-destructive" : v.verdict === "review" ? "text-warning" : "text-success";
   return (
-    <section className="rounded-lg border border-border bg-card">
+    <section className="min-w-0 rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Verdict</div>
@@ -211,7 +211,7 @@ function VerdictCard({ v }: { v: Verdict }) {
         </div>
         <p className="min-w-[240px] flex-1 text-sm text-muted-foreground">{v.summary}</p>
       </div>
-      <div className="grid gap-px bg-border xl:grid-cols-[1fr_300px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-px bg-border xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="bg-card p-4">
           <ul className="space-y-3">
             {(v.findings ?? []).map((f, i) => (
@@ -256,12 +256,12 @@ function VerdictCard({ v }: { v: Verdict }) {
 
 function AgentPanel({ name, state }: { name: string; state: AgentState }) {
   return (
-    <section className="rounded-lg border border-border bg-card">
+    <section className="min-w-0 rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <span className="text-xs font-medium">{name}</span>
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span>
       </div>
-      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-muted-foreground">
+      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap break-words p-4 text-[12px] leading-relaxed text-muted-foreground">
         {state?.declined && <span className="text-warning">Model declined this analysis. Verdict uses the other agents.</span>}
         {state?.text || (state && !state.done ? <span className="inline-block h-3.5 w-1.5 animate-pulse bg-primary" /> : null)}
       </div>
