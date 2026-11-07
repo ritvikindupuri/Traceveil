@@ -6,3 +6,8 @@
 - [x] Refresh Armorix logo and engine status
 - [x] Add evidence-driven interactive topology and threat gauges
 - [x] Verify real audit flow and mobile graphics
+- [ ] Balance charcoal theme and improve contrast
+- [ ] Harden endpoint fetching and validate model verdicts
+- [ ] Add signed-in access and private durable audit records
+- [ ] Add approved tool baselines, change detection and fail-closed runtime enforcement
+- [ ] Verify security rules and signed-in end-to-end flows
