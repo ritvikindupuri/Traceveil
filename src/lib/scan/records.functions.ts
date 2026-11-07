@@ -47,5 +47,6 @@ export const sanitizeAudit=createServerFn({method:'POST'}).middleware([requireSu
   const {data:record,error}=await context.supabase.from('audit_records').select('tools,fingerprint').eq('id',data.id).eq('user_id',context.userId).single();
   if(error||!record)throw new Error('Audit not found');
   const {sanitizeDefinitions}=await import('./guardrails');
-  return {...sanitizeDefinitions(record.tools as unknown as import('./types').McpTool[]),sourceAuditId:data.id,sourceFingerprint:record.fingerprint};
+  const result=sanitizeDefinitions(record.tools as unknown as import('./types').McpTool[]);
+  return {...result,tools:JSON.parse(JSON.stringify(result.tools)) as import('@/integrations/supabase/types').Json,sourceAuditId:data.id,sourceFingerprint:record.fingerprint};
 });

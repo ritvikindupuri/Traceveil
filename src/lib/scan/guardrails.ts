@@ -31,18 +31,18 @@ export function sanitizeDefinitions(tools:McpTool[]) {
         delete copy[key];changes.push({tool,path:`${path}.${key}`,action:'removed unsafe annotation'});
       }
     }
-    if (copy.properties && typeof copy.properties === 'object' && !Array.isArray(copy.properties)) {
-      const props = copy.properties as Record<string,unknown>;
+    if (copy['properties'] && typeof copy['properties'] === 'object' && !Array.isArray(copy['properties'])) {
+      const props = copy['properties'] as Record<string,unknown>;
       for (const [key,value] of Object.entries(props)) {
         const signals = scanTools([{name:tool,description:'',inputSchema:{type:'object',properties:{[key]:value}}}]);
         if (signals.some(s=>s.severity === 'critical'||s.severity === 'high')) {
-          delete props[key];if(Array.isArray(copy.required))copy.required=copy.required.filter(k=>k!==key);
+          delete props[key];if(Array.isArray(copy['required']))copy['required']=copy['required'].filter(k=>k!==key);
           changes.push({tool,path:`${path}.${key}`,action:'removed flagged parameter'});
         } else props[key]=cleanSchema(tool,value,`${path}.${key}`);
       }
-      copy.additionalProperties=false;
+      copy['additionalProperties']=false;
     }
-    if(copy.items)copy.items=cleanSchema(tool,copy.items,`${path}[]`);
+    if(copy['items'])copy['items']=cleanSchema(tool,copy['items'],`${path}[]`);
     return copy;
   }
   const sanitized:McpTool[]=[];
