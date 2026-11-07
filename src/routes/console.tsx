@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server } from "lucide-react";
+import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
@@ -203,13 +203,13 @@ function Index() {
           {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
-          {record && <div className="min-w-0 border-y border-border py-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved audit</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><div className="truncate font-mono text-[10px] text-muted-foreground" title={record.fingerprint}>SHA-256 · {record.fingerprint}</div><EnforcementPanel key={record.id} id={record.id} endpoint={record.endpoint} token={token}/></div>}
+          {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={record.id} id={record.id} endpoint={record.endpoint} token={token}/></div>}
           {started && (
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
               {AGENTS.map((a) => <AgentPanel key={a.k} name={a.l} state={agents[a.k]} />)}
             </div>
           )}
-          {inv && <SignalTable signals={signals} />}
+          {inv && <details className="group border-t border-border"><summary className="flex cursor-pointer list-none items-center justify-between py-3 text-xs text-muted-foreground">Static evidence · {signals.length}<ChevronDown className="size-3.5 transition-transform group-open:rotate-180"/></summary><SignalTable signals={signals} /></details>}
         </div>
       </main>
     </div>
@@ -247,7 +247,7 @@ const riskBar = (r: number) => (r >= 70 ? "bg-destructive" : r >= 40 ? "bg-warni
 function VerdictCard({ v }: { v: Verdict }) {
   const tone = v.verdict === "block" ? "text-destructive" : v.verdict === "review" ? "text-warning" : "text-success";
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-card">
+    <section className="min-w-0 border-y border-border">
       <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Verdict</div>
@@ -257,25 +257,21 @@ function VerdictCard({ v }: { v: Verdict }) {
           <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><span>Risk</span><span>{v.risk}</span></div>
           <div className="mt-2 h-1.5 rounded-full bg-muted"><div className={cn("h-full rounded-full", riskBar(v.risk))} style={{ width: `${Math.min(100, Math.max(0, v.risk))}%` }} /></div>
         </div>
-        <p className="min-w-[240px] flex-1 text-sm text-muted-foreground">{v.summary}</p>
+        <div className="ml-auto text-right"><div className="font-mono text-xl">{v.findings?.length ?? 0}</div><div className="text-[10px] text-muted-foreground">Findings</div></div>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-px bg-border xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="bg-card p-4">
-          <ul className="space-y-3">
+      <details className="group border-b border-border"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-xs text-muted-foreground">Assessment<ChevronDown className="size-3.5 transition-transform group-open:rotate-180"/></summary><p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground">{v.summary}</p></details>
+      <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_240px]">
+        <div className="px-4 py-2">
+          <ul className="divide-y divide-border">
             {(v.findings ?? []).map((f, i) => (
-              <li key={i} className="flex gap-3">
-                <span className={cn("mt-0.5 h-fit rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase", sevClass[f.severity] ?? sevClass.low)}>{f.severity}</span>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{f.title}</div>
-                  <div className="text-sm text-muted-foreground">{f.detail}</div>
-                  {f.evidence && <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/80">{f.evidence}</div>}
-                </div>
+              <li key={i}>
+                <details className="group/finding"><summary className="flex cursor-pointer list-none items-center gap-3 py-3"><span className={cn("shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase", sevClass[f.severity] ?? sevClass.low)}>{f.severity}</span><span className="min-w-0 flex-1 text-xs font-medium">{f.title}</span><ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/finding:rotate-180"/></summary><div className="pb-3 text-xs leading-relaxed text-muted-foreground">{f.detail}{f.evidence && <div className="mt-2 break-words font-mono text-[11px]">{f.evidence}</div>}</div></details>
               </li>
             ))}
             {(v.findings ?? []).length === 0 && <li className="text-sm text-muted-foreground">No findings.</li>}
           </ul>
         </div>
-        <div className="space-y-5 bg-card p-4">
+        <div className="space-y-4 border-t border-border p-4 xl:border-t-0 xl:border-l">
           {(v.tools ?? []).length > 0 && (
             <div>
               <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Tool risk</div>
@@ -290,12 +286,12 @@ function VerdictCard({ v }: { v: Verdict }) {
               </ul>
             </div>
           )}
-          <div>
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Guardrails</div>
-            <ol className="space-y-2 text-xs">
+          <details className="group/guardrails">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-xs text-muted-foreground">Recommendations · {v.guardrails?.length ?? 0}<ChevronDown className="size-3.5 transition-transform group-open/guardrails:rotate-180"/></summary>
+            <ol className="mt-3 space-y-2 text-xs">
               {(v.guardrails ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="font-mono text-muted-foreground">{i + 1}</span>{a}</li>)}
             </ol>
-          </div>
+          </details>
         </div>
       </div>
     </section>
@@ -304,16 +300,16 @@ function VerdictCard({ v }: { v: Verdict }) {
 
 function AgentPanel({ name, state }: { name: string; state: AgentState }) {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+    <details className="group min-w-0 border-y border-border">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-1 py-3">
         <span className="text-xs font-medium">{name}</span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span>
-      </div>
-      <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap break-words p-4 text-[12px] leading-relaxed text-muted-foreground">
+        <span className="ml-auto font-mono text-[10px] uppercase text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span><ChevronDown className="size-3.5 text-muted-foreground transition-transform group-open:rotate-180"/>
+      </summary>
+      <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words pb-4 text-[12px] leading-relaxed text-muted-foreground">
         {state?.declined && <span className="text-warning">Model declined this analysis. Verdict uses the other agents.</span>}
         {state?.text || (state && !state.done ? <span className="inline-block h-3.5 w-1.5 animate-pulse bg-primary" /> : null)}
       </div>
-    </section>
+    </details>
   );
 }
 

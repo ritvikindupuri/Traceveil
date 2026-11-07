@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Reduce audit text density with expandable evidence and compact tool states
 - [x] Classify allowed, blocked and review tools in a guardrail dashboard
 - [x] Recheck audit eligibility on every server-side guarded call
 - [x] Configure vetted MCP connections and encrypted per-user tokens
