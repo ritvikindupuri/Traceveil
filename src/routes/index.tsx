@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Stage = "idle" | "collect" | "agents" | "verdict" | "done" | "error";
-type AgentState = { text: string; done: boolean } | undefined;
+type AgentState = { text: string; done: boolean; declined?: boolean } | undefined;
 
 const sevClass: Record<Sev, string> = {
   critical: "text-destructive bg-destructive/10 border-destructive/30",
@@ -85,7 +85,7 @@ function Index() {
       case "evidence": setInv(ev.inventory); setSignals(ev.signals); break;
       case "agent:start": setAgents((a) => ({ ...a, [ev.agent]: { text: "", done: false } })); break;
       case "agent:delta": setAgents((a) => ({ ...a, [ev.agent]: { text: (a[ev.agent]?.text ?? "") + ev.text, done: false } })); break;
-      case "agent:end": setAgents((a) => ({ ...a, [ev.agent]: { text: a[ev.agent]?.text ?? "", done: true } })); break;
+      case "agent:end": setAgents((a) => ({ ...a, [ev.agent]: { text: a[ev.agent]?.text ?? "", done: true, declined: Boolean(ev.declined) } })); break;
       case "verdict": setVerdict(ev); break;
       case "done": setStage("done"); break;
       case "error": setError(ev.message); setStage("error"); break;
@@ -256,9 +256,10 @@ function AgentPanel({ name, state }: { name: string; state: AgentState }) {
     <section className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <span className="text-xs font-medium">{name}</span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.done ? "complete" : "running"}</span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{!state ? "queued" : state.declined ? "declined" : state.done ? "complete" : "running"}</span>
       </div>
       <div className="max-h-80 min-h-[140px] overflow-auto whitespace-pre-wrap p-4 text-[12px] leading-relaxed text-muted-foreground">
+        {state?.declined && <span className="text-warning">Model declined this analysis. Verdict uses the other agents.</span>}
         {state?.text || (state && !state.done ? <span className="inline-block h-3.5 w-1.5 animate-pulse bg-primary" /> : null)}
       </div>
     </section>

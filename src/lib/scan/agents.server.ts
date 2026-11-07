@@ -29,8 +29,9 @@ async function runAgent(gw: ReturnType<typeof createLovableAiGatewayProvider>, a
       if (agent !== "verdict") emit({ type: "agent:delta", agent, text: part.text });
     } else if (part.type === "error") throw part.error;
   }
-  emit({ type: "agent:end", agent });
-  return text;
+  const declined = !text.trim();
+  emit({ type: "agent:end", agent, declined });
+  return declined ? "(agent returned no output)" : text;
 }
 
 export async function runScan(mode: Mode, input: string, emit: Emit, signal: AbortSignal, token?: string) {
