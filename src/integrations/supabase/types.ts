@@ -14,13 +14,145 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_records: {
+        Row: {
+          created_at: string
+          endpoint: string | null
+          fingerprint: string
+          id: string
+          inventory: Json
+          mode: string
+          model: string
+          reports: Json
+          signals: Json
+          source: string
+          tools: Json
+          user_id: string
+          verdict: Json
+        }
+        Insert: {
+          created_at?: string
+          endpoint?: string | null
+          fingerprint: string
+          id?: string
+          inventory: Json
+          mode: string
+          model: string
+          reports: Json
+          signals: Json
+          source: string
+          tools?: Json
+          user_id: string
+          verdict: Json
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string | null
+          fingerprint?: string
+          id?: string
+          inventory?: Json
+          mode?: string
+          model?: string
+          reports?: Json
+          signals?: Json
+          source?: string
+          tools?: Json
+          user_id?: string
+          verdict?: Json
+        }
+        Relationships: []
+      }
+      audit_usage: {
+        Row: {
+          bucket: number
+          count: number
+          user_id: string
+        }
+        Insert: {
+          bucket: number
+          count?: number
+          user_id: string
+        }
+        Update: {
+          bucket?: number
+          count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      enforcement_events: {
+        Row: {
+          audit_id: string
+          created_at: string
+          decision: string
+          id: string
+          reason: string
+          tool: string
+          user_id: string
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          decision: string
+          id?: string
+          reason: string
+          tool: string
+          user_id: string
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          decision?: string
+          id?: string
+          reason?: string
+          tool?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enforcement_events_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: false
+            referencedRelation: "audit_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_approvals: {
+        Row: {
+          audit_id: string
+          created_at: string
+          tools: string[]
+          user_id: string
+        }
+        Insert: {
+          audit_id: string
+          created_at?: string
+          tools: string[]
+          user_id: string
+        }
+        Update: {
+          audit_id?: string
+          created_at?: string
+          tools?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tool_approvals_audit_id_fkey"
+            columns: ["audit_id"]
+            isOneToOne: true
+            referencedRelation: "audit_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      consume_audit_quota: { Args: { p_user: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

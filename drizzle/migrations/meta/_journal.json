@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794066349985,
+      "tag": "0000_armorix_private_audits_and_enforcement",
+      "breakpoints": true
+    }
+  ]
 }
