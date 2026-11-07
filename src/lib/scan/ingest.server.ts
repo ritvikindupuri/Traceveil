@@ -1,13 +1,20 @@
 import { parse as parseYaml } from "yaml";
 import type { McpTool, Mode } from "./types";
+import { safeEndpointFetch, readBounded } from './http.server';
+import { publicEndpoint } from './validation';
 
 export type Ingested = { mode: Mode; source: string; server: string | null; tools: McpTool[]; transcript: string };
 
 function normTools(doc: any): McpTool[] {
   const list = Array.isArray(doc) ? doc : (doc?.tools ?? doc?.result?.tools ?? (doc?.name ? [doc] : null));
   if (!Array.isArray(list) || list.length === 0) throw new Error("No tool definitions found (expected tools[] array)");
-  return list.slice(0, 200).map((t: any, i: number) => {
+  if (list.length > 200) throw new Error('Tool inventory exceeds 200 tools');
+  const names = new Set<string>();
+  return list.map((t: any, i: number) => {
     if (!t || typeof t !== "object") throw new Error(`Tool #${i + 1} is not an object`);
+    if (typeof t.name !== 'string' || !t.name.trim() || t.name.length > 256 || names.has(t.name)) throw new Error('Tool names must be unique nonempty strings');
+    names.add(t.name);
+    if (JSON.stringify(t).length > 60_000) throw new Error('Tool definition exceeds size limit');
     return {
       name: String(t.name ?? `tool_${i + 1}`),
       description: String(t.description ?? ""),
@@ -21,26 +28,15 @@ function parseDefs(raw: string) {
   try { return parseYaml(raw); } catch (e: any) { throw new Error(`Could not parse JSON or YAML: ${e?.message ?? ""}`); }
 }
 
-function assertPublicUrl(raw: string) {
-  let u: URL;
-  try { u = new URL(raw); } catch { throw new Error("Invalid URL"); }
-  if (u.protocol !== "https:") throw new Error("Endpoint must use https");
-  const h = u.hostname;
-  if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.|\[?::1|\[?f[cd])/i.test(h) || h.endsWith(".internal") || h.endsWith(".local")) {
-    throw new Error("Private or internal hosts are not allowed");
-  }
-  return u;
-}
-
-async function rpc(url: URL, body: object, session: string | null, signal: AbortSignal, token?: string) {
+export async function rpc(url: URL, body: object, session: string | null, signal: AbortSignal, token?: string) {
   const headers: Record<string, string> = { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-06-18" };
   if (session) headers["mcp-session-id"] = session;
   if (token) headers["authorization"] = `Bearer ${token}`;
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
+  const res = await safeEndpointFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
   if (res.status === 401) throw new Error("Endpoint requires authentication (401)");
   if (!res.ok && res.status !== 202) throw new Error(`Endpoint returned ${res.status}`);
   const sid = res.headers.get("mcp-session-id");
-  const text = await res.text();
+  const text = await readBounded(res.body);
   if (!text.trim()) return { sid, msg: null };
   let payload = text;
   if ((res.headers.get("content-type") ?? "").includes("event-stream")) {
@@ -52,21 +48,23 @@ async function rpc(url: URL, body: object, session: string | null, signal: Abort
   return { sid, msg };
 }
 
-async function fetchEndpoint(raw: string, signal: AbortSignal, token?: string) {
-  const url = assertPublicUrl(raw);
+export async function fetchEndpoint(raw: string, signal: AbortSignal, token?: string) {
+  const url = publicEndpoint(raw);
   const init = await rpc(url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "armorix-audit", version: "1.0" } } }, null, signal, token);
   const sid = init.sid;
-  await rpc(url, { jsonrpc: "2.0", method: "notifications/initialized" }, sid, signal, token).catch(() => null);
+  await rpc(url, { jsonrpc: "2.0", method: "notifications/initialized" }, sid, signal, token);
   const tools: any[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < 10; page++) {
     const r = await rpc(url, { jsonrpc: "2.0", id: 2 + page, method: "tools/list", params: cursor ? { cursor } : {} }, sid, signal, token);
     tools.push(...(r.msg?.result?.tools ?? []));
+    if (tools.length > 200) throw new Error('Tool inventory exceeds 200 tools');
     cursor = r.msg?.result?.nextCursor;
     if (!cursor) break;
   }
+  if (cursor) throw new Error('Incomplete tool inventory: pagination limit reached');
   const info = init.msg?.result?.serverInfo;
-  return { server: info ? `${info.name ?? "server"} ${info.version ?? ""}`.trim() : url.host, tools: normTools(tools) };
+  return { server: info ? `${info.name ?? "server"} ${info.version ?? ""}`.trim() : url.host, tools: normTools(tools), sid };
 }
 
 export async function ingest(mode: Mode, input: string, signal: AbortSignal, token?: string): Promise<Ingested> {
