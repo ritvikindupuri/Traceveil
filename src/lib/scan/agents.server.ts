@@ -3,6 +3,7 @@ import { createLovableAiGatewayProvider } from "@/lib/ai/gateway.server";
 import { ingest } from "./ingest.server";
 import { scanTools, scanTranscript } from "./signals";
 import type { Inventory, Mode } from "./types";
+import { validateVerdict } from './validation';
 
 export const MODEL = "google/gemini-4-argon";
 type Emit = (e: Record<string, unknown>) => void;
@@ -65,6 +66,11 @@ export async function runScan(mode: Mode, input: string, emit: Emit, signal: Abo
     emit, signal);
   const m = raw.match(/\{[\s\S]*\}/);
   if (!m) throw new Error("Verdict agent returned no decision");
-  emit({ type: "verdict", ...JSON.parse(m[0]) });
-  emit({ type: "done" });
+  const verdict = validateVerdict(JSON.parse(m[0]), data.tools.map(t => t.name));
+  if ((semantic === '(agent returned no output)' || fuzz === '(agent returned no output)' || blast === '(agent returned no output)') && verdict.verdict === 'allow') {
+    verdict.verdict = 'review';
+    verdict.summary = 'Incomplete agent coverage. ' + verdict.summary;
+  }
+  emit({ ...verdict, type: "verdict" });
+  return {data, inventory, signals, verdict, reports:{semantic,fuzz,blast}, model:MODEL};
 }
