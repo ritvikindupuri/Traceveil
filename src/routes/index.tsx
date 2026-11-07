@@ -27,7 +27,7 @@ const FEATURES = [
   { i: ShieldCheck, t: "Runtime approval", d: "Allowlisted read tools, explicit approval per call." },
   { i: Fingerprint, t: "Drift detection", d: "SHA-256 baselines block changed tool definitions." },
   { i: Lock, t: "Fail-closed egress", d: "Trusted destinations only. No private hosts." },
-  { i: History, t: "Signed audit trail", d: "Server-written, owner-only records." },
+  { i: History, t: "Private audit trail", d: "Server-written, owner-only records." },
 ];
 const THREATS = ["Tool poisoning", "Prompt injection", "Shadowing", "Parameter escalation", "Credential scraping", "Exfiltration"];
 
