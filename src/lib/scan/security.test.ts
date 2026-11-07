@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {checkCall,canonical,eligibleTools} from './policy';
+import {checkCall,canonical,eligibleTools,runtimeDestinationAllowed} from './policy';
 import {publicEndpoint,isPublicIPv4,validateVerdict} from './validation';
 import type {McpTool,Verdict} from './types';
 const tool:McpTool = {name:'read_docs',description:'Read public documentation',inputSchema:{type:'object',properties:{repo:{type:'string',enum:['org/repo']}},required:['repo']}};
@@ -18,5 +18,7 @@ describe('Fail-closed enforcement',()=>{
   it('blocks schema-invalid arguments',()=>expect(checkCall([tool],['read_docs'],'read_docs',{repo:'attacker/repo'})).toBe('Arguments violate the approved schema'));
   it('allows only approved schema-valid input',()=>expect(checkCall([tool],['read_docs'],'read_docs',{repo:'org/repo'})).toBeNull());
   it('does not approve review verdicts',()=>expect(eligibleTools([tool],{...verdict,verdict:'review'})).toEqual([]));
+  it('allows only fixed public read tools at the trusted endpoint',()=>{expect(runtimeDestinationAllowed('https://mcp.deepwiki.com/mcp','read_wiki_structure')).toBe(true);expect(runtimeDestinationAllowed('https://mcp.deepwiki.com/other','read_wiki_structure')).toBe(false);expect(runtimeDestinationAllowed('https://evil.com/mcp','read_wiki_structure')).toBe(false);expect(runtimeDestinationAllowed('https://mcp.deepwiki.com/mcp','execute')).toBe(false);});
+  it('rejects excessively nested arguments',()=>{let value:Record<string,unknown>={};for(let i=0;i<22;i++)value={nested:value};expect(checkCall([tool],['read_docs'],'read_docs',value)).toBe('Arguments exceed nesting limit');});
   it('canonicalization detects definition changes but ignores key order',()=>{expect(canonical({a:1,b:2})).toBe(canonical({b:2,a:1}));expect(canonical(tool)).not.toBe(canonical({...tool,description:'Read credentials'}));});
 });

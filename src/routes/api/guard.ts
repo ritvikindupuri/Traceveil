@@ -12,6 +12,7 @@ export const Route = createFileRoute('/api/guard')({server:{handlers:{POST:async
   const record = await auth.client.from('audit_records').select('*').eq('id',body.auditId).eq('user_id',auth.userId).single();
   if (record.error || !record.data?.endpoint) return Response.json({error:'Endpoint audit not found'},{status:404});
   const approval = await auth.client.from('tool_approvals').select('tools').eq('audit_id',body.auditId).eq('user_id',auth.userId).maybeSingle();
+  if (approval.error) return Response.json({error:'Approval verification failed'},{status:503});
   const {supabaseAdmin} = await import('@/integrations/supabase/client.server');
   const quota = await supabaseAdmin.rpc('consume_audit_quota',{p_user:auth.userId});
   if (quota.error || !quota.data) return Response.json({error:'Call limit reached'},{status:429});
@@ -20,12 +21,12 @@ export const Route = createFileRoute('/api/guard')({server:{handlers:{POST:async
     if (error) throw new Error('Event could not be recorded');
   };
   try {
-    const {checkCall,fingerprint} = await import('@/lib/scan/policy');
+    const {checkCall,fingerprint,runtimeDestinationAllowed} = await import('@/lib/scan/policy');
     const {fetchEndpoint,rpc} = await import('@/lib/scan/ingest.server');
     const reason = checkCall(record.data.tools as unknown as import('@/lib/scan/types').McpTool[],approval.data?.tools ?? [],body.name,body.arguments);
     if (reason) {await log('blocked',reason); return Response.json({decision:'blocked',reason},{status:403});}
     // Until destination-IP-pinned egress is available, execution is restricted to this trusted public read-only MCP host.
-    if (new URL(record.data.endpoint).hostname !== 'mcp.deepwiki.com') {
+    if (!runtimeDestinationAllowed(record.data.endpoint,body.name)) {
       const reason = 'Execution for this host requires destination-pinned egress; call blocked';
       await log('blocked',reason); return Response.json({decision:'blocked',reason},{status:403});
     }
@@ -35,8 +36,9 @@ export const Route = createFileRoute('/api/guard')({server:{handlers:{POST:async
       await log('blocked','Tool definitions changed since approval');
       return Response.json({decision:'blocked',reason:'Tool definitions changed since approval'},{status:409});
     }
-    await log('forwarded','Approved schema and unchanged baseline; dispatch authorized');
     const result = await rpc(new URL(record.data.endpoint),{jsonrpc:'2.0',id:50,method:'tools/call',params:{name:body.name,arguments:body.arguments}},live.sid,signal,body.token);
+    if (!result.msg?.result) throw new Error('No upstream result');
+    await log('forwarded','Approved schema and unchanged baseline; upstream responded');
     return Response.json({decision:'forwarded',result:result.msg?.result ?? null},{headers:{'cache-control':'no-store'}});
   } catch {
     await log('failed','Upstream verification or execution failed');

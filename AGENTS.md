@@ -30,5 +30,5 @@ use the editor.
 <!-- LOVABLE:END -->
 
 - Authenticated scans stream NDJSON from `/api/scan`; validated results persist as server-written, owner-readable audit records because browser-authored evidence is not trustworthy.
-- Runtime calls require server-stored approval, schema validation and live SHA-256 baseline checks; arbitrary hosts fail closed until destination-pinned egress is available because DNS preflight alone cannot prevent rebinding.
+- Live endpoint audits and runtime calls use a fixed trusted destination allowlist; arbitrary hosts fail closed until destination-pinned egress is available because DNS preflight alone cannot prevent rebinding. Runtime also requires explicit approval, an independent read-tool allowlist, interpreted Worker-safe schema validation and live SHA-256 baseline checks.
 - Audit graphics derive categories and inferred reference edges only from static signals and inventory; model risk stays explicitly separate to avoid implying measured attacks or observed data flow.

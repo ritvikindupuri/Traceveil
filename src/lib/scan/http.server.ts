@@ -1,4 +1,4 @@
-import { isPublicIPv4, publicEndpoint } from './validation';
+import { publicEndpoint } from './validation';
 
 export async function readBounded(body: ReadableStream<Uint8Array> | null, limit = 1_000_000): Promise<string> {
   if (!body) return '';
@@ -20,12 +20,8 @@ export async function readBounded(body: ReadableStream<Uint8Array> | null, limit
 export async function safeEndpointFetch(raw: string | URL, init: RequestInit): Promise<Response> {
   const url = publicEndpoint(String(raw));
   const signal = AbortSignal.any([init.signal ?? new AbortController().signal, AbortSignal.timeout(20_000)]);
-  // Preflight DNS validation is defense-in-depth; execution uses a fixed trusted host below.
-  const dns = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(url.hostname)}&type=A`, {headers:{accept:'application/dns-json'}, signal, redirect:'error'});
-  if (!dns.ok) throw new Error('Endpoint DNS validation failed');
-  const answer = await dns.json() as {Status:number; Answer?: {type:number; data:string}[]};
-  const ips = answer.Answer?.filter(a => a.type === 1).map(a => a.data) ?? [];
-  if (answer.Status !== 0 || !ips.length || ips.some(ip => !isPublicIPv4(ip))) throw new Error('Endpoint does not resolve to public addresses');
+  // Host allowlist is enforced before any outbound connection; DNS preflight cannot prevent rebinding.
+  if (url.origin !== 'https://mcp.deepwiki.com' || url.pathname !== '/mcp' || url.search) throw new Error('This endpoint needs destination-pinned egress. Paste its real tool definitions instead.');
   const response = await fetch(url, {...init, signal, redirect:'error'});
   return response;
 }

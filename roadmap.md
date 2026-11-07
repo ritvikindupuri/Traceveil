@@ -6,8 +6,10 @@
 - [x] Refresh Armorix logo and engine status
 - [x] Add evidence-driven interactive topology and threat gauges
 - [x] Verify real audit flow and mobile graphics
-- [ ] Balance charcoal theme and improve contrast
-- [ ] Harden endpoint fetching and validate model verdicts
-- [ ] Add signed-in access and private durable audit records
-- [ ] Add approved tool baselines, change detection and fail-closed runtime enforcement
-- [ ] Verify security rules and signed-in end-to-end flows
+- [x] Balance charcoal theme and improve contrast
+- [x] Harden endpoint fetching and validate model verdicts
+- [x] Add signed-in access and private durable audit records
+- [x] Add approved tool baselines, change detection and fail-closed runtime enforcement
+- [ ] Support arbitrary MCP destinations — blocked on destination-pinned egress service
+- [ ] Verify signed-in audit, saved history and guarded call end-to-end — blocked on first signed-in account
+- [x] Verify security rules, public sign-in UI and mobile layout
