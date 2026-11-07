@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiGuardRouteImport } from './routes/api/guard'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiGuardRoute = ApiGuardRouteImport.update({
+  id: '/api/guard',
+  path: '/api/guard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
@@ -25,27 +31,31 @@ const ApiScanRoute = ApiScanRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/scan'
+  fullPaths: '/' | '/api/guard' | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/scan'
-  id: '__root__' | '/' | '/api/scan'
+  to: '/' | '/api/guard' | '/api/scan'
+  id: '__root__' | '/' | '/api/guard' | '/api/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiGuardRoute: typeof ApiGuardRoute
   ApiScanRoute: typeof ApiScanRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/guard': {
+      id: '/api/guard'
+      path: '/api/guard'
+      fullPath: '/api/guard'
+      preLoaderRoute: typeof ApiGuardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiGuardRoute: ApiGuardRoute,
   ApiScanRoute: ApiScanRoute,
 }
 export const routeTree = rootRouteImport

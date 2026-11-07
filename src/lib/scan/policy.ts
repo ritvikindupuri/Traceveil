@@ -24,8 +24,8 @@ export function checkCall(tools: McpTool[], approved: string[], name: string, ar
   const schema = tool.inputSchema;
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return 'Invalid tool schema';
   const obj = schema as Record<string,unknown>;
-  if (obj.type !== 'object' || !obj.properties || typeof obj.properties !== 'object') return 'An explicit object schema is required';
-  if (Object.keys(args).some(k => !Object.hasOwn(obj.properties as object,k))) return 'Undeclared argument';
+  if (obj['type'] !== 'object' || !obj['properties'] || typeof obj['properties'] !== 'object') return 'An explicit object schema is required';
+  if (Object.keys(args).some(k => !Object.hasOwn(obj['properties'] as object,k))) return 'Undeclared argument';
   if (/"\$ref"\s*:\s*"(?!#)/.test(JSON.stringify(schema))) return 'External schema references are not allowed';
   try {
     const ajv = new Ajv({allErrors:true,strict:false,validateFormats:true}); addFormats(ajv);
