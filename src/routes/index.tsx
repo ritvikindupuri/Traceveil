@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowRight, Loader2, Square, Check, Circle } from "lucide-react";
 import { Logo } from "@/components/armorix/Logo";
+import { AuditVisuals } from "@/components/armorix/AuditVisuals";
+import { Button } from "@/components/ui/button";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 
@@ -92,18 +94,18 @@ function Index() {
     }
   }
 
-  const ph = MODES.find((m) => m.k === mode)!.ph;
+  const ph = MODES.find((m) => m.k === mode)?.ph ?? "";
 
   return (
     <div className="min-h-screen">
-      <header className="flex h-12 items-center justify-between border-b border-border px-5">
+      <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
         <div className="flex items-center gap-2.5">
           <Logo />
-          <span className="text-[15px] font-semibold tracking-tight">Armorix</span>
+          <span className="text-[15px] font-semibold">Armorix</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" /> gemini-4-argon
+        <div role="status" className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
+          <span className={cn("h-1.5 w-1.5 rounded-full", stage === "error" ? "bg-warning" : "bg-primary")} /> Neural Guardrail Engine · <span className={stage === "error" ? "text-warning" : "text-primary"}>{stage === "error" ? "Attention" : running ? "Analyzing" : "Active"}</span>
         </div>
       </header>
 
@@ -111,10 +113,10 @@ function Index() {
         <form onSubmit={scan} className="flex h-fit flex-col rounded-lg border border-border bg-card lg:sticky lg:top-5">
           <div className="flex border-b border-border">
             {MODES.map((m) => (
-              <button key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
-                className={cn("flex-1 border-b-2 px-2 py-2.5 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+              <Button variant="ghost" key={m.k} type="button" onClick={() => setMode(m.k)} disabled={running}
+                className={cn("h-10 flex-1 rounded-none border-b-2 px-2 text-xs", mode === m.k ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                 {m.l}
-              </button>
+              </Button>
             ))}
           </div>
           {mode === "endpoint" ? (
@@ -131,13 +133,13 @@ function Index() {
           <div className="flex items-center justify-between border-t border-border p-2.5">
             <span className="pl-1 font-mono text-[10px] text-muted-foreground">{input.length ? `${input.length.toLocaleString()} chars` : ""}</span>
             {running ? (
-              <button type="button" onClick={() => ctrl.current?.abort()} className="inline-flex h-8 items-center gap-2 rounded-md bg-secondary px-3 text-xs hover:bg-accent">
+              <Button variant="secondary" size="sm" type="button" onClick={() => ctrl.current?.abort()}>
                 <Square className="h-3 w-3" /> Stop
-              </button>
+              </Button>
             ) : (
-              <button type="submit" disabled={!input.trim()} className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-3.5 text-xs font-medium text-primary-foreground disabled:opacity-40">
+              <Button size="sm" type="submit" disabled={!input.trim()}>
                 Audit <ArrowRight className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -152,6 +154,7 @@ function Index() {
           )}
           {started && <Pipeline stage={stage} inv={inv} />}
           {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+          {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
           {started && (
             <div className="grid gap-4 xl:grid-cols-3">
