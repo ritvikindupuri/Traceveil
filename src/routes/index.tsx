@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowRight, Loader2, Square, Check, Circle } from "lucide-react";
 import { Logo } from "@/components/vigil/Logo";
+import type { Recon } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/")({
 
 type Sev = "critical" | "high" | "medium" | "low";
 type Signal = { id: string; label: string; severity: Sev; file: string; line: number; excerpt: string };
-type Recon = Record<string, any>;
+
 type Verdict = {
   verdict: "block" | "review" | "allow";
   risk: number;
@@ -266,10 +267,10 @@ function ReconCard({ r }: { r: Recon }) {
           </div>
         ))}
       </dl>
-      {r.addedFiles?.length > 0 && (
+      {r.addedFiles.length > 0 && (
         <div className="border-t border-border px-4 py-3">
           <div className="mb-2 text-xs text-muted-foreground">New since {r.previousVersion}</div>
-          <div className="flex flex-wrap gap-1.5">{r.addedFiles.map((f: string) => <span key={f} className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px]">{f}</span>)}</div>
+          <div className="flex flex-wrap gap-1.5">{r.addedFiles.map((f) => <span key={f} className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px]">{f}</span>)}</div>
         </div>
       )}
     </section>
