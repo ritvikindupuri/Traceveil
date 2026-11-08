@@ -17,7 +17,7 @@ export async function relayFetch(endpoint:string,init:RequestInit):Promise<Respo
  const method=rpc&&typeof rpc==='object'&&'method' in rpc?rpc.method:null;
  if(init.method!=='POST'||!['initialize','notifications/initialized','tools/list'].includes(String(method)))throw new RelayError('Secure proxy permits inventory collection only.');
  const authorization=headers.get('authorization');
- const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${secret}`},body:JSON.stringify({endpoint,rpc,session:headers.get('mcp-session-id'),token:authorization?.startsWith('Bearer ')?authorization.slice(7):undefined}),signal:init.signal,redirect:'manual'});
+ const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${secret}`},body:JSON.stringify({endpoint,rpc,session:headers.get('mcp-session-id'),token:authorization?.startsWith('Bearer ')?authorization.slice(7):undefined}),signal:init.signal??null,redirect:'manual'});
  if(!response.ok){await response.body?.cancel();throw new RelayError(response.status===429?'Secure audit proxy is busy. Try again shortly.':'Secure audit proxy rejected the request or is unavailable.');}
  // Bound the relay envelope before parsing. Never reflect arbitrary provider text.
  if(!response.body)throw new RelayError('Secure audit proxy returned no result.');
