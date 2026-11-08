@@ -43,6 +43,13 @@
       "when": 1794102247411,
       "tag": "0005_tenant_run_one_time_binding",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794102395809,
+      "tag": "0006_tenant_verification_least_privilege",
+      "breakpoints": true
     }
   ]
 }
