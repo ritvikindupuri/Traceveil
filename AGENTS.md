@@ -39,3 +39,4 @@ use the editor.
 - Application graphs use bounded immutable public GitHub snapshots and deterministic evidence-linked entities; model reports never create graph facts, because analysis is not runtime or exploit proof.
 - Application scans are stored separately from historical MCP audits with owner-readable, server-written records; this preserves evidence meaning across the product pivot.
 - The interactive application graph loads client-side using React Flow and Dagre; server collection never executes repository code or fetches arbitrary application destinations.
+- GitHub collection classifies provider quota headers separately from access denials without automatic retries, so request exhaustion is not misreported as an AI or authorization failure.
