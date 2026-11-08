@@ -1,9 +1,10 @@
 import {repositoryTarget} from './validation';
 import {buildRepositoryGraph} from './analyze';
 import {readBounded} from '@/lib/scan/http.server';
+import {githubFailure} from './github-errors';
 async function github(path:string,signal:AbortSignal) {
  const response=await fetch(`https://api.github.com${path}`,{headers:{Accept:'application/vnd.github+json','User-Agent':'Traceveil'},redirect:'error',signal});
- if(!response.ok)throw new Error(response.status===404?'Public repository or branch not found':`GitHub collection failed (${response.status})`);
+ if(!response.ok)throw new Error(githubFailure(response.status,response.headers));
  return JSON.parse(await readBounded(response.body,5_000_000));
 }
 export async function collectRepository(raw:string,ref:string,signal:AbortSignal,progress:(message:string)=>void) {

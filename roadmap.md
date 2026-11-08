@@ -1,4 +1,6 @@
 # Roadmap
+- [ ] Explain GitHub rate-limit failures with the provider reset time; authenticated access awaits per-user GitHub setup
+- [ ] Build tenant-isolation verification per change with approved isolated tests, positive/negative controls and reproducible evidence
 - [x] Rename to Traceveil, introduce original logo/favicon and verify a lighter interface
 - [x] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
 - [x] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
