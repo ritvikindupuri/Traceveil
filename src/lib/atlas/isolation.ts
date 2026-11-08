@@ -13,6 +13,7 @@ export const isolationReport=z.object({
 }).strict();
 export type IsolationReport=z.infer<typeof isolationReport>;
 export type IsolationOutcome='pass'|'fail'|'inconclusive';
+export function assertIsolationOwner(owner:string,caller:string){if(owner!==caller)throw new Error('Verification record belongs to another workspace');}
 export function evaluateIsolation(report:IsolationReport):IsolationOutcome {
  if(new Set(report.cases.map(c=>c.id)).size!==4)return 'inconclusive';
  const own=report.cases.filter(c=>c.id.endsWith('own'));

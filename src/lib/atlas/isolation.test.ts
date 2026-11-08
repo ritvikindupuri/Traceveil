@@ -1,7 +1,8 @@
 import {describe,it,expect} from 'vitest';
-import {assertReportBinding,evaluateIsolation,isolationReport,isolationScope,type IsolationReport} from './isolation';
+import {assertIsolationOwner,assertReportBinding,evaluateIsolation,isolationReport,isolationScope,type IsolationReport} from './isolation';
 const report: IsolationReport={version:1,planId:'11111111-1111-4111-8111-111111111111',nonce:'22222222-2222-4222-8222-222222222222',commit:'a'.repeat(40),suiteDigest:'b'.repeat(64),cases:[{id:'a-own',status:200,matched:true,leaked:false,error:false},{id:'b-own',status:200,matched:true,leaked:false,error:false},{id:'a-cross',status:403,matched:false,leaked:false,error:false},{id:'b-cross',status:404,matched:false,leaked:false,error:false}]};
 describe('Tenant isolation outcomes',()=>{
+ it('denies cross-owner access',()=>{expect(()=>assertIsolationOwner('owner-a','owner-b')).toThrow('another workspace');expect(()=>assertIsolationOwner('owner-a','owner-a')).not.toThrow();});
  it('passes only with two working own reads and two denied cross reads',()=>expect(evaluateIsolation(report)).toBe('pass'));
  it('makes broken positive controls inconclusive',()=>expect(evaluateIsolation({...report,cases:report.cases.map(c=>c.id==='a-own'?{...c,matched:false}:c)})).toBe('inconclusive'));
  it('flags cross-tenant leakage even in a denial response',()=>expect(evaluateIsolation({...report,cases:report.cases.map(c=>c.id==='a-cross'?{...c,leaked:true}:c)})).toBe('fail'));
