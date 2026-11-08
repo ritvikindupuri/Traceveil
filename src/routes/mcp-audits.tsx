@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
@@ -158,6 +158,7 @@ function Index() {
     <div className="min-h-screen">
       <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
         <div className="flex items-center gap-2.5">
+          <Button variant="ghost" size="icon" asChild><Link to="/console" aria-label="Back to Traceveil workspace" title="Back to workspace"><ArrowLeft className="size-4"/></Link></Button>
           <Logo />
           <span className="text-[15px] font-semibold">Traceveil</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
