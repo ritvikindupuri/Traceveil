@@ -36,7 +36,7 @@ export function AccountDialog({open,onOpenChange}:{open:boolean;onOpenChange:(v:
     } catch {setMessage('Sign-in failed');} finally {setBusy(false);}
   }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-sm">
-    <DialogTitle>{mode === 'signup' ? 'Create Armorix account' : mode === 'reset' ? 'Reset password' : 'Sign in to Armorix'}</DialogTitle>
+    <DialogTitle>{mode === 'signup' ? 'Create Traceveil account' : mode === 'reset' ? 'Reset password' : 'Sign in to Traceveil'}</DialogTitle>
     <DialogDescription>Private audits · approved tools · execution records</DialogDescription>
     <form onSubmit={submit} className="space-y-3">
       <Input type="email" aria-label="Email" placeholder="Email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required />
