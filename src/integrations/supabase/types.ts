@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      application_scans: {
+        Row: {
+          commit_sha: string
+          created_at: string
+          graph: Json
+          id: string
+          reports: Json
+          status: string
+          target: string
+          user_id: string
+        }
+        Insert: {
+          commit_sha: string
+          created_at?: string
+          graph: Json
+          id?: string
+          reports?: Json
+          status?: string
+          target: string
+          user_id: string
+        }
+        Update: {
+          commit_sha?: string
+          created_at?: string
+          graph?: Json
+          id?: string
+          reports?: Json
+          status?: string
+          target?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_records: {
         Row: {
           connection_id: string | null
