@@ -1,6 +1,6 @@
 # Roadmap
 - [ ] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
-- [ ] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
+- [x] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits
 - [ ] Provision secure fixed-IP egress and connect custom-host audits — awaiting AWS resource inspection and paid-infrastructure approval
