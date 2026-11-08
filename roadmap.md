@@ -16,7 +16,7 @@
 - [ ] Add deeper structured analysis, dependency advisories, patch-to-path preview and durable monitoring jobs in the next implementation stage
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits
-- [ ] Provision secure fixed-IP egress and connect custom-host audits — awaiting AWS resource inspection and paid-infrastructure approval
+- [ ] Build destination-pinned audit proxy and integrate custom-host collection — awaiting paid-hosting approval; AWS has no existing VPC
 - [x] Reduce audit text density with expandable evidence and compact tool states
 - [x] Classify allowed, blocked and review tools in a guardrail dashboard
 - [x] Recheck audit eligibility on every server-side guarded call
