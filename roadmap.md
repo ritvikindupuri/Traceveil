@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Rename to Traceveil, introduce original logo/favicon and verify a lighter interface
 - [x] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
 - [x] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
 - [x] Implement immutable public repository collection, evidence-linked graph, private history and four Gemini analysis roles

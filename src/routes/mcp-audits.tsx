@@ -19,9 +19,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/mcp-audits")({
   head: () => ({
     meta: [
-      { title: "MCP audits — Armorix" },
+      { title: "MCP audits — Traceveil" },
       { name: "description", content: "Audit MCP tool definitions, live MCP servers and agent transcripts for prompt injection, tool poisoning and exfiltration." },
-      { property: "og:title", content: "MCP audits — Armorix" },
+      { property: "og:title", content: "MCP audits — Traceveil" },
       { property: "og:description", content: "Agentic audits of MCP servers and agent transcripts for injection, poisoning and exfiltration." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -95,7 +95,7 @@ function Index() {
   function download() {
     if (!record || !inv || !verdict) return;
     const url = URL.createObjectURL(new Blob([JSON.stringify({record,inventory:inv,signals,verdict,agents},null,2)],{type:'application/json'}));
-    const anchor = document.createElement('a');anchor.href=url;anchor.download=`armorix-audit-${record.id}.json`;anchor.click();URL.revokeObjectURL(url);
+    const anchor = document.createElement('a');anchor.href=url;anchor.download=`traceveil-audit-${record.id}.json`;anchor.click();URL.revokeObjectURL(url);
   }
 
   async function scan(e?: React.FormEvent) {
@@ -148,7 +148,7 @@ function Index() {
       <header className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-2">
         <div className="flex items-center gap-2.5">
           <Logo />
-          <span className="text-[15px] font-semibold">Armorix</span>
+          <span className="text-[15px] font-semibold">Traceveil</span>
           <span className="ml-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">agent guardrails</span>
         </div>
         <div className="flex items-center gap-1">

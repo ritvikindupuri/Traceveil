@@ -70,45 +70,45 @@
 
 :root {
   --radius: 0.5rem;
-  --entity-workflow: oklch(0.76 0.12 300);
-  --entity-dependency: oklch(0.77 0.12 220);
-  --background: oklch(0.265 0.004 260);
-  --foreground: oklch(0.94 0.004 260);
-  --card: oklch(0.305 0.005 260);
-  --card-foreground: oklch(0.94 0.004 260);
-  --popover: oklch(0.32 0.005 260);
-  --popover-foreground: oklch(0.94 0.004 260);
-  --primary: oklch(0.79 0.18 160);
-  --primary-foreground: oklch(0.18 0.03 160);
-  --secondary: oklch(0.355 0.006 260);
-  --secondary-foreground: oklch(0.94 0.004 260);
-  --muted: oklch(0.33 0.005 260);
-  --muted-foreground: oklch(0.76 0.008 260);
-  --accent: oklch(0.39 0.006 260);
-  --accent-foreground: oklch(0.94 0.004 260);
-  --destructive: oklch(0.65 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.8 0.15 75);
-  --success: oklch(0.79 0.18 160);
-  --border: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 20%);
-  --ring: oklch(0.79 0.18 160 / 50%);
-  --google-background: oklch(0.188 0.002 285);
-  --google-border: oklch(0.655 0.004 150);
-  --google-foreground: oklch(0.91 0.004 150);
-  --chart-1: oklch(0.79 0.18 160);
-  --chart-2: oklch(0.8 0.15 75);
-  --chart-3: oklch(0.65 0.22 25);
-  --chart-4: oklch(0.7 0.12 230);
-  --chart-5: oklch(0.6 0.01 260);
-  --sidebar: oklch(0.16 0.005 260);
-  --sidebar-foreground: oklch(0.94 0.004 260);
-  --sidebar-primary: oklch(0.86 0.17 128);
-  --sidebar-primary-foreground: oklch(0.18 0.03 128);
-  --sidebar-accent: oklch(0.23 0.006 260);
-  --sidebar-accent-foreground: oklch(0.94 0.004 260);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.86 0.17 128 / 50%);
+  --entity-workflow: oklch(0.53 0.16 305);
+  --entity-dependency: oklch(0.52 0.12 230);
+  --background: oklch(0.96 0.006 210);
+  --foreground: oklch(0.25 0.016 220);
+  --card: oklch(0.995 0.002 210);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.49 0.1 183);
+  --primary-foreground: oklch(0.99 0.002 210);
+  --secondary: oklch(0.925 0.012 210);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.935 0.007 210);
+  --muted-foreground: oklch(0.49 0.018 220);
+  --accent: oklch(0.91 0.035 180);
+  --accent-foreground: oklch(0.36 0.08 183);
+  --destructive: oklch(0.53 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.52 0.13 65);
+  --success: var(--primary);
+  --border: oklch(0.86 0.012 210);
+  --input: oklch(0.8 0.016 210);
+  --ring: var(--primary);
+  --google-background: var(--card);
+  --google-border: var(--input);
+  --google-foreground: var(--foreground);
+  --chart-1: var(--primary);
+  --chart-2: var(--warning);
+  --chart-3: var(--destructive);
+  --chart-4: var(--entity-dependency);
+  --chart-5: oklch(0.55 0.03 220);
+  --sidebar: oklch(0.93 0.011 210);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 .google-auth { background: var(--google-background); border-color: var(--google-border); color: var(--google-foreground); }
@@ -135,7 +135,7 @@
 @media (prefers-reduced-motion: reduce) { .ax-flow, .ax-rise, .ax-pulse { animation: none; } }
 
 .atlas-shell { display:flex; min-height:100dvh; background:var(--background); }
-.atlas-sidebar { width:220px; flex-shrink:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--card); min-height:100dvh; }
+.atlas-sidebar { width:220px; flex-shrink:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--sidebar); min-height:100dvh; }
 .atlas-main { min-width:0; flex:1; display:flex; flex-direction:column; min-height:100dvh; }
 .atlas-investigation { display:flex; flex:1; min-height:440px; }
 .atlas-canvas { position:relative; min-width:0; flex:1; height:clamp(440px,65vh,900px); background:var(--background); }
