@@ -1,6 +1,11 @@
 # Roadmap
 - [x] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
 - [x] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
+- [x] Implement immutable public repository collection, evidence-linked graph, private history and four Gemini analysis roles
+- [x] Verify real repository scans, source evidence, agent reports and desktop/mobile graph interactions
+- [ ] Connect live-app collection and approved safe tests — blocked on secure external outbound service
+- [ ] Enable private repositories and reviewed pull requests — blocked on workspace GitHub App User Connector client setup
+- [ ] Add deeper structured analysis, dependency advisories, patch-to-path preview and durable monitoring jobs in the next implementation stage
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits
 - [ ] Provision secure fixed-IP egress and connect custom-host audits — awaiting AWS resource inspection and paid-infrastructure approval
