@@ -42,6 +42,7 @@ Use the latest available Gemini model verified against the workspace catalog at 
 - **Attack-path delta:** compare commits or monitoring runs to show introduced, removed and unchanged paths.
 - **Coverage lens:** highlight uninspected files, unsupported languages, truncated inventories and missing runtime visibility instead of hiding blind spots.
 - **Independent verification:** a separate verifier checks whether claimed findings and fixes are supported; unsupported agent claims do not become graph facts.
+- **Repository-to-deployment correlation:** explicitly link a repository snapshot to an ownership-verified application and show which code-side risks have supporting deployment evidence; never assume a URL runs that repository.
 
 ## Delivery sequence
 1. Replace the MCP-centric front screen with the graph workspace; implement a real public-GitHub evidence pipeline and durable scan records. Empty states remain empty until a real scan completes.
