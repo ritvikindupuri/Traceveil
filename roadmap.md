@@ -1,9 +1,10 @@
 # Roadmap
 - [x] Build and verify Traceveil’s distinct icon-led landing page and sign-in entry
 - [x] Explain custom MCP endpoint rejection and show a specific reason before submitting unsupported destinations
-- [x] Clarify secure per-user GitHub PAT entry versus shared project credentials; PAT support is not implemented
+- [x] Clarify secure per-user GitHub PAT entry versus shared project credentials
 - [x] Explain GitHub rate-limit failures with the provider reset time
-- [ ] Connect per-user GitHub access — workspace OAuth client is not configured
+- [x] Build encrypted per-user GitHub PAT entry, replacement, removal and server-side collection; encryption and safe transport tests pass
+- [ ] Verify signed-in PAT save → repository scan → removal with real GitHub access — needs the user to sign in and save a valid PAT
 - [x] Add tenant-isolation approvals, downloadable read-only tests and private customer-reported results
 - [ ] Verify export → actual customer CI execution → import → readback — requires a saved scan and owner-supplied app/tenant fixtures
 - [x] Rename to Traceveil, introduce original logo/favicon and verify a lighter interface
@@ -12,7 +13,8 @@
 - [x] Implement immutable public repository collection, evidence-linked graph, private history and four Gemini analysis roles
 - [x] Verify real repository scans, source evidence, agent reports and desktop/mobile graph interactions
 - [ ] Connect live-app collection and approved safe tests — blocked on secure external outbound service
-- [ ] Enable private repositories and reviewed pull requests — blocked on workspace GitHub App User Connector client setup
+- [x] Enable private repository collection through each owner's saved PAT
+- [ ] Add reviewed pull requests — requires separately approved write access; read-only PATs cannot write
 - [ ] Add deeper structured analysis, dependency advisories, patch-to-path preview and durable monitoring jobs in the next implementation stage
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits

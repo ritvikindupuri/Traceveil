@@ -162,6 +162,24 @@ export type Database = {
           },
         ]
       }
+      github_credentials: {
+        Row: {
+          token_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          token_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          token_ciphertext?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       guardrail_policies: {
         Row: {
           policy: Json
