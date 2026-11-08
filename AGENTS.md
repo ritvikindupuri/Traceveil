@@ -36,3 +36,6 @@ use the editor.
 - Per-user connection tokens are AES-GCM encrypted server-side, bound to owner and exact endpoint, and never returned to browsers; disabled connections invalidate associated runtime access.
 - Sanitization creates a derived export with change evidence and mandatory re-audit, never mutates audited baselines or grants approval, because definition edits cannot guarantee upstream safety.
 - Runtime policies are owner-scoped, server-written restrictions on exact hosts/tools and audit/tool scores; approvals and per-call execution share their evaluator and recheck revisions before forwarding so policies cannot expand platform authority or bypass drift checks.
+- Application graphs use bounded immutable public GitHub snapshots and deterministic evidence-linked entities; model reports never create graph facts, because analysis is not runtime or exploit proof.
+- Application scans are stored separately from historical MCP audits with owner-readable, server-written records; this preserves evidence meaning across the product pivot.
+- The interactive application graph loads client-side using React Flow and Dagre; server collection never executes repository code or fetches arbitrary application destinations.

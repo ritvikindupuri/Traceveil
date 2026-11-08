@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+@import "@xyflow/react/dist/style.css";
 @source "../src";
 
 @custom-variant dark (&:is(.dark *));
@@ -63,10 +64,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-entity-workflow: var(--entity-workflow);
+  --color-entity-dependency: var(--entity-dependency);
 }
 
 :root {
   --radius: 0.5rem;
+  --entity-workflow: oklch(0.76 0.12 300);
+  --entity-dependency: oklch(0.77 0.12 220);
   --background: oklch(0.265 0.004 260);
   --foreground: oklch(0.94 0.004 260);
   --card: oklch(0.305 0.005 260);
@@ -128,3 +133,29 @@
 @utility ax-rise { animation: ax-rise .7s cubic-bezier(.2,.7,.2,1) both; }
 @utility ax-pulse { animation: ax-pulse 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ax-flow, .ax-rise, .ax-pulse { animation: none; } }
+
+.atlas-shell { display:flex; min-height:100dvh; background:var(--background); }
+.atlas-sidebar { width:220px; flex-shrink:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--card); min-height:100dvh; }
+.atlas-main { min-width:0; flex:1; display:flex; flex-direction:column; min-height:100dvh; }
+.atlas-investigation { display:flex; flex:1; min-height:440px; }
+.atlas-canvas { position:relative; min-width:0; flex:1; height:clamp(440px,65vh,900px); background:var(--background); }
+.atlas-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; }
+.atlas-empty-emblem { display:grid; place-items:center; width:88px; height:88px; border:1px solid var(--border); border-radius:50%; background:var(--card); }
+.atlas-legend { position:absolute; bottom:18px; right:16px; left:70px; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:16px; color:var(--muted-foreground); font-size:9px; pointer-events:none; }
+.atlas-evidence { width:300px; flex-shrink:0; border-left:1px solid var(--border); background:var(--card); overflow:auto; max-height:900px; }
+.atlas-content { flex:1; padding:32px; max-width:1000px; width:100%; }
+.atlas-coverage { border-top:1px solid var(--border); padding:14px 20px; font-size:10px; color:var(--muted-foreground); }
+.atlas-node { display:flex; align-items:center; gap:12px; width:240px; height:68px; padding:12px; border:1px solid var(--border); border-radius:6px; background:var(--card); color:var(--foreground); }
+.atlas-node-selected { border-color:var(--primary); }
+.atlas-node-high { border-color:var(--destructive); }
+.atlas-node-medium { border-color:var(--warning); }
+.atlas-glyph { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; border-radius:50%; color:var(--primary); background:var(--secondary); }
+.atlas-glyph-workflow { color:var(--entity-workflow); }
+.atlas-glyph-dependency { color:var(--entity-dependency); }
+.atlas-glyph-finding { color:var(--warning); }
+.react-flow { --xy-background-color:var(--background); --xy-background-pattern-color:var(--border); --xy-node-color:var(--foreground); --xy-edge-stroke:var(--muted-foreground); --xy-edge-label-color:var(--muted-foreground); --xy-edge-label-background-color:var(--background); --xy-controls-button-background-color:var(--card); --xy-controls-button-background-color-hover:var(--accent); --xy-controls-button-color:var(--foreground); --xy-controls-button-border-color:var(--border); --xy-handle-background-color:var(--muted-foreground); --xy-handle-border-color:var(--card); }
+.atlas-risk-edge .react-flow__edge-path { stroke:var(--warning); stroke-width:1.8; }
+.react-flow__edge-text { font-size:9px; }
+.react-flow__controls { box-shadow:none; border:1px solid var(--border); }
+@media(max-width:1023px) { .atlas-sidebar { display:none; } .atlas-sidebar-open { display:flex; position:fixed; inset:0 auto 0 0; z-index:40; width:220px; } }
+@media(max-width:760px) { .atlas-investigation { flex-direction:column; } .atlas-evidence { width:100%; border-left:0; border-top:1px solid var(--border); max-height:350px; } .atlas-content { padding:24px 20px; } .atlas-legend { gap:8px; } }
