@@ -1,0 +1,12 @@
+import {describe,it,expect} from 'vitest';
+import {assertReportBinding,evaluateIsolation,isolationReport,isolationScope,type IsolationReport} from './isolation';
+const report: IsolationReport={version:1,planId:'11111111-1111-4111-8111-111111111111',nonce:'22222222-2222-4222-8222-222222222222',commit:'a'.repeat(40),suiteDigest:'b'.repeat(64),cases:[{id:'a-own',status:200,matched:true,leaked:false,error:false},{id:'b-own',status:200,matched:true,leaked:false,error:false},{id:'a-cross',status:403,matched:false,leaked:false,error:false},{id:'b-cross',status:404,matched:false,leaked:false,error:false}]};
+describe('Tenant isolation outcomes',()=>{
+ it('passes only with two working own reads and two denied cross reads',()=>expect(evaluateIsolation(report)).toBe('pass'));
+ it('makes broken positive controls inconclusive',()=>expect(evaluateIsolation({...report,cases:report.cases.map(c=>c.id==='a-own'?{...c,matched:false}:c)})).toBe('inconclusive'));
+ it('flags cross-tenant leakage even in a denial response',()=>expect(evaluateIsolation({...report,cases:report.cases.map(c=>c.id==='a-cross'?{...c,leaked:true}:c)})).toBe('fail'));
+ it('never passes missing or duplicate cases',()=>{expect(isolationReport.safeParse({...report,cases:report.cases.slice(1)}).success).toBe(false);expect(evaluateIsolation({...report,cases:report.cases.map(c=>({...c,id:'a-own'}))})).toBe('inconclusive');});
+ it('rejects stale commit or suite binding',()=>{const plan={id:report.planId,nonce:report.nonce,commit_sha:'c'.repeat(40),suite_digest:report.suiteDigest,expires_at:'2099-01-01'};expect(()=>assertReportBinding(report,plan)).toThrow('does not match');expect(()=>assertReportBinding(report,{...plan,commit_sha:report.commit,suite_digest:'d'.repeat(64)})).toThrow('does not match');});
+ it('rejects expired authorization',()=>expect(()=>assertReportBinding(report,{id:report.planId,nonce:report.nonce,commit_sha:report.commit,suite_digest:report.suiteDigest,expires_at:'2000-01-01'})).toThrow('expired'));
+ it('rejects arbitrary destinations and traversal in endpoint scope',()=>{for(const endpoint of ['https://evil.test/{id}','//evil/{id}','/api/../{id}','/api/%2f/{id}'])expect(isolationScope.safeParse({scanId:report.planId,endpoint,idPointer:'/id',rule:'Each tenant owns its own records',approval:true}).success).toBe(false);});
+});
