@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConsoleRouteImport } from './routes/console'
+import { Route as McpAuditsRouteImport } from './routes/mcp-audits'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ApiApplicationScanRouteImport } from './routes/api/application-scan'
 import { Route as ApiGuardRouteImport } from './routes/api/guard'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 
@@ -25,9 +27,19 @@ const ConsoleRoute = ConsoleRouteImport.update({
   path: '/console',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpAuditsRoute = McpAuditsRouteImport.update({
+  id: '/mcp-audits',
+  path: '/mcp-audits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiApplicationScanRoute = ApiApplicationScanRouteImport.update({
+  id: '/api/application-scan',
+  path: '/api/application-scan',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiGuardRoute = ApiGuardRouteImport.update({
@@ -44,14 +56,18 @@ const ApiScanRoute = ApiScanRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/console': typeof ConsoleRoute
+  '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/console': typeof ConsoleRoute
+  '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
@@ -59,20 +75,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/console': typeof ConsoleRoute
+  '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/console' | '/reset-password' | '/api/guard' | '/api/scan'
+  fullPaths:
+    | '/'
+    | '/console'
+    | '/mcp-audits'
+    | '/reset-password'
+    | '/api/application-scan'
+    | '/api/guard'
+    | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/console' | '/reset-password' | '/api/guard' | '/api/scan'
+  to:
+    | '/'
+    | '/console'
+    | '/mcp-audits'
+    | '/reset-password'
+    | '/api/application-scan'
+    | '/api/guard'
+    | '/api/scan'
   id:
     | '__root__'
     | '/'
     | '/console'
+    | '/mcp-audits'
     | '/reset-password'
+    | '/api/application-scan'
     | '/api/guard'
     | '/api/scan'
   fileRoutesById: FileRoutesById
@@ -80,7 +114,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConsoleRoute: typeof ConsoleRoute
+  McpAuditsRoute: typeof McpAuditsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiApplicationScanRoute: typeof ApiApplicationScanRoute
   ApiGuardRoute: typeof ApiGuardRoute
   ApiScanRoute: typeof ApiScanRoute
 }
@@ -101,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConsoleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp-audits': {
+      id: '/mcp-audits'
+      path: '/mcp-audits'
+      fullPath: '/mcp-audits'
+      preLoaderRoute: typeof McpAuditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/application-scan': {
+      id: '/api/application-scan'
+      path: '/api/application-scan'
+      fullPath: '/api/application-scan'
+      preLoaderRoute: typeof ApiApplicationScanRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/guard': {
@@ -128,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConsoleRoute: ConsoleRoute,
+  McpAuditsRoute: McpAuditsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiApplicationScanRoute: ApiApplicationScanRoute,
   ApiGuardRoute: ApiGuardRoute,
   ApiScanRoute: ApiScanRoute,
 }
