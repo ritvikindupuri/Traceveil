@@ -213,6 +213,100 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_verification_plans: {
+        Row: {
+          approved_at: string
+          commit_sha: string
+          endpoint: string
+          expires_at: string
+          id: string
+          id_pointer: string
+          nonce: string
+          rule: string
+          scan_id: string
+          suite_digest: string
+          target: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string
+          commit_sha: string
+          endpoint: string
+          expires_at?: string
+          id?: string
+          id_pointer: string
+          nonce?: string
+          rule: string
+          scan_id: string
+          suite_digest: string
+          target: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string
+          commit_sha?: string
+          endpoint?: string
+          expires_at?: string
+          id?: string
+          id_pointer?: string
+          nonce?: string
+          rule?: string
+          scan_id?: string
+          suite_digest?: string
+          target?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_verification_plans_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "application_scans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_verification_runs: {
+        Row: {
+          artifact_digest: string
+          created_at: string
+          id: string
+          outcome: string
+          plan_id: string
+          provenance: string
+          result: Json
+          user_id: string
+        }
+        Insert: {
+          artifact_digest: string
+          created_at?: string
+          id?: string
+          outcome: string
+          plan_id: string
+          provenance?: string
+          result: Json
+          user_id: string
+        }
+        Update: {
+          artifact_digest?: string
+          created_at?: string
+          id?: string
+          outcome?: string
+          plan_id?: string
+          provenance?: string
+          result?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_verification_runs_plan_id_user_id_fkey"
+            columns: ["plan_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_verification_plans"
+            referencedColumns: ["id", "user_id"]
+          },
+        ]
+      }
       tool_approvals: {
         Row: {
           audit_id: string
