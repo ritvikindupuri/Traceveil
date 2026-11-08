@@ -15,6 +15,7 @@ import { AuditVisuals } from "@/components/armorix/AuditVisuals";
 import { Button } from "@/components/ui/button";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
+import { trustedDestination } from '@/lib/scan/destinations';
 
 export const Route = createFileRoute("/mcp-audits")({
   head: () => ({
@@ -102,6 +103,16 @@ function Index() {
     e?.preventDefault();
     if (!input.trim() || running) return;
     if (!user) {setAccountOpen(true);return;}
+    if (mode === 'endpoint') {
+      try {
+        if (!trustedDestination(input.trim())) {
+          setError('Custom endpoints are blocked until secure outbound access is connected. Paste this server’s tools/list JSON under Tool definitions instead.');
+          setStage('error');return;
+        }
+      } catch {
+        setError('Enter a valid MCP endpoint URL.');setStage('error');return;
+      }
+    }
     setRecord(null);setInv(null); setSignals([]); setAgents({}); setVerdict(null); setError(null); setStage("collect");
     const ac = new AbortController();
     ctrl.current = ac;
@@ -204,7 +215,7 @@ function Index() {
             </div>
           )}
           {started && <Pipeline stage={stage} inv={inv} />}
-          {error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+          {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
           {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={`${record.id}-${policyEpoch}`} id={record.id} endpoint={record.endpoint} token={token}/></div>}
