@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Build and verify Traceveil’s distinct icon-led landing page and sign-in entry
 - [x] Explain custom MCP endpoint rejection and show a specific reason before submitting unsupported destinations
 - [x] Clarify secure per-user GitHub PAT entry versus shared project credentials; PAT support is not implemented
 - [x] Explain GitHub rate-limit failures with the provider reset time
