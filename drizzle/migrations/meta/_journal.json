@@ -50,6 +50,13 @@
       "when": 1794102395809,
       "tag": "0006_tenant_verification_least_privilege",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794103629216,
+      "tag": "0007_encrypted_github_credentials",
+      "breakpoints": true
     }
   ]
 }
