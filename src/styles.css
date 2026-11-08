@@ -159,3 +159,15 @@
 .react-flow__controls { box-shadow:none; border:1px solid var(--border); }
 @media(max-width:1023px) { .atlas-sidebar { display:none; } .atlas-sidebar-open { display:flex; position:fixed; inset:0 auto 0 0; z-index:40; width:220px; } }
 @media(max-width:760px) { .atlas-investigation { flex-direction:column; } .atlas-evidence { width:100%; border-left:0; border-top:1px solid var(--border); max-height:350px; } .atlas-content { padding:24px 20px; } .atlas-legend { gap:8px; } }
+
+.tv-landing { background:var(--background); }
+.tv-intro { min-height:560px; height:calc(100svh - 170px); max-height:740px; }
+.tv-intro-content { padding-top:80px; padding-bottom:100px; }
+.tv-wordmark { font-size:88px; line-height:1.06; letter-spacing:0; }
+.tv-structure { object-position:center; }
+@media(max-width:640px) {
+ .tv-intro { min-height:610px; height:calc(100svh - 145px); }
+ .tv-intro-content { padding-top:48px; }
+ .tv-wordmark { font-size:52px; }
+ .tv-structure { object-position:65% center; opacity:.35; }
+}
