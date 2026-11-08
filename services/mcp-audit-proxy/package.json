@@ -1,0 +1,9 @@
+{
+  "name": "traceveil-mcp-audit-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"start":"node server.mjs","test":"node --test *.test.mjs"},
+  "dependencies": {"ipaddr.js":"2.2.0","zod":"3.25.76"},
+  "engines": {"node":">=22"}
+}
