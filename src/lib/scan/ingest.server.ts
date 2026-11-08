@@ -50,7 +50,7 @@ export async function rpc(url: URL, body: object, session: string | null, signal
 
 export async function fetchEndpoint(raw: string, signal: AbortSignal, token?: string) {
   const url = publicEndpoint(raw);
-  const init = await rpc(url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "armorix-audit", version: "1.0" } } }, null, signal, token);
+  const init = await rpc(url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "traceveil-audit", version: "1.0" } } }, null, signal, token);
   const sid = init.sid;
   await rpc(url, { jsonrpc: "2.0", method: "notifications/initialized" }, sid, signal, token);
   const tools: any[] = [];
