@@ -10,7 +10,7 @@ function Entity({data,selected}:NodeProps<EntityNode>){const n=data.entity,I=ico
 const nodeTypes={entity:Entity};
 export function AttackCanvas({graph,onSelect,search,riskOnly}:{graph:AttackGraph;onSelect:(ids:string[],label:string)=>void;search:string;riskOnly:boolean}){
  const container=useRef<HTMLDivElement|null>(null);
- const [flow,setFlow]=useState<ReactFlowInstance|null>(null);
+ const [flow,setFlow]=useState<Pick<ReactFlowInstance,'fitView'>|null>(null);
  useEffect(()=>{if(!container.current||!flow)return;const observer=new ResizeObserver(()=>{void flow.fitView({padding:0.2});});observer.observe(container.current);return ()=>observer.disconnect();},[flow,graph,search,riskOnly]);
  const {nodes,edges}=useMemo(()=>{
   let entities=graph.nodes;
@@ -20,5 +20,5 @@ export function AttackCanvas({graph,onSelect,search,riskOnly}:{graph:AttackGraph
   const layout=new dagre.graphlib.Graph();layout.setGraph({rankdir:'LR',nodesep:24,ranksep:90});layout.setDefaultEdgeLabel(()=>({}));entities.forEach(n=>layout.setNode(n.id,{width:240,height:68}));relations.forEach(e=>layout.setEdge(e.source,e.target));dagre.layout(layout);
   return {nodes:entities.map(n=>{const pos=layout.node(n.id);return {id:n.id,type:'entity',data:{entity:n},position:{x:pos.x-120,y:pos.y-34}};}),edges:relations.map(e=>({id:e.id,source:e.source,target:e.target,label:e.label,className:e.risky?'atlas-risk-edge':'atlas-relation-edge',type:'smoothstep',data:e,animated:false}))};
  },[graph,search,riskOnly]);
- return <div ref={container} className="h-full w-full"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onInit={instance=>setFlow(instance as ReactFlowInstance)} fitView minZoom={0.15} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} onNodeClick={(_,n)=>onSelect(n.data.entity.evidenceIds,n.data.entity.label)} onEdgeClick={(_,e)=>{const r=graph.edges.find(r=>r.id===e.id);if(r)onSelect(r.evidenceIds,r.label);}} proOptions={{hideAttribution:true}}><Background variant={BackgroundVariant.Dots} gap={24} size={1}/><Controls showInteractive={false}/></ReactFlow></div>;
+ return <div ref={container} className="h-full w-full"><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onInit={instance=>setFlow({fitView:instance.fitView})} fitView minZoom={0.15} maxZoom={1.8} nodesDraggable={false} nodesConnectable={false} onNodeClick={(_,n)=>onSelect(n.data.entity.evidenceIds,n.data.entity.label)} onEdgeClick={(_,e)=>{const r=graph.edges.find(r=>r.id===e.id);if(r)onSelect(r.evidenceIds,r.label);}} proOptions={{hideAttribution:true}}><Background variant={BackgroundVariant.Dots} gap={24} size={1}/><Controls showInteractive={false}/></ReactFlow></div>;
 }
