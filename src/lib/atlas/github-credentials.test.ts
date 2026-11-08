@@ -19,10 +19,10 @@ describe('private GitHub credential rules',()=>{
   expect(fetchMock).not.toHaveBeenCalled();
  });
  it('validates only on fixed GitHub HTTPS and prevents redirect credential forwarding',async()=>{
-  const fetchMock=vi.fn(async()=>new Response(null,{status:401}));vi.stubGlobal('fetch',fetchMock);
+  const fetchMock=vi.fn(async(_url:string,_init:RequestInit)=>new Response(null,{status:401}));vi.stubGlobal('fetch',fetchMock);
   const result=await saveGithubToken('owner-a','github_pat_'+'x'.repeat(30));
   expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.github.com/user');
-  expect((fetchMock.mock.calls[0] as unknown as [string,RequestInit])[1].redirect).toBe('error');
+  expect(fetchMock.mock.calls[0]?.[1].redirect).toBe('error');
   expect(result.ok).toBe(false);
   expect(Object.keys(result).sort()).toEqual(['error','ok']);
  });
