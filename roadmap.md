@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Clarify secure per-user GitHub PAT entry versus shared project credentials; PAT support is not implemented
 - [x] Explain GitHub rate-limit failures with the provider reset time
 - [ ] Connect per-user GitHub access — workspace OAuth client is not configured
 - [x] Add tenant-isolation approvals, downloadable read-only tests and private customer-reported results
