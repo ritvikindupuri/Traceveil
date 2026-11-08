@@ -40,3 +40,5 @@ use the editor.
 - Application scans are stored separately from historical MCP audits with owner-readable, server-written records; this preserves evidence meaning across the product pivot.
 - The interactive application graph loads client-side using React Flow and Dagre; server collection never executes repository code or fetches arbitrary application destinations.
 - GitHub collection classifies provider quota headers separately from access denials without automatic retries, so request exhaustion is not misreported as an AI or authorization failure.
+- Tenant-isolation plans bind owner attestation, immutable scan commit and expiring suite approval; one-time manual results stay customer-reported and never become graph or trusted execution facts.
+- Exported tenant runners execute only in customer-controlled CI against numeric loopback targets, with four bounded GETs and no response bodies or credentials in results; the web process never executes repository code.
