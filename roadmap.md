@@ -1,5 +1,5 @@
 # Roadmap
-- [ ] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
+- [x] Research Wiz Security Graph and define the distinct repo/app attack-graph redesign
 - [x] Plan repo/app evidence collection, red-team analysis, reviewed remediation and ongoing monitoring
 - [x] Add saved host/tool/risk policies and per-call guard decisions
 - [x] Verify policy saving, denial and approved forwarding with real audits

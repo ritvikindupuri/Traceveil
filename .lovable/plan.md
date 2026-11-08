@@ -5,6 +5,19 @@ Rebuild Armorix around one workflow: **GitHub repository or live application URL
 
 Keep Armorix's name, faceted shield, balanced charcoal surfaces and emerald accent. Borrow Wiz's relationship-first approach, not its branding, screens or proprietary icons. No mock inventories, fabricated findings or invented connections.
 
+## Wiz research findings
+- Wiz describes its Security Graph as a database, normalized data model and analysis layer. It correlates cloud resources, identity permissions, workload vulnerabilities, exposure and sensitive data—not just a URL scan.
+- Prioritization centers on combinations such as external exposure + exploitable vulnerability + access to sensitive data. Potential paths are distinct from logged activity or proven exploitation.
+- Official published screenshots show a light dotted canvas, circular pictogram nodes, resource/type labels, curved connections, expandable aggregates and evidence tables. Blue workloads, purple identities and cyan secrets are entity categories, not a universal severity scale. Those screenshots are from a 2024 article; today's exact interface and proprietary inference/scoring rules are not publicly verified.
+- Wiz now publicly advertises a Red Agent for offensive testing and Green Agent remediation guidance. Their availability and execution safeguards are not established by public marketing pages. Armorix should differentiate through evidence provenance, coverage transparency and reviewed patch-to-path verification rather than claim those agent roles are novel.
+
+Sources:
+- [Security Graph overview](https://www.wiz.io/lp/wiz-security-graph)
+- [Toxic combinations and contextual prioritization](https://www.wiz.io/blog/the-anatomy-of-a-toxic-combination-of-risk)
+- [Agentless collection](https://www.wiz.io/blog/the-wiz-approach-to-agentless-scanning)
+- [Incident-response graphs and official UI screenshots](https://www.wiz.io/blog/wiz-security-graph-enhances-cloud-incident-response)
+- [Red Agent](https://www.wiz.io/solutions/red-agent)
+
 ## New experience
 - A compact project workspace with a repository/application URL input as the starting point.
 - A graph-first investigation screen: scoped asset list on the left, large interactive graph in the center, evidence drawer on the right.
@@ -12,6 +25,7 @@ Keep Armorix's name, faceted shield, balanced charcoal surfaces and emerald acce
 - Graph controls for fit, zoom, search, severity, relationship type and path focus. Selecting a node or edge opens the underlying source and timestamp.
 - Purpose-specific outlined icons for repositories, routes, dependencies, identities, workflows, services and data stores. Show a resource only when it was actually discovered.
 - Neutral connections for discovered relationships; amber/red for supported risky relationships. Dashed edges denote hypotheses. Keep confidence and risk separate; color alone never communicates status.
+- This provenance legend is Armorix's own convention, not a claim that Wiz uses dashed edges for inference. Use neutral resource glyphs with discrete category accents and a separate severity badge to prevent category colors from implying risk.
 - Preserve existing Google/email sign-in and private historical MCP audit records; do not reinterpret old records as application scans.
 
 ## Evidence collection
