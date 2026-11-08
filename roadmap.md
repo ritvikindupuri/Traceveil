@@ -3,7 +3,7 @@
 - [x] Explain custom MCP endpoint rejection and show a specific reason before submitting unsupported destinations
 - [x] Clarify secure per-user GitHub PAT entry versus shared project credentials; PAT support is not implemented
 - [x] Explain GitHub rate-limit failures with the provider reset time
-- [ ] Connect per-user GitHub access — workspace OAuth client is not configured
+- [ ] Build and verify encrypted per-user GitHub PAT entry, replacement, removal and server-side repository collection
 - [x] Add tenant-isolation approvals, downloadable read-only tests and private customer-reported results
 - [ ] Verify export → actual customer CI execution → import → readback — requires a saved scan and owner-supplied app/tenant fixtures
 - [x] Rename to Traceveil, introduce original logo/favicon and verify a lighter interface
