@@ -43,3 +43,4 @@ use the editor.
 - Tenant-isolation plans bind owner attestation, immutable scan commit and expiring suite approval; one-time manual results stay customer-reported and never become graph or trusted execution facts.
 - Exported tenant runners execute only in customer-controlled CI against numeric loopback targets, with four bounded GETs and no response bodies or credentials in results; the web process never executes repository code.
 - The public root renders the branded landing page and uses the existing account dialog; authenticated identity transitions enter `/console`, keeping the workspace separate from the sign-in entry.
+- Custom audit transport lives in a separately deployed Node relay with pinned numeric HTTPS sockets and an inventory-only method schema; server-side integration fails closed unless deployment verification is explicitly enabled, and runtime destination authority remains unchanged.

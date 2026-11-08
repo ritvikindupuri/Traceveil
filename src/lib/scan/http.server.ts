@@ -1,5 +1,6 @@
 import { publicEndpoint } from './validation';
 import {trustedDestination} from './destinations';
+import {relayFetch} from './relay.server';
 
 export async function readBounded(body: ReadableStream<Uint8Array> | null, limit = 1_000_000): Promise<string> {
   if (!body) return '';
@@ -22,7 +23,7 @@ export async function safeEndpointFetch(raw: string | URL, init: RequestInit): P
   const url = publicEndpoint(String(raw));
   const signal = AbortSignal.any([init.signal ?? new AbortController().signal, AbortSignal.timeout(20_000)]);
   // Host allowlist is enforced before any outbound connection; DNS preflight cannot prevent rebinding.
-  if (!trustedDestination(url.href)) throw new Error('This endpoint needs destination-pinned egress. Paste its real tool definitions instead.');
+  if (!trustedDestination(url.href)) return relayFetch(url.href,{...init,signal});
   const response = await fetch(url, {...init, signal, redirect:'error'});
   return response;
 }

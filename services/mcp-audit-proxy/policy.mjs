@@ -10,7 +10,9 @@ export function publicAddress(address){
   const ip=ipaddr.parse(address);
   // Only ordinary public unicast; ipaddr rejects mapped, transition,
   // multicast, documentation, private, link-local and reserved ranges.
-  return ip.range()==='unicast';
+  if(ip.range()!=='unicast')return false;
+  if(ip.kind()==='ipv6')return ip.match(ipaddr.parse('2000::'),3)&&!ip.match(ipaddr.parse('3fff::'),20);
+  return !ip.match(ipaddr.parse('192.0.0.0'),24);
  }catch{return false;}
 }
 export function targetUrl(raw){

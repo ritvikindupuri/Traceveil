@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {publicAddress,chooseAddress,targetUrl,validateRequest} from './policy.mjs';
 test('blocks private, reserved and transition addresses',()=>{
- for(const ip of ['127.0.0.1','10.0.0.1','169.254.169.254','100.64.0.1','192.0.2.1','198.18.0.1','224.0.0.1','::1','::ffff:8.8.8.8','64:ff9b::808:808','2001:db8::1','fc00::1','fe80::1'])assert.equal(publicAddress(ip),false,ip);
+ for(const ip of ['127.0.0.1','10.0.0.1','169.254.169.254','100.64.0.1','192.0.2.1','198.18.0.1','224.0.0.1','::1','::ffff:8.8.8.8','64:ff9b::808:808','2001:db8::1','3fff::1','fec0::1','fc00::1','fe80::1'])assert.equal(publicAddress(ip),false,ip);
  assert.equal(publicAddress('8.8.8.8'),true);assert.equal(publicAddress('2606:4700:4700::1111'),true);
 });
 test('mixed DNS answers and empty sets fail closed',()=>{

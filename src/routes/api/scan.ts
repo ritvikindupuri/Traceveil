@@ -46,6 +46,8 @@ export const Route = createFileRoute("/api/scan")({
               let message = 'Audit failed or timed out. Check the input and try again.';
               if (status === 402) message = "AI credits exhausted. Add credits in Settings → Plans & credits.";
               if (status === 429) message = "Rate limited. Try again shortly.";
+              const {RelayError}=await import('@/lib/scan/relay.server');
+              if(err instanceof RelayError)message=err.message;
               if (!request.signal.aborted) emit({ type: "error", message });
             } finally {
               try { controller.close(); } catch {}
