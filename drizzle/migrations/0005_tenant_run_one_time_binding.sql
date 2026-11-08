@@ -1,0 +1,1 @@
+ALTER TABLE public.tenant_verification_runs ADD CONSTRAINT tenant_run_one_per_plan UNIQUE(plan_id);
