@@ -17,4 +17,4 @@ export const Route=createFileRoute('/api/application-scan')({server:{handlers:{P
   catch(error){await supabaseAdmin.from('application_scans').update({status:'partial'}).eq('id',record.id).eq('user_id',userId);throw error;}
  }catch(error){if(!request.signal.aborted)emit({type:'error',message:error instanceof Error?error.message:'Application scan failed'});}finally{if(!cancelled)controller.close();}},cancel(){cancelled=true;}});
  return new Response(stream,{headers:{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'}});
-}}});
+}}}});
