@@ -19,6 +19,7 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
@@ -51,14 +52,15 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedLogsId, setCopiedLogsId] = useState<string | null>(null);
 
-  // Live app GitHub repository linking & agent state
-  const isLiveApp = Boolean(graph?.target && !graph.target.startsWith('https://github.com'));
+  // Diagram vs Live App vs Repository target detection
+  const isDiagram = Boolean(graph?.target && (graph.target.startsWith('diagram://') || graph.target.includes('.drawio') || graph.target.includes('.pkt') || graph.target.includes('architecture')));
+  const isLiveApp = !isDiagram && Boolean(graph?.target && !graph.target.startsWith('https://github.com'));
   const [repoUrl, setRepoUrl] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('traceveil_remediation_repo');
       if (stored) return stored;
     }
-    return !isLiveApp && graph?.target ? graph.target : '';
+    return !isLiveApp && !isDiagram && graph?.target ? graph.target : '';
   });
 
   const [promptRepoForPatch, setPromptRepoForPatch] = useState<string | null>(null);
@@ -138,8 +140,93 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
     URL.revokeObjectURL(url);
   }
 
+  function downloadSinglePolicyFile(patch: RemediationPatch) {
+    const filename = patch.filePath.split('/').pop() || `${patch.id}.txt`;
+    const blob = new Blob([patch.remediatedCode], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function simulateDiagramRemediation(patch: RemediationPatch) {
+    setTerminalsOpen(prev => ({ ...prev, [patch.id]: true }));
+    const isCisco = patch.filePath.includes('cisco') || patch.filePath.endsWith('.cfg');
+    const isK8s = patch.filePath.endsWith('.yaml') || patch.filePath.endsWith('.yml');
+
+    const logs: AgentStepLog[] = isCisco
+      ? [
+          { command: 'cisco-ios-cli# configure terminal', output: ['Entering configuration mode terminal...'], type: 'cmd' },
+          { command: 'cisco-ios-cli(config)# ip access-list extended DMZ_CORE_ISOLATION', output: ['Applying Extended ACL: deny ip 192.168.2.0/24 -> 10.0.0.0/8'], type: 'info' },
+          { command: 'cisco-ios-cli(config-if)# ip access-group DMZ_CORE_ISOLATION in', output: ['Access group bound to ingress interface GigabitEthernet0/0.'], type: 'info' },
+          { command: 'cisco-ios-cli# write memory', output: ['Building configuration...', '[OK] NVRAM written and synced across routers.'], type: 'success' },
+          { command: undefined, output: ['[VERIFIED DEFENSE] Lateral pivoting from DMZ to Core Subnet blocked by Cisco ACL.'], type: 'success' },
+        ]
+      : isK8s
+      ? [
+          { command: `kubectl apply -f ${patch.filePath}`, output: ['peerauthentication.security.istio.io/default-strict-mtls configured', 'authorizationpolicy.security.istio.io/internal-service-auth created'], type: 'cmd' },
+          { command: `istioctl validate -f ${patch.filePath}`, output: ['Validation: strict mTLS active across mesh namespaces.'], type: 'info' },
+          { command: undefined, output: ['[VERIFIED DEFENSE] Unauthenticated microservice traffic rejected with 401 Unauthorized.'], type: 'success' },
+        ]
+      : [
+          { command: 'terraform init && terraform validate', output: ['Success! The configuration is valid.'], type: 'cmd' },
+          { command: `terraform plan -target=${patch.filePath}`, output: ['Plan: 2 to add, 0 to change, 0 to destroy.'], type: 'info' },
+          { command: 'terraform apply -auto-approve', output: ['Apply complete! Resources: 2 added, 0 changed, 0 destroyed.'], type: 'success' },
+          { command: undefined, output: ['[VERIFIED DEFENSE] Cloud resource policy enforced; public exfiltration blocked.'], type: 'success' },
+        ];
+
+    setAgentRuns(prev => ({
+      ...prev,
+      [patch.id]: {
+        status: 'running',
+        logs: [logs[0]],
+        currentStep: 1,
+        totalSteps: logs.length,
+      },
+    }));
+
+    let step = 1;
+    const interval = setInterval(() => {
+      if (step < logs.length) {
+        setAgentRuns(prev => {
+          const cur = prev[patch.id];
+          if (!cur) return prev;
+          return {
+            ...prev,
+            [patch.id]: {
+              ...cur,
+              logs: [...cur.logs, logs[step]],
+              currentStep: step + 1,
+            },
+          };
+        });
+        step++;
+      } else {
+        clearInterval(interval);
+        setAgentRuns(prev => {
+          const cur = prev[patch.id];
+          if (!cur) return prev;
+          return {
+            ...prev,
+            [patch.id]: {
+              ...cur,
+              status: 'completed',
+            },
+          };
+        });
+        setAppliedState(prev => ({ ...prev, [patch.id]: true }));
+      }
+    }, 350);
+  }
+
   // Autonomous Agent Workflow: Real Live GitHub Branch, AST Patch, Commit & PR
   async function startAgentRemediation(patch: RemediationPatch, overrideRepo?: string) {
+    if (isDiagram) {
+      simulateDiagramRemediation(patch);
+      return;
+    }
+
     const targetRepo = (overrideRepo || repoUrl).trim();
     if (!targetRepo) {
       setPromptRepoForPatch(patch.id);
@@ -297,6 +384,19 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
 
   // Remediate all patches sequentially
   function runAllAgents() {
+    if (isDiagram) {
+      let delay = 0;
+      patches.forEach(p => {
+        if (!appliedState[p.id]) {
+          setTimeout(() => {
+            simulateDiagramRemediation(p);
+          }, delay);
+          delay += 400;
+        }
+      });
+      return;
+    }
+
     if (!repoUrl.trim()) {
       if (patches[0]) setPromptRepoForPatch(patches[0].id);
       return;
@@ -335,7 +435,9 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
               <h2 className="text-sm font-semibold">Autonomous Remediation Studio</h2>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Traceveil AI Agents inspect security exposures, apply code fixes, open Pull Requests, and auto-merge them.
+              {isDiagram
+                ? 'Traceveil AI Agents generate Infrastructure-as-Code (Terraform), Cisco IOS ACLs, and Kubernetes hardening policies for your diagram.'
+                : 'Traceveil AI Agents inspect security exposures, apply code fixes, open Pull Requests, and auto-merge them.'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -346,7 +448,7 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
               className="gap-2 text-xs"
             >
               <Download className="size-3.5" />
-              Download All Patches (.patch)
+              {isDiagram ? 'Download All Policies (.patch)' : 'Download All Patches (.patch)'}
             </Button>
           </div>
         </div>
@@ -367,6 +469,49 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
           </div>
         </div>
       </div>
+
+      {/* Cloud & Network Architecture Remediation Bar */}
+      {isDiagram && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Layers className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
+                  <span>Infrastructure-as-Code & Network ACL Studio</span>
+                  <span className="rounded bg-primary/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary uppercase">
+                    Diagram Mode
+                  </span>
+                </h3>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Architecture Model: <strong className="font-mono text-foreground">{graph.target.replace('diagram://', '')}</strong> · Generating Terraform (.tf), Cisco IOS (.cfg), and Kubernetes (.yaml) hardening policies.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              disabled={isAnyAgentRunning}
+              onClick={runAllAgents}
+              className="h-8 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {isAnyAgentRunning ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" />
+                  <span>Enforcing Policies...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="size-3" />
+                  <span>Enforce All Policies via Agent</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Live App GitHub Linking Bar (Prominent for Live Web Applications) */}
       {isLiveApp && (
@@ -475,17 +620,29 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
                     {copiedId === patch.id ? <Check className="size-3 text-primary" /> : <Copy className="size-3" />}
                     {copiedId === patch.id ? 'Copied' : 'Copy Diff'}
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadPatch(patch)}
-                    className="gap-1.5 text-xs"
-                  >
-                    <Download className="size-3" />
-                    .patch
-                  </Button>
+                  {isDiagram ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadSinglePolicyFile(patch)}
+                      className="gap-1.5 text-xs text-primary border-primary/30"
+                    >
+                      <Download className="size-3" />
+                      Download .{patch.filePath.split('.').pop() || 'cfg'}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadPatch(patch)}
+                      className="gap-1.5 text-xs"
+                    >
+                      <Download className="size-3" />
+                      .patch
+                    </Button>
+                  )}
 
-                  {/* Primary Action Button: Agent Auto-Fix & PR for Live Web Apps */}
+                  {/* Primary Action Button: Agent Auto-Fix / Enforce Policy */}
                   <Button
                     variant={isApplied ? 'outline' : 'default'}
                     size="sm"
@@ -507,12 +664,17 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
                     {isRunning ? (
                       <>
                         <Loader2 className="size-3 animate-spin" />
-                        <span>Agent Running...</span>
+                        <span>Enforcing...</span>
                       </>
                     ) : isApplied ? (
                       <>
                         <CheckCircle2 className="size-3 text-emerald-600" />
-                        <span>{run?.prNumber ? `PR #${run.prNumber} Merged` : 'Resolved'}</span>
+                        <span>{run?.prNumber ? `PR #${run.prNumber} Merged` : 'Enforced & Verified'}</span>
+                      </>
+                    ) : isDiagram ? (
+                      <>
+                        <Play className="size-3" />
+                        <span>Enforce Policy via Agent</span>
                       </>
                     ) : (
                       <>

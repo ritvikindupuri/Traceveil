@@ -36,6 +36,23 @@ export function getCleanTargetName(target?: string, graph?: AttackGraph | null):
     if (match) serverBanner = match[1].trim();
   }
 
+  if (cleanUrl.startsWith('diagram://') || cleanUrl.endsWith('.drawio') || cleanUrl.endsWith('.pkt')) {
+    const rawDiag = cleanUrl.replace('diagram://', '').replace(/\.(drawio|pkt|xml)$/, '');
+    const formatted = rawDiag
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+    return {
+      name: formatted || 'Architecture Diagram',
+      isLive: false,
+      isGithub: false,
+      cleanUrl,
+      host: 'Architecture Model',
+      platform: cleanUrl.includes('packet') || cleanUrl.includes('.pkt') ? 'Packet Tracer Network' : 'draw.io Cloud Architecture',
+      serverBanner,
+      findings,
+    };
+  }
+
   if (isGithub) {
     const parts = cleanUrl.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '').split('/');
     const repo = parts[1] || parts[0] || 'repository';
@@ -121,6 +138,14 @@ function promptFromFinding(f: Finding, name: string, serverBanner?: string): str
       return `Enforce tenant_id authentication on unprotected routes in ${name}`;
     case 'database-exposure':
       return `Synthesize multi-tenant PostgreSQL RLS policies for ${name}`;
+    case 'public-storage-exposure':
+      return `Remediate public S3 object storage exposure via Terraform least-privilege policy on ${name}`;
+    case 'flat-network-architecture':
+      return `Deploy Cisco IOS extended ACL policy to block DMZ to core pivoting on ${name}`;
+    case 'missing-waf':
+      return `Attach AWS WAFv2 perimeter inspection on public ingress for ${name}`;
+    case 'unauthenticated-microservice':
+      return `Enforce Istio mutual TLS and service-to-service authorization in ${name}`;
     default:
       return `Remediate validated finding: ${f.title} on ${name}`;
   }
