@@ -164,5 +164,53 @@ end
     expect(graph.findings.length).toBeGreaterThan(0);
     expect(result.deviceCount).toBe(4);
   });
+
+  it('synthesizes draw.io XML from conversational natural language prompts (AWS 3-Tier + S3 bucket)', () => {
+    const prompt = 'CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices';
+    const result = analyzeDiagramToAttackGraph(prompt);
+    const graph = result.graph;
+
+    expect(graph.nodes.length).toBeGreaterThanOrEqual(5);
+    // Verifies vendor classification
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('cloudfront'))).toBe(true);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('alb'))).toBe(true);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('rds') || n.label.toLowerCase().includes('postgres'))).toBe(true);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('s3'))).toBe(true);
+
+    // Verifies security finding extraction (public S3 bucket or unauthenticated storage)
+    expect(graph.findings.some(f => f.rule === 'public-storage-exposure' || f.rule === 'database-exposure')).toBe(true);
+
+    // Verifies BFS attack path derivation
+    expect(graph.attackPaths).toBeDefined();
+    expect(graph.attackPaths!.length).toBeGreaterThan(0);
+    expect(graph.attackPaths![0].steps.length).toBeGreaterThan(1);
+  });
+
+  it('synthesizes Cisco enterprise topology from natural language sentences', () => {
+    const prompt =
+      'Cisco 2911 router connects WAN to ASA 5505 firewall. Firewall forwards web traffic to DMZ Apache web server on port 443, and internal core switch connects directly to MySQL database and unauthenticated Redis cache.';
+    const result = analyzeDiagramToAttackGraph(prompt);
+    const graph = result.graph;
+
+    expect(graph.nodes.length).toBeGreaterThanOrEqual(6);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('2911'))).toBe(true);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('firewall') || n.label.toLowerCase().includes('asa'))).toBe(true);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('mysql') || n.label.toLowerCase().includes('redis'))).toBe(true);
+
+    // BFS shortest attack path traverses through perimeter firewall to database
+    const path = graph.attackPaths![0];
+    expect(path.steps.some(s => s.subtitle.toLowerCase().includes('firewall') || s.subtitle.toLowerCase().includes('router') || s.subtitle.toLowerCase().includes('wan'))).toBe(true);
+  });
+
+  it('synthesizes Kubernetes microservices with unprotected debug pod exposure', () => {
+    const prompt =
+      'Kubernetes cluster with Ingress controller, order-service and auth-service pods, connecting to shared MongoDB and Kafka, with an exposed debug pod running with privileged root container.';
+    const result = analyzeDiagramToAttackGraph(prompt);
+    const graph = result.graph;
+
+    expect(graph.nodes.length).toBeGreaterThanOrEqual(5);
+    expect(graph.nodes.some(n => n.label.toLowerCase().includes('debug'))).toBe(true);
+    expect(graph.findings.length).toBeGreaterThan(0);
+  });
 });
 

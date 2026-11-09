@@ -681,28 +681,38 @@ export function analyzeDiagramToAttackGraph(
       rawContent.toLowerCase().includes('packet tracer') ||
       rawContent.toLowerCase().includes('<topology'));
 
+  const isXml = rawContent.trim().startsWith('<');
+
+  let activeContent = rawContent;
+  let activeFilename = filename;
+
+  if (!isCiscoConfig && !isPacketTracer && !isXml) {
+    activeContent = synthesizeArchitectureFromPrompt(rawContent);
+    activeFilename = 'ai-synthesized-architecture.drawio';
+  }
+
   let cells: RawCell[] = [];
   let diagramName = 'Architecture Diagram';
   const findings: Finding[] = [];
 
   if (isCiscoConfig) {
-    const cisco = parseCiscoIosConfig(rawContent, filename);
+    const cisco = parseCiscoIosConfig(activeContent, activeFilename);
     cells = cisco.cells;
     diagramName = cisco.diagramName;
     cisco.ciscoFindings.forEach(f => findings.push(f));
   } else if (isPacketTracer) {
-    const pt = parsePacketTracerTopology(rawContent);
+    const pt = parsePacketTracerTopology(activeContent);
     cells = pt.cells;
     diagramName = pt.diagramName;
   } else {
-    const drawio = parseDrawIoXml(rawContent);
+    const drawio = parseDrawIoXml(activeContent);
     cells = drawio.cells;
     diagramName = drawio.diagramName;
   }
 
   let activeCells = cells;
   if (activeCells.length === 0) {
-    activeCells = parseTextFallbackTopology(rawContent);
+    activeCells = parseTextFallbackTopology(activeContent);
   }
 
   const nodes: GraphEntity[] = [];
@@ -1151,3 +1161,367 @@ function parseTextFallbackTopology(text: string): RawCell[] {
 
   return cells;
 }
+
+/**
+ * Universal AI Architecture Synthesizer.
+ * Dynamically converts any natural language infrastructure description or chat prompt
+ * into a rich, valid draw.io XML topology with vendor-specific shapes, directional links,
+ * tier-based coordinates, and vulnerability indicators.
+ */
+export function synthesizeArchitectureFromPrompt(prompt: string): string {
+  const cleanPrompt = prompt.trim();
+  if (!cleanPrompt) {
+    return `<mxfile host="Traceveil-AI-Synthesizer" modified="${new Date().toISOString()}" agent="Traceveil Agent" version="20.0.0"><diagram id="empty-diagram" name="Empty Architecture"><mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800"><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>`;
+  }
+
+  interface NodeItem {
+    id: string;
+    label: string;
+    cleanName: string;
+    style: string;
+    tier: number; // 0=internet, 1=edge/waf/router, 2=lb/ingress/switch, 3=compute/app, 4=data/storage
+    isPublicPerimeter?: boolean;
+    isUnprotected?: boolean;
+  }
+
+  interface EdgeItem {
+    id: string;
+    source: string;
+    target: string;
+    label: string;
+  }
+
+  const nodes: NodeItem[] = [];
+  const edges: EdgeItem[] = [];
+  let nextId = 1;
+
+  function classifyAndCreateNode(rawName: string, contextString = ''): NodeItem {
+    const trimmed = cleanLabel(rawName)
+      .replace(/^[-\s*•>]+/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Check if already exists
+    const existing = nodes.find(n => n.cleanName.toLowerCase() === trimmed.toLowerCase());
+    if (existing) return existing;
+
+    const l = (trimmed + ' ' + contextString).toLowerCase();
+    let tier = 3; // default compute/app
+    let shape = 'shape=mxgraph.aws4.compute;fillColor=#ED7100;strokeColor=#ED7100;fontColor=#ffffff;';
+    let isPublic = false;
+    let isUnprotected = false;
+
+    if (
+      l.includes('unauthenticated') ||
+      l.includes('unprotected') ||
+      l.includes('exposed') ||
+      l.includes('insecure') ||
+      l.includes('no auth') ||
+      l.includes('debug') ||
+      l.includes('privileged') ||
+      l.includes('default password')
+    ) {
+      isUnprotected = true;
+    }
+
+    // Tier 0: Internet / Client / WAN
+    if (
+      l.includes('internet') ||
+      l.includes('public user') ||
+      l.includes('client') ||
+      l.includes('wan') ||
+      l.includes('browser') ||
+      l.includes('traffic')
+    ) {
+      tier = 0;
+      shape = 'shape=mxgraph.aws4.client;fillColor=#232F3E;strokeColor=#232F3E;fontColor=#ffffff;';
+      isPublic = true;
+    }
+    // Tier 1: Router, WAF, Firewall, CloudFront, Route53, Edge
+    else if (l.includes('cloudfront') || l.includes('cdn') || l.includes('route53') || l.includes('dns')) {
+      tier = 1;
+      shape = 'shape=mxgraph.aws4.cloudfront;fillColor=#147EBA;strokeColor=#147EBA;fontColor=#ffffff;';
+    } else if (l.includes('waf') || l.includes('shield') || l.includes('armor')) {
+      tier = 1;
+      shape = 'shape=mxgraph.aws4.waf;fillColor=#D6242D;strokeColor=#D6242D;fontColor=#ffffff;';
+    } else if (l.includes('router') || l.includes('2911') || l.includes('isr') || (l.includes('gateway') && !l.includes('api gateway'))) {
+      tier = 1;
+      shape = 'shape=mxgraph.cisco.routers.router;fillColor=#035388;strokeColor=#035388;fontColor=#ffffff;';
+    } else if (l.includes('firewall') || l.includes('asa') || l.includes('palo alto') || l.includes('fortinet')) {
+      tier = 1;
+      shape = 'shape=mxgraph.cisco.security.firewall;fillColor=#E05243;strokeColor=#E05243;fontColor=#ffffff;';
+    }
+    // Tier 2: Load Balancers, Ingress, Proxies, Switches
+    else if (
+      l.includes('alb') ||
+      l.includes('nlb') ||
+      l.includes('load balancer') ||
+      l.includes('ingress') ||
+      l.includes('api gateway') ||
+      l.includes('reverse proxy') ||
+      l.includes('kong') ||
+      l.includes('traefik')
+    ) {
+      tier = 2;
+      shape = 'shape=mxgraph.aws4.alb;fillColor=#8C4FFF;strokeColor=#8C4FFF;fontColor=#ffffff;';
+    } else if (l.includes('switch') || l.includes('nexus') || l.includes('catalyst')) {
+      tier = 2;
+      shape = 'shape=mxgraph.cisco.switches.workgroup_switch;fillColor=#035388;strokeColor=#035388;fontColor=#ffffff;';
+    }
+    // Tier 4: Storage, Databases, Caches, Queues
+    else if (l.includes('s3') || l.includes('blob') || l.includes('bucket') || l.includes('gcs')) {
+      tier = 4;
+      shape = 'shape=mxgraph.aws4.s3;fillColor=#277116;strokeColor=#277116;fontColor=#ffffff;';
+      if (l.includes('public') || l.includes('open') || l.includes('unauthenticated')) {
+        isUnprotected = true;
+      }
+    } else if (
+      l.includes('rds') ||
+      l.includes('postgres') ||
+      l.includes('mysql') ||
+      l.includes('mongo') ||
+      l.includes('sql') ||
+      l.includes('database') ||
+      l.includes('cosmos') ||
+      l.includes('dynamodb') ||
+      l.includes('aurora')
+    ) {
+      tier = 4;
+      shape = 'shape=mxgraph.aws4.database;fillColor=#2E73B8;strokeColor=#2E73B8;fontColor=#ffffff;';
+    } else if (l.includes('redis') || l.includes('cache') || l.includes('elasticache') || l.includes('memcached')) {
+      tier = 4;
+      shape = 'shape=mxgraph.aws4.elasticache;fillColor=#C925D1;strokeColor=#C925D1;fontColor=#ffffff;';
+    } else if (l.includes('kafka') || l.includes('rabbit') || l.includes('sqs') || l.includes('sns') || l.includes('queue') || l.includes('eventbridge')) {
+      tier = 4;
+      shape = 'shape=mxgraph.aws4.sqs;fillColor=#E7157B;strokeColor=#E7157B;fontColor=#ffffff;';
+    }
+    // Tier 3: Compute / Containers / Lambdas / Web Servers
+    else if (l.includes('ecs') || l.includes('fargate') || l.includes('docker') || l.includes('container')) {
+      tier = 3;
+      shape = 'shape=mxgraph.aws4.ecs;fillColor=#F58534;strokeColor=#F58534;fontColor=#ffffff;';
+    } else if (l.includes('eks') || l.includes('k8s') || l.includes('kubernetes') || l.includes('pod')) {
+      tier = 3;
+      shape = 'shape=mxgraph.k8s.pod;fillColor=#326CE5;strokeColor=#326CE5;fontColor=#ffffff;';
+    } else if (l.includes('lambda') || l.includes('function') || l.includes('serverless')) {
+      tier = 3;
+      shape = 'shape=mxgraph.aws4.lambda;fillColor=#ED7100;strokeColor=#ED7100;fontColor=#ffffff;';
+    } else if (
+      l.includes('nginx') ||
+      l.includes('apache') ||
+      l.includes('web server') ||
+      l.includes('api') ||
+      l.includes('service') ||
+      l.includes('backend') ||
+      l.includes('frontend')
+    ) {
+      tier = 3;
+      shape = 'shape=mxgraph.aws4.compute;fillColor=#ED7100;strokeColor=#ED7100;fontColor=#ffffff;';
+    }
+
+    if (isUnprotected) {
+      shape += 'strokeColor=#EF4444;strokeWidth=3;';
+    }
+
+    const node: NodeItem = {
+      id: `node-${nextId++}`,
+      label: trimmed,
+      cleanName: trimmed,
+      style: shape,
+      tier,
+      isPublicPerimeter: isPublic,
+      isUnprotected,
+    };
+    nodes.push(node);
+    return node;
+  }
+
+  function addEdge(sourceId: string, targetId: string, label = 'Connects to') {
+    if (sourceId === targetId) return;
+    const exists = edges.some(e => e.source === sourceId && e.target === targetId);
+    if (!exists) {
+      edges.push({
+        id: `edge-${nextId++}`,
+        source: sourceId,
+        target: targetId,
+        label,
+      });
+    }
+  }
+
+  // 1. Process Arrow Pipelines (e.g. A -> B -> C)
+  if (cleanPrompt.includes('->') || cleanPrompt.includes('-->') || cleanPrompt.includes('==>')) {
+    // Check for branch phrases like ", plus a public S3 bucket" or ", and also..."
+    const segments = cleanPrompt.split(/,\s*(?:plus|also|additionally|along with)\s+/i);
+    const mainChain = segments[0];
+
+    const arrowParts = mainChain.split(/->|-->|==>/).map(p => p.trim()).filter(Boolean);
+    for (let i = 0; i < arrowParts.length; i++) {
+      const node = classifyAndCreateNode(arrowParts[i]);
+      if (i > 0) {
+        const prev = nodes.find(n => n.cleanName.toLowerCase() === cleanLabel(arrowParts[i - 1]).toLowerCase());
+        if (prev) {
+          addEdge(prev.id, node.id, 'Direct Route');
+        }
+      }
+    }
+
+    // Process secondary segments (e.g. ", plus a public S3 bucket for invoices")
+    for (let j = 1; j < segments.length; j++) {
+      const subItem = segments[j].trim();
+      if (subItem) {
+        classifyAndCreateNode(subItem, 'secondary branch component');
+      }
+    }
+  } else {
+    // 2. Process Natural Sentences & Verb Connectors
+    // Split sentences by periods, semicolons, newlines, or ", and "
+    const sentences = cleanPrompt
+      .split(/(?:[.;\n]+|,\s*(?:and|while|then)\s+)/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    // Matches: "connects WAN to ASA firewall", "connects directly to MySQL", "forwards web traffic to DMZ Apache", "routes to...", etc.
+    const verbRegex = /(.+?)\s+(?:connects(?:\s+(?:directly|via|[A-Za-z0-9_-]+))?\s+to|talks(?:\s+directly)?\s+to|routes(?:\s+(?:web\s+)?(?:traffic|requests))?\s+to|forwards(?:\s+(?:web\s+)?(?:traffic|requests))?\s+to|bridges(?:\s+directly)?\s+to|points\s+to|accesses|queries|hits|sends(?:\s+(?:web\s+)?(?:traffic|requests))?\s+to|exposes)\s+(.+)/i;
+
+    let foundVerbs = false;
+    for (const sentence of sentences) {
+      // Check for "connects <middle> to <target>" pattern (e.g. "Cisco 2911 router connects WAN to ASA 5505 firewall")
+      const middleMatch = sentence.match(/(.+?)\s+connects\s+([A-Za-z0-9_ -]+?)\s+to\s+(.+)/i);
+      if (middleMatch) {
+        foundVerbs = true;
+        const rawSource = middleMatch[1].replace(/^(?:we have|there is|the|an|a|our|and)\s+/i, '').trim();
+        const rawMiddle = middleMatch[2].trim();
+        const rawTarget = middleMatch[3].trim();
+
+        const srcNode = classifyAndCreateNode(rawSource);
+        const midNode = classifyAndCreateNode(rawMiddle);
+        const tgtNode = classifyAndCreateNode(rawTarget);
+
+        // WAN (mid) -> Router (src) -> Firewall (tgt)
+        if (midNode.tier < srcNode.tier) {
+          addEdge(midNode.id, srcNode.id, 'Ingress Inbound');
+          addEdge(srcNode.id, tgtNode.id, 'Internal Forward');
+        } else {
+          addEdge(srcNode.id, midNode.id, 'Traffic Forward');
+          addEdge(midNode.id, tgtNode.id, 'Downstream Route');
+        }
+        continue;
+      }
+
+      const match = sentence.match(verbRegex);
+      if (match) {
+        foundVerbs = true;
+        const rawSource = match[1].replace(/^(?:we have|there is|the|an|a|our|and)\s+/i, '').trim();
+        const rawTargets = match[2];
+
+        const srcNode = classifyAndCreateNode(rawSource);
+        // Split targets by " and " or ", "
+        const targetList = rawTargets.split(/\s+and\s+|,\s*/i).map(t => t.trim()).filter(Boolean);
+        for (const rawTgt of targetList) {
+          const tgtNode = classifyAndCreateNode(rawTgt);
+          addEdge(srcNode.id, tgtNode.id, 'Traffic Flow');
+        }
+      }
+    }
+
+    // Ensure connectivity between compute workloads and internal switch if present
+    const switches = nodes.filter(n => n.cleanName.toLowerCase().includes('switch'));
+    const computeNodes = nodes.filter(n => n.tier === 3);
+    if (switches.length > 0 && computeNodes.length > 0) {
+      switches.forEach(sw => {
+        computeNodes.forEach(cp => {
+          if (!edges.some(e => (e.source === cp.id && e.target === sw.id) || (e.source === sw.id && e.target === cp.id))) {
+            addEdge(cp.id, sw.id, 'Internal Gateway Route');
+          }
+        });
+      });
+    }
+
+    // 3. Fallback: If no arrows and no verbs, parse comma-separated or keyword components
+    if (!foundVerbs) {
+      const components = cleanPrompt.split(/[,;\n]+|\s+with\s+|\s+and\s+/i).map(c => c.trim()).filter(Boolean);
+      for (const comp of components) {
+        classifyAndCreateNode(comp);
+      }
+      // Sort nodes by tier and connect sequentially
+      const sorted = [...nodes].sort((a, b) => a.tier - b.tier);
+      for (let i = 1; i < sorted.length; i++) {
+        addEdge(sorted[i - 1].id, sorted[i].id, 'Sequential Ingress');
+      }
+    }
+  }
+
+  // 4. Ingress & Perimeter Guarantee
+  let internetNode = nodes.find(n => n.tier === 0);
+  if (!internetNode) {
+    internetNode = classifyAndCreateNode('Public Internet', 'client traffic untrusted external');
+    internetNode.tier = 0;
+  }
+
+  // Connect Public Internet to the earliest entrypoint(s)
+  const entrypoints = nodes.filter(n => n.id !== internetNode!.id && (n.tier === 1 || n.tier === 2));
+  if (entrypoints.length > 0) {
+    entrypoints.forEach(ep => addEdge(internetNode!.id, ep.id, 'HTTPS Public Ingress'));
+  } else {
+    // If no tier 1 or 2, connect to first tier 3 node
+    const firstCompute = nodes.find(n => n.id !== internetNode!.id && n.tier === 3);
+    if (firstCompute) {
+      addEdge(internetNode.id, firstCompute.id, 'Direct Public Ingress');
+    }
+  }
+
+  // If any storage/datastore is explicitly unprotected/public, link Public Internet directly to it
+  nodes
+    .filter(n => n.id !== internetNode!.id && n.isUnprotected && (n.tier === 4 || n.label.toLowerCase().includes('debug')))
+    .forEach(target => {
+      addEdge(internetNode!.id, target.id, 'Direct Public Exposure');
+    });
+
+  // 5. Tier-Based Coordinates
+  const tierXMap: Record<number, number> = {
+    0: 60,
+    1: 280,
+    2: 500,
+    3: 740,
+    4: 980,
+  };
+
+  const tierCount: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+  const nodeCoords = new Map<string, { x: number; y: number }>();
+
+  nodes.forEach(n => {
+    const t = n.tier in tierXMap ? n.tier : 3;
+    const yOffset = 80 + tierCount[t] * 120;
+    tierCount[t]++;
+    nodeCoords.set(n.id, { x: tierXMap[t], y: yOffset });
+  });
+
+  // 6. Build Valid draw.io XML
+  let xml = `<mxfile host="Traceveil-AI-Synthesizer" modified="${new Date().toISOString()}" agent="Traceveil Agent" version="20.0.0">\n`;
+  xml += `  <diagram id="ai-diagram-${Date.now()}" name="AI Synthesized Architecture">\n`;
+  xml += `    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800">\n`;
+  xml += `      <root>\n`;
+  xml += `        <mxCell id="0"/>\n`;
+  xml += `        <mxCell id="1" parent="0"/>\n`;
+
+  nodes.forEach(n => {
+    const coords = nodeCoords.get(n.id) || { x: 100, y: 100 };
+    xml += `        <mxCell id="${n.id}" value="${n.label}" style="${n.style}" vertex="1" parent="1">\n`;
+    xml += `          <mxGeometry x="${coords.x}" y="${coords.y}" width="160" height="60" as="geometry"/>\n`;
+    xml += `        </mxCell>\n`;
+  });
+
+  edges.forEach((e, idx) => {
+    xml += `        <mxCell id="${e.id || `edge-${idx + 1}`}" value="${e.label || 'Connects to'}" style="edge;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" source="${e.source}" target="${e.target}" parent="1">\n`;
+    xml += `          <mxGeometry relative="1" as="geometry"/>\n`;
+    xml += `        </mxCell>\n`;
+  });
+
+  xml += `      </root>\n`;
+  xml += `    </mxGraphModel>\n`;
+  xml += `  </diagram>\n`;
+  xml += `</mxfile>`;
+
+  return xml;
+}
+
