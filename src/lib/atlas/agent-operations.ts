@@ -7,6 +7,8 @@ export type RedTeamProbe = {
   target: string;
   severity: 'critical' | 'high' | 'medium';
   command: string;
+  powershellCommand?: string;
+  suggestion?: string;
   payload: string;
   liveTrace: string[];
   status: 'exploitable' | 'defended' | 'testing';
@@ -25,6 +27,8 @@ export type RemediationPatch = {
   remediatedCode: string;
   diff: string;
   explanation: string;
+  suggestion: string;
+  powershellCommand: string;
   status: 'open' | 'applied';
 };
 
@@ -82,6 +86,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: isWrite ? '.github/workflows/*.yml' : 'GitHub Actions Runner',
       severity: isWrite ? 'critical' : 'high',
       command: `gh api repos/${targetRepo}/actions/permissions`,
+      powershellCommand: `gh api repos/${targetRepo}/actions/permissions | ConvertFrom-Json`,
+      suggestion: 'Audit repository workflow tokens using GitHub CLI. Replace global write permissions with explicit read-only scopes.',
       payload: isWrite
         ? 'GITHUB_TOKEN permissions: write-all'
         : 'Mutable action reference tag',
@@ -113,6 +119,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Repository Git Commit History',
       severity: 'critical',
       command: `curl -s -I https://api.github.com/user -H "Authorization: token [EXPOSED_TOKEN]"`,
+      powershellCommand: `git grep -n -E "(ghp_[A-Za-z0-9]{30,}|AKIA[A-Z0-9]{16})"`,
+      suggestion: 'Scan git commit history for unencrypted API tokens. Revoke any committed credentials immediately.',
       payload: 'Exposed PAT / API Key pattern extracted from snapshot history',
       liveTrace: [
         `$ git log -n 1 --format="%h - %an, %ar"`,
@@ -142,6 +150,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Dockerfile / Kubernetes Pod Spec',
       severity: 'high',
       command: `docker inspect --format='{{.HostConfig.Privileged}}' ${targetRepo.toLowerCase()}:latest`,
+      powershellCommand: `docker inspect --format '{{.HostConfig.Privileged}}' ${targetRepo.toLowerCase()}:latest`,
+      suggestion: 'Verify container effective UID is non-root and ensure privileged container execution is disabled.',
       payload: 'Effective UID 0 (root) execution with cap_sys_admin capability flag',
       liveTrace: [
         `$ grep -rn -E "USER|privileged" Dockerfile deploy/`,
@@ -170,6 +180,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Workload Ingress / Security Group',
       severity: 'medium',
       command: `nmap -sS -Pn -p 22,80,443,3389 ${targetRepo.toLowerCase()}.example.com`,
+      powershellCommand: `22, 80, 443, 3389 | ForEach-Object { Test-NetConnection -ComputerName "${targetRepo.toLowerCase()}.example.com" -Port $_ }`,
+      suggestion: 'Audit security group rules and firewall boundaries. Ensure management ports (22, 3389) are not open to 0.0.0.0/0.',
       payload: 'Unrestricted inbound TCP SYN sweep across publicly declared port ranges',
       liveTrace: [
         `$ grep -rn "0.0.0.0/0" deploy/ cloudformation/ terraform/`,
@@ -200,6 +212,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: targetUrl,
       severity: 'high',
       command: `curl -s -I -X GET "${targetUrl}" | grep -E -i "content-security-policy|strict-transport-security|server"`,
+      powershellCommand: `(Invoke-WebRequest -Uri "${targetUrl}" -Method HEAD -SkipHttpErrorCheck).Headers | Select-Object Content-Security-Policy, Strict-Transport-Security, X-Frame-Options`,
+      suggestion: 'Test live endpoint headers for Content-Security-Policy and Strict-Transport-Security to prevent XSS and SSL stripping.',
       payload: isCsp ? 'Script injection and framing verification probe' : 'SSL stripping and plaintext downgrade test probe',
       liveTrace: [
         `$ curl -s -I -X GET "${targetUrl}"`,
@@ -227,6 +241,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: graph.target,
       severity: 'medium',
       command: `curl -s -I "${graph.target}" | grep -i -E "server:|x-powered-by:|x-render"`,
+      powershellCommand: `(Invoke-WebRequest -Uri "${graph.target}" -Method HEAD -SkipHttpErrorCheck).Headers | Select-Object Server, X-Powered-By`,
+      suggestion: 'Inspect response headers for Server and X-Powered-By technology disclosures.',
       payload: 'HTTP header technology reconnaissance probe',
       liveTrace: [
         `$ curl -s -I "${graph.target}"`,
@@ -250,6 +266,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Public Object Storage Bucket',
       severity: 'high',
       command: 'aws s3 ls s3://customer-documents/ --no-sign-request',
+      powershellCommand: 'aws s3 ls s3://customer-documents/ --no-sign-request',
+      suggestion: 'Verify unauthenticated public access is rejected on the S3 bucket using AWS CLI without signing.',
       payload: 'Unauthenticated S3 REST API GET/LIST sweep',
       liveTrace: [
         '$ aws s3 ls s3://customer-documents/ --no-sign-request',
@@ -275,6 +293,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Internal Core Database (10.0.1.50)',
       severity: 'high',
       command: 'nmap -sS -Pn 10.0.1.50 -p 5432,3306 --source-port 443',
+      powershellCommand: 'Test-NetConnection -ComputerName 10.0.1.50 -Port 5432',
+      suggestion: 'Test if perimeter DMZ systems can establish direct TCP connections to internal core databases.',
       payload: 'Direct TCP SYN probe traversing unsegmented router interface',
       liveTrace: [
         '$ traceroute 10.0.1.50',
@@ -304,6 +324,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'Application Load Balancer / API Gateway',
       severity: 'medium',
       command: 'sqlmap -u "https://gateway.example.com/api/v1/search?q=test" --batch',
+      powershellCommand: `Invoke-WebRequest -Uri "${graph.target}/api/v1/search?q='%20OR%201=1--" -Method GET -SkipHttpErrorCheck`,
+      suggestion: 'Send test SQL syntax payload to verify perimeter WAF drops injection traffic before reaching backend.',
       payload: 'Automated OWASP Top 10 injection payload probe',
       liveTrace: [
         '$ curl -s -I "https://gateway.example.com/api/v1/search?q=\' OR 1=1--"',
@@ -327,6 +349,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'internal-orders.production.svc.cluster.local:8080',
       severity: 'high',
       command: 'curl -X POST http://internal-orders.production.svc.cluster.local:8080/execute -d \'{"cmd":"dump"}\'',
+      powershellCommand: `Invoke-RestMethod -Uri "http://internal-orders.production.svc.cluster.local:8080/execute" -Method POST -Body '{"cmd":"dump"}' -ContentType "application/json" -SkipHttpErrorCheck`,
+      suggestion: 'Test direct internal microservice calls to confirm mutual TLS authentication is strictly required.',
       payload: 'Unauthenticated RPC payload across internal service mesh',
       liveTrace: [
         '$ curl -X POST http://internal-orders.production.svc.cluster.local:8080/execute -d \'{"cmd":"dump"}\'',
@@ -350,6 +374,8 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
       target: 'package.json / Lockfiles',
       severity: 'medium',
       command: `npm audit --audit-level=high --json`,
+      powershellCommand: `npm audit --audit-level=high`,
+      suggestion: 'Scan dependency manifests for known CVEs using npm audit.',
       payload: 'Static manifest dependency tree comparison against OSS vulnerability DB',
       liveTrace: [
         `$ npm --version && node --version`,
@@ -380,6 +406,8 @@ export function generateRemediationPatches(graph: AttackGraph): RemediationPatch
     let remediated = '';
     let explanation = '';
     let diff = '';
+    let suggestion = '';
+    let powershellCommand = '';
 
     if (finding.rule === 'mutable-action') {
       const actionMatch = currentText.match(/uses:\s*([\w.-]+\/[\w./-]+)@([\w.-]+)/);
@@ -390,6 +418,13 @@ export function generateRemediationPatches(graph: AttackGraph): RemediationPatch
       currentText.trim();
       remediated = `      uses: ${actionName}@${sampleSha} # ${versionTag} pinned to immutable SHA`;
       explanation = `Pins '${actionName}' to an immutable 40-character Git commit hash, preventing upstream supply chain tag manipulation.`;
+      suggestion = `Pin mutable action references (e.g. '@${versionTag}') to an immutable 40-character Git commit SHA. This blocks supply-chain attackers from modifying tags to execute malicious code.`;
+      powershellCommand = `# Review and pin GitHub Action reference to immutable SHA
+$path = "${filePath}"
+if (Test-Path $path) {
+    (Get-Content $path) -replace 'uses:\\s*${actionName}@${versionTag}', 'uses: ${actionName}@${sampleSha} # ${versionTag}' | Set-Content $path
+    Write-Host "[✓] Updated $path with pinned action reference" -ForegroundColor Green
+}`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},3 +${Math.max(1, line - 1)},3 @@
@@ -401,6 +436,13 @@ export function generateRemediationPatches(graph: AttackGraph): RemediationPatch
   pull-requests: read
   issues: none`;
       explanation = `Replaces dangerous 'permissions: write-all' with explicit read-only least-privilege tokens.`;
+      suggestion = `Scope GITHUB_TOKEN permissions down to minimum required scopes (e.g. read-only contents and PRs) rather than blanket write-all.`;
+      powershellCommand = `# Enforce least-privilege permissions in GitHub Actions
+$path = "${filePath}"
+if (Test-Path $path) {
+    (Get-Content $path) -replace 'permissions:\\s*write-all', "permissions:\`n  contents: read\`n  pull-requests: read\`n  issues: none" | Set-Content $path
+    Write-Host "[✓] Replaced write-all permissions in $path" -ForegroundColor Green
+}`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},2 +${Math.max(1, line - 1)},5 @@
@@ -423,6 +465,14 @@ module.exports = {
   }
 };`;
       explanation = 'Configures Content-Security-Policy (CSP) headers to prevent XSS attacks, unauthorized script execution, and frame embedding.';
+      suggestion = 'Define strict Content-Security-Policy (CSP) response headers in Next.js or reverse proxy to restrict executable script origins and frame ancestors.';
+      powershellCommand = `# Verify Content-Security-Policy header on target
+$res = Invoke-WebRequest -Uri "${graph.target}" -Method HEAD -SkipHttpErrorCheck
+if (-not $res.Headers['Content-Security-Policy']) {
+    Write-Warning "Content-Security-Policy is NOT configured on ${graph.target}"
+} else {
+    Write-Host "CSP: $($res.Headers['Content-Security-Policy'])" -ForegroundColor Green
+}`;
       diff = `--- a/next.config.js
 +++ b/next.config.js
 @@ -1,3 +1,13 @@
@@ -440,6 +490,10 @@ module.exports = {
       remediated = `# Enforce strict HTTPS transport
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;`;
       explanation = 'Enforces HTTP Strict Transport Security (HSTS) with a 1-year max-age and preload flag to eliminate SSL stripping.';
+      suggestion = 'Enable HSTS with max-age=31536000 (1 year) and includeSubDomains on all HTTPS responses to enforce end-to-end encryption.';
+      powershellCommand = `# Verify HSTS header on target
+$res = Invoke-WebRequest -Uri "${graph.target}" -Method HEAD -SkipHttpErrorCheck
+Write-Host "Strict-Transport-Security: $($res.Headers['Strict-Transport-Security'])" -ForegroundColor Cyan`;
       diff = `--- a/nginx.conf
 +++ b/nginx.conf
 @@ -12,2 +12,4 @@
@@ -449,6 +503,9 @@ add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; prelo
     } else if (finding.rule === 'missing-frame-options') {
       remediated = 'add_header X-Frame-Options "DENY" always;';
       explanation = 'Adds X-Frame-Options: DENY to prevent third-party malicious framing and clickjacking attacks.';
+      suggestion = 'Add X-Frame-Options: DENY or SAMEORIGIN header to reverse proxy responses to block clickjacking.';
+      powershellCommand = `# Check X-Frame-Options header
+(Invoke-WebRequest -Uri "${graph.target}" -Method HEAD -SkipHttpErrorCheck).Headers['X-Frame-Options']`;
       diff = `--- a/nginx.conf
 +++ b/nginx.conf
 @@ -14,1 +14,3 @@
@@ -458,6 +515,9 @@ add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; prelo
       remediated = `server_tokens off;
 proxy_hide_header X-Powered-By;`;
       explanation = 'Disables server version tokens and strips technology headers from reverse proxy responses.';
+      suggestion = 'Disable server_tokens and strip X-Powered-By headers to prevent attackers from fingerprinting technology stacks.';
+      powershellCommand = `# Audit leaking technology headers
+(Invoke-WebRequest -Uri "${graph.target}" -Method HEAD -SkipHttpErrorCheck).Headers | Select-Object Server, X-Powered-By`;
       diff = `--- a/nginx.conf
 +++ b/nginx.conf
 @@ -8,2 +8,4 @@
@@ -471,6 +531,9 @@ proxy_hide_header X-Powered-By;`;
           capabilities:
             drop: ["ALL"]`;
       explanation = `Disables container privileged mode and explicitly drops all Linux capabilities to enforce kernel isolation.`;
+      suggestion = 'Explicitly set privileged: false, allowPrivilegeEscalation: false, and drop all Linux capabilities in container specs.';
+      powershellCommand = `# Scan Kubernetes cluster pods for privileged containers
+kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.containers[*].securityContext.privileged}{"\n"}{end}'`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},2 +${Math.max(1, line - 1)},6 @@
@@ -484,6 +547,9 @@ proxy_hide_header X-Powered-By;`;
       remediated = `RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser`;
       explanation = `Creates a dedicated unprivileged user 'appuser' so containerized processes never run as root UID 0.`;
+      suggestion = 'Add a dedicated non-root user (e.g. appuser) in Dockerfile and switch to it using USER appuser before entrypoint execution.';
+      powershellCommand = `# Audit container running user ID
+docker run --rm <image-name> id`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},2 +${Math.max(1, line - 1)},3 @@
@@ -493,6 +559,9 @@ USER appuser`;
     } else if (finding.rule === 'public-cidr') {
       remediated = `cidr_blocks = ["10.0.0.0/16"] # Restricted to internal VPC CIDR`;
       explanation = `Restricts ingress from open public internet (0.0.0.0/0) to the private corporate VPC subnet.`;
+      suggestion = 'Restrict ingress CIDR rules from 0.0.0.0/0 to authorized corporate VPC subnets or private management gateways.';
+      powershellCommand = `# Audit AWS Security Groups for open 0.0.0.0/0 ingress
+aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values='0.0.0.0/0' --query "SecurityGroups[*].{ID:GroupId,Name:GroupName}" --output table`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},2 +${Math.max(1, line - 1)},2 @@
@@ -524,6 +593,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "kms_enc" {
   }
 }`;
       explanation = 'Synthesizes Terraform aws_s3_bucket_public_access_block and KMS encryption to block unauthenticated public access to cloud object storage.';
+      suggestion = 'Enable AWS S3 Public Access Block at bucket or account level to prevent public reads or policy exposure.';
+      powershellCommand = `# Enable S3 Public Access Block via AWS CLI in PowerShell
+aws s3api put-public-access-block --bucket "customer-documents" --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"`;
       diff = `--- a/terraform/storage.tf
 +++ b/terraform/storage.tf
 @@ -1,4 +1,24 @@
@@ -558,6 +630,9 @@ ip access-list extended DMZ_CORE_ISOLATION
 interface GigabitEthernet0/0
  ip access-group DMZ_CORE_ISOLATION in`;
       explanation = 'Deploys Cisco IOS Extended Access Control List (ACL) to block lateral pivoting from DMZ to internal database core.';
+      suggestion = 'Apply Extended Access-List on perimeter router interfaces or configure network firewall rules to isolate DMZ hosts from internal database subnets.';
+      powershellCommand = `# Add Windows Firewall / host rule to isolate DMZ from Internal Core
+New-NetFirewallRule -DisplayName "Traceveil-DMZ-Core-Isolation" -Direction Inbound -Action Block -RemoteAddress "192.168.2.0/24" -LocalAddress "10.0.0.0/8"`;
       diff = `--- a/cisco/router-hardening.cfg
 +++ b/cisco/router-hardening.cfg
 @@ -1,3 +1,12 @@
@@ -609,6 +684,9 @@ resource "aws_wafv2_web_acl_association" "alb_assoc" {
   web_acl_arn  = aws_wafv2_web_acl.perimeter_waf.arn
 }`;
       explanation = 'Deploys AWS WAFv2 with AWS Managed Core Rule Set to inspect perimeter traffic and block automated web exploitation.';
+      suggestion = 'Attach AWS WAFv2 or Cloudflare with OWASP Core Rules to perimeter application load balancers to drop malicious SQLi and XSS payloads.';
+      powershellCommand = `# Create AWS WAFv2 WebACL in PowerShell
+aws wafv2 create-web-acl --name "perimeter-waf-guard" --scope REGIONAL --default-action Allow='{}' --visibility-config "SampledRequestsEnabled=true,CloudWatchMetricsEnabled=true,MetricName=perimeterWAF"`;
       diff = `--- a/terraform/waf.tf
 +++ b/terraform/waf.tf
 @@ -1,2 +1,38 @@
@@ -669,6 +747,9 @@ spec:
         - source:
             principals: ["cluster.local/ns/production/sa/api-gateway"]`;
       explanation = 'Enforces Istio STRICT mutual TLS and fine-grained SPIFFE workload identity authorization between microservices.';
+      suggestion = 'Apply Istio STRICT mTLS and AuthorizationPolicy to authenticate and authorize every service-to-service call via SPIFFE identity.';
+      powershellCommand = `# Apply Istio Strict mTLS manifest
+kubectl apply -f k8s/istio-mtls.yaml`;
       diff = `--- a/k8s/istio-mtls.yaml
 +++ b/k8s/istio-mtls.yaml
 @@ -1,2 +1,24 @@
@@ -729,6 +810,9 @@ resource "aws_db_instance" "prod" {
   vpc_security_group_ids = [aws_security_group.db_sg.id]
 }`;
       explanation = 'Relocates production database into isolated private VPC subnets with Security Group restricting inbound access solely to authorized app tier instances.';
+      suggestion = 'Move RDS database instances into private subnets, set publicly_accessible = false, and bind security group to application compute instances only.';
+      powershellCommand = `# Disable public accessibility on AWS RDS database
+aws rds modify-db-instance --db-instance-identifier "prod-db" --no-publicly-accessible --apply-immediately`;
       diff = `--- a/terraform/database-subnet.tf
 +++ b/terraform/database-subnet.tf
 @@ -1,3 +1,29 @@
@@ -757,11 +841,22 @@ resource "aws_db_instance" "prod" {
     } else {
       remediated = `# Hardened configuration: verified least-privilege baseline applied`;
       explanation = finding.fix;
+      suggestion = finding.fix || `Remediate ${finding.title} in accordance with least-privilege security baseline standards.`;
+      powershellCommand = `# Remediation guidance for ${finding.title}
+Write-Host "Suggested Remediation: ${finding.fix}" -ForegroundColor Cyan`;
       diff = `--- a/${filePath}
 +++ b/${filePath}
 @@ -${Math.max(1, line - 1)},2 +${Math.max(1, line - 1)},2 @@
 -${currentText}
 +${finding.fix}`;
+    }
+
+    // Cisco findings check
+    if (finding.rule.includes('cisco') || finding.rule === 'cleartext-telnet-mgmt') {
+      suggestion = `Disable Telnet on line vty 0 4, enforce SSHv2 ('transport input ssh'), and enable 'service password-encryption'.`;
+      powershellCommand = `# Verify SSH connectivity and ensure Telnet port 23 is closed
+Test-NetConnection -ComputerName "192.168.1.1" -Port 22
+Test-NetConnection -ComputerName "192.168.1.1" -Port 23`;
     }
 
     patches.push({
@@ -774,6 +869,8 @@ resource "aws_db_instance" "prod" {
       remediatedCode: remediated,
       diff,
       explanation,
+      suggestion,
+      powershellCommand,
       status: 'open'
     });
   });

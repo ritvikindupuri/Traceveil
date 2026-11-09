@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useServerFn } from '@tanstack/react-start';
-import { Swords, Terminal, CheckCircle2, Play, AlertTriangle, ShieldCheck, RefreshCw, Copy, Check, Lock, Radio } from 'lucide-react';
+import { Swords, Terminal, CheckCircle2, Play, AlertTriangle, ShieldCheck, RefreshCw, Copy, Check, Lock, Radio, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateRedTeamProbes, computeSha256, type RedTeamProbe, type VerifiedEvidence } from '@/lib/atlas/agent-operations';
@@ -14,6 +14,7 @@ export function InteractiveAgents({ graph, reports }: { graph: AttackGraph; repo
   const [isExecuting, setIsExecuting] = useState(false);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [executedProbes, setExecutedProbes] = useState<Record<string, { status: 'exploitable' | 'defended'; latencyMs?: number; timestamp?: string }>>({});
+  const [copiedPs, setCopiedPs] = useState(false);
 
   const runProbeServerFn = useServerFn(executeLiveProbe);
 
@@ -134,6 +135,12 @@ export function InteractiveAgents({ graph, reports }: { graph: AttackGraph; repo
     void navigator.clipboard.writeText(text);
     setCopiedHash(id);
     setTimeout(() => setCopiedHash(null), 2000);
+  }
+
+  function copyPowerShell(cmd: string) {
+    void navigator.clipboard.writeText(cmd);
+    setCopiedPs(true);
+    setTimeout(() => setCopiedPs(false), 2000);
   }
 
   return (
@@ -268,6 +275,47 @@ export function InteractiveAgents({ graph, reports }: { graph: AttackGraph; repo
                       </>
                     )}
                   </Button>
+                </div>
+
+                {/* 1. AGENT SUGGESTION CALLOUT */}
+                {activeProbe.suggestion && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <Sparkles className="size-3.5 text-destructive" />
+                      <span>Red Team Vector & Manual Reproduction Suggestion</span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed pl-5">
+                      {activeProbe.suggestion}
+                    </p>
+                  </div>
+                )}
+
+                {/* 2. COPY & PASTE POWERSHELL VERIFICATION COMMAND */}
+                <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3.5 py-1.5">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="size-3.5 text-destructive" />
+                      <span className="font-mono text-[11px] font-semibold text-foreground">
+                        PowerShell Verification Command (Copy & Paste to Run)
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyPowerShell(activeProbe.powershellCommand || activeProbe.command)}
+                      className="h-6 gap-1 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      {copiedPs ? <Check className="size-3" /> : <Copy className="size-3" />}
+                      <span>{copiedPs ? 'Copied' : 'Copy Command'}</span>
+                    </Button>
+                  </div>
+                  <div className="p-3 bg-muted/15 font-mono text-xs text-foreground overflow-x-auto select-text">
+                    <pre className="whitespace-pre-wrap">{activeProbe.powershellCommand || activeProbe.command}</pre>
+                  </div>
+                  <div className="border-t border-border/60 bg-muted/30 px-3 py-1 text-[10px] text-muted-foreground flex items-center justify-between">
+                    <span>Run this command in PowerShell or pwsh to verify this vulnerability directly.</span>
+                    <span className="font-mono text-destructive truncate max-w-[200px]">Target: {activeProbe.target}</span>
+                  </div>
                 </div>
 
                 {/* Clean Agent Execution Log (No black terminal box, no fake traces) */}
