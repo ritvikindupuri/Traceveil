@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import {
   Bot,
@@ -23,6 +23,8 @@ import {
   chatWithTenantIsolationAgent,
   type AutonomousAgentIsolationResult,
 } from '@/lib/atlas/isolation.functions';
+import { generateTailoredIsolationPrompts, getCleanTargetName } from '@/lib/atlas/prompt-tailoring';
+import type { AttackGraph } from '@/lib/atlas/types';
 import { cn } from '@/lib/utils';
 
 interface ChatMessage {
@@ -35,7 +37,9 @@ interface ChatMessage {
 }
 
 function formatCleanText(text: string) {
-  const clean = text.replace(/\bArgon\s*4\b/gi, 'Tenant Isolation Agent');
+  const clean = text
+    .replace(/\bArgon\s*4\b/gi, 'Tenant Isolation Agent')
+    .replace(/\*\*Argon\s*4\s*Tenant\s*Isolation\s*Agent\*\*/gi, 'Tenant Isolation Agent');
   const parts = clean.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
@@ -53,13 +57,20 @@ export function TenantIsolation({
   signedIn,
   onSignIn,
   target,
+  graph,
 }: {
   signedIn: boolean;
   onSignIn: () => void;
   target?: string;
+  graph?: AttackGraph | null;
 }) {
   const chatServerFn = useServerFn(chatWithTenantIsolationAgent);
-  const activeTarget = target || 'production-cluster (live)';
+  const activeTarget = target || graph?.target || 'production-cluster (live)';
+
+  const tailoredPrompts = useMemo(
+    () => generateTailoredIsolationPrompts(activeTarget, graph),
+    [activeTarget, graph]
+  );
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -68,29 +79,30 @@ export function TenantIsolation({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevTargetRef = useRef<string>(activeTarget);
 
-  // Initialize conversation with helpful greeting
+  // Initialize or re-tailor conversation whenever target or graph changes
   useEffect(() => {
-    if (messages.length === 0) {
+    const targetChanged = prevTargetRef.current !== activeTarget;
+    prevTargetRef.current = activeTarget;
+
+    if (messages.length === 0 || targetChanged) {
+      const targetInfo = getCleanTargetName(activeTarget);
       setMessages([
         {
-          id: 'welcome-1',
+          id: `welcome-${activeTarget}`,
           role: 'assistant',
           content: `Hello! I'm your Tenant Isolation Agent.
 
-I analyze your application architecture for ${activeTarget} to eliminate cross-tenant data leaks, BOLA (Broken Object Level Authorization), and IDOR exposures.
+I analyze your application architecture for **${targetInfo.cleanUrl}** to eliminate cross-tenant data leaks, BOLA (Broken Object Level Authorization), and IDOR exposures.
 
 Ask me anything about your stack, or click any prompt below to generate zero-trust RLS policies and live isolation test probes.`,
           timestamp: new Date().toLocaleTimeString(),
-          suggestedQuestions: [
-            'How do I isolate workspaces in Supabase / PostgreSQL?',
-            'Prevent IDOR on our customer billing APIs',
-            'Run live cross-tenant boundary verification probes',
-          ],
+          suggestedQuestions: tailoredPrompts,
         },
       ]);
     }
-  }, [activeTarget]);
+  }, [activeTarget, tailoredPrompts]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -148,17 +160,14 @@ Ask me anything about your stack, or click any prompt below to generate zero-tru
   }
 
   function handleResetChat() {
+    const targetInfo = getCleanTargetName(activeTarget);
     setMessages([
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        content: `Reset session. Ready to assist with ${activeTarget} tenant isolation, RLS rules, and live boundary verification.`,
+        content: `Reset session. Ready to assist with **${targetInfo.cleanUrl}** tenant isolation, RLS rules, and live boundary verification.`,
         timestamp: new Date().toLocaleTimeString(),
-        suggestedQuestions: [
-          'How do I isolate workspaces in Supabase / PostgreSQL?',
-          'Prevent IDOR on our customer billing APIs',
-          'Run live cross-tenant boundary verification probes',
-        ],
+        suggestedQuestions: tailoredPrompts,
       },
     ]);
   }

@@ -392,11 +392,8 @@ Respond in clear, helpful, concise prose (2-3 short paragraphs). Explain the bou
       },
     });
 
-    const suggestedQuestions = [
-      'How do I handle users who belong to multiple organizations?',
-      'Can you generate a Prisma multi-tenant query extension?',
-      'How do I run this automated test suite in our GitHub Actions CI?',
-    ];
+    const { generateContextualFollowUpPrompts } = await import('./prompt-tailoring');
+    const suggestedQuestions = generateContextualFollowUpPrompts(target, lastUserMessage);
 
     return {
       reply: modelResponse.text,
