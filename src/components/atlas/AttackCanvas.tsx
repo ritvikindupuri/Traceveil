@@ -280,10 +280,64 @@ export function AttackCanvas({
     return paths.find(p => p.id === selectedPathId) || paths[0] || null;
   }, [riskOnly, paths, selectedPathId]);
 
+  // Normalize steps to support both steps and legacy stages
+  const normalizedSteps = useMemo<AttackPathStep[]>(() => {
+    if (!activePath) return [];
+    if (Array.isArray(activePath.steps) && activePath.steps.length > 0) {
+      return activePath.steps;
+    }
+    const legacyStages = (activePath as any).stages;
+    if (Array.isArray(legacyStages) && legacyStages.length > 0) {
+      return legacyStages.map((st: any, idx: number) => ({
+        id: `step-${st.order || idx + 1}`,
+        nodeId: st.entityId || st.nodeId || 'live-app',
+        title: st.label || st.title || `Stage ${idx + 1}`,
+        subtitle: st.role || 'Stage',
+        stage: (st.role === 'actor' ? 'internet' : st.role === 'workload' ? 'server' : st.role === 'finding' ? 'vulnerability' : st.role === 'privilege' ? 'privilege' : 'target') as any,
+        badge: st.role ? st.role.toUpperCase() : 'STEP',
+        description: st.description || '',
+        remediation: undefined,
+        evidenceIds: [],
+      }));
+    }
+    if (graph.findings && graph.findings.length > 0) {
+      return graph.findings.map((f, idx) => ({
+        id: `step-finding-${idx}`,
+        nodeId: f.id,
+        title: f.title,
+        subtitle: f.rule,
+        stage: 'vulnerability' as const,
+        badge: f.severity.toUpperCase(),
+        description: f.fix,
+        remediation: f.fix,
+        evidenceIds: f.evidenceIds || [],
+      }));
+    }
+    return [];
+  }, [activePath, graph.findings]);
+
   const activeStep: AttackPathStep | null = useMemo(() => {
-    if (!activePath) return null;
-    return activePath.steps[activeStepIdx] || activePath.steps[0] || null;
-  }, [activePath, activeStepIdx]);
+    if (!activePath || normalizedSteps.length === 0) return null;
+    return normalizedSteps[activeStepIdx] || normalizedSteps[0] || null;
+  }, [activePath, normalizedSteps, activeStepIdx]);
+
+  const pathNodeIdsList = useMemo<string[]>(() => {
+    if (!activePath) return [];
+    if (Array.isArray(activePath.nodeIds) && activePath.nodeIds.length > 0) {
+      return activePath.nodeIds;
+    }
+    const fromSteps = normalizedSteps.map(s => s.nodeId).filter(Boolean);
+    if (fromSteps.length > 0) return fromSteps;
+    return graph.nodes.map(n => n.id);
+  }, [activePath, normalizedSteps, graph.nodes]);
+
+  const pathEdgeIdsList = useMemo<string[]>(() => {
+    if (!activePath) return [];
+    if (Array.isArray(activePath.edgeIds) && activePath.edgeIds.length > 0) {
+      return activePath.edgeIds;
+    }
+    return graph.edges.map(e => e.id);
+  }, [activePath, graph.edges]);
 
   // Center on node when step changes in attack path mode
   useEffect(() => {
@@ -293,6 +347,18 @@ export function AttackCanvas({
       rfInstance.setCenter(node.position.x + 160, node.position.y + 50, { duration: 350, zoom: 0.95 });
     }
   }, [activeStep, riskOnly, rfInstance]);
+
+  // Auto-dispatch onSelect when entering attack path mode or switching step so evidence opens immediately
+  useEffect(() => {
+    if (riskOnly && activeStep) {
+      const evIds = activeStep.evidenceIds && activeStep.evidenceIds.length > 0
+        ? activeStep.evidenceIds
+        : graph.findings[0]?.evidenceIds || [];
+      if (evIds.length > 0) {
+        onSelect(evIds, activeStep.title);
+      }
+    }
+  }, [riskOnly, activeStep?.id, activePath?.id]);
 
   // Recalibrate and fit view smoothly when riskOnly changes
   useEffect(() => {
@@ -310,15 +376,23 @@ export function AttackCanvas({
 
     if (riskOnly && activePath) {
       // Attack Path Mode: isolate ONLY the nodes and edges belonging to the active toxic path!
-      const pathNodeIds = new Set(activePath.nodeIds);
+      const pathNodeIds = new Set(pathNodeIdsList);
       entities = graph.nodes.filter(n => pathNodeIds.has(n.id));
 
-      // Sort in stage order
-      const orderMap = new Map(activePath.nodeIds.map((id, idx) => [id, idx]));
-      entities.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+      if (entities.length === 0) {
+        entities = graph.nodes.filter(n => !n.id.startsWith('dep:') || n.id.startsWith('dep:summary:'));
+      }
 
-      const pathEdgeIds = new Set(activePath.edgeIds);
+      // Sort in stage order
+      const orderMap = new Map(pathNodeIdsList.map((id, idx) => [id, idx]));
+      entities.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+
+      const pathEdgeIds = new Set(pathEdgeIdsList);
       relations = graph.edges.filter(e => pathEdgeIds.has(e.id) || (pathNodeIds.has(e.source) && pathNodeIds.has(e.target)));
+      if (relations.length === 0) {
+        const ids = new Set(entities.map(n => n.id));
+        relations = graph.edges.filter(e => ids.has(e.source) && ids.has(e.target));
+      }
     } else if (riskOnly) {
       // Risk Only fallback if no synthesized multi-step path: highlight just the risky nodes and connections
       const riskyNodeIds = new Set(['repo', ...graph.edges.filter(e => e.risky).flatMap(e => [e.source, e.target]), ...graph.findings.map(f => f.id)]);
@@ -362,7 +436,7 @@ export function AttackCanvas({
     });
 
     const mappedEdges = relations.map(e => {
-      const isPathEdge = (riskOnly && activePath?.edgeIds.includes(e.id)) || (riskOnly && e.risky);
+      const isPathEdge = (riskOnly && pathEdgeIdsList.includes(e.id)) || (riskOnly && e.risky);
       return {
         id: e.id,
         source: e.source,
@@ -392,13 +466,13 @@ export function AttackCanvas({
       onSelect(entity.evidenceIds, entity.label);
 
       if (riskOnly && activePath) {
-        const stepIndex = activePath.steps.findIndex(s => s.nodeId === entity.id);
+        const stepIndex = normalizedSteps.findIndex(s => s.nodeId === entity.id);
         if (stepIndex !== -1) {
           setActiveStepIdx(stepIndex);
         }
       }
     },
-    [riskOnly, activePath, onSelect]
+    [riskOnly, activePath, normalizedSteps, onSelect]
   );
 
   return (
@@ -439,7 +513,7 @@ export function AttackCanvas({
           {/* Right: Walkthrough Step Controls */}
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-muted-foreground">
-              Step {activeStepIdx + 1} of {activePath.steps.length}
+              Step {activeStepIdx + 1} of {normalizedSteps.length}
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -450,7 +524,7 @@ export function AttackCanvas({
                 onClick={() => {
                   const next = Math.max(0, activeStepIdx - 1);
                   setActiveStepIdx(next);
-                  const step = activePath.steps[next];
+                  const step = normalizedSteps[next];
                   if (step) onSelect(step.evidenceIds, step.title);
                 }}
                 title="Previous step"
@@ -461,11 +535,11 @@ export function AttackCanvas({
                 size="icon"
                 variant="outline"
                 className="size-7"
-                disabled={activeStepIdx >= activePath.steps.length - 1}
+                disabled={activeStepIdx >= normalizedSteps.length - 1}
                 onClick={() => {
-                  const next = Math.min(activePath.steps.length - 1, activeStepIdx + 1);
+                  const next = Math.min(normalizedSteps.length - 1, activeStepIdx + 1);
                   setActiveStepIdx(next);
-                  const step = activePath.steps[next];
+                  const step = normalizedSteps[next];
                   if (step) onSelect(step.evidenceIds, step.title);
                 }}
                 title="Next step"
@@ -480,7 +554,7 @@ export function AttackCanvas({
       {/* Horizontal Step Breadcrumbs: ONLY VISIBLE WHEN RISK ONLY / ATTACK PATHS IS CLICKED */}
       {riskOnly && activePath && (
         <div className="z-10 flex items-center gap-1 overflow-x-auto border-b border-border/60 bg-muted/30 px-4 py-2 text-xs">
-          {activePath.steps.map((s, idx) => {
+          {normalizedSteps.map((s, idx) => {
             const Icon = stageIcons[s.stage as keyof typeof stageIcons] || Globe;
             const isCurrent = activeStepIdx === idx;
             return (
@@ -501,7 +575,7 @@ export function AttackCanvas({
                   <Icon className="size-3.5" />
                   <span>{s.title}</span>
                 </button>
-                {idx < activePath.steps.length - 1 && (
+                {idx < normalizedSteps.length - 1 && (
                   <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
                 )}
               </div>
@@ -539,7 +613,7 @@ export function AttackCanvas({
             <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
                 <Flame className="size-3 animate-pulse" />
-                Step {activeStepIdx + 1} of {activePath.steps.length} · {activeStep.badge}
+                Step {activeStepIdx + 1} of {normalizedSteps.length} · {activeStep.badge}
               </span>
               <span className="font-mono text-[9px] text-muted-foreground uppercase">
                 {activeStep.stage}
@@ -576,14 +650,14 @@ export function AttackCanvas({
                 Inspect Evidence
               </Button>
 
-              {activeStepIdx < activePath.steps.length - 1 ? (
+              {activeStepIdx < normalizedSteps.length - 1 ? (
                 <Button
                   size="sm"
                   className="h-7 text-xs gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => {
                     const next = activeStepIdx + 1;
                     setActiveStepIdx(next);
-                    const step = activePath.steps[next];
+                    const step = normalizedSteps[next];
                     if (step) onSelect(step.evidenceIds, step.title);
                   }}
                 >

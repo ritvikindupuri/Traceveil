@@ -424,48 +424,75 @@ export async function collectLiveApplication(
 
   // Synthesize Wiz-Style Attack Path
   const primaryFindingNode = graph.nodes.find(n => n.id === 'finding-node-csp') || graph.nodes.find(n => n.id.startsWith('finding-node-')) || webNode;
+  const primaryFinding = graph.findings.find(f => f.rule === 'missing-csp') || graph.findings[0];
+  const findingEvIds = primaryFindingNode.evidenceIds || [rootEvidenceId];
+
   const attackPath: AttackPath = {
     id: 'path-live-perimeter-1',
     title: 'Public Internet → Live Endpoint Ingress → Missing Perimeter Defenses → Backend Datastore',
     severity: graph.findings.some(f => f.severity === 'high') ? 'critical' : 'high',
-    stages: [
+    summary: `Publicly accessible live web service at ${baseUrl} lacks defense-in-depth perimeter headers (CSP, HSTS). Attackers can target client sessions to pivot into backend APIs.`,
+    steps: [
       {
-        order: 1,
-        entityId: 'public-internet',
-        label: 'Public Internet Ingress',
-        role: 'actor',
+        id: 'step-live-1',
+        nodeId: 'public-internet',
+        title: 'Public Internet Ingress',
+        subtitle: 'External Attack Surface',
+        stage: 'internet',
+        badge: '0.0.0.0/0',
         description: `Anyone on the public internet can resolve and connect directly to ${baseUrl}.`,
+        evidenceIds: [rootEvidenceId],
       },
       {
-        order: 2,
-        entityId: 'live-app',
-        label: `${host} Web Server`,
-        role: 'workload',
+        id: 'step-live-2',
+        nodeId: 'live-app',
+        title: `${host} Web Server`,
+        subtitle: 'Inspected Web Target',
+        stage: 'server',
+        badge: 'Public Host',
         description: `Target live application running behind ${serverBanner} answers external HTTP requests.`,
+        evidenceIds: [rootEvidenceId],
       },
       {
-        order: 3,
-        entityId: primaryFindingNode.id,
-        label: primaryFindingNode.label,
-        role: 'finding',
-        description: `Missing Content-Security-Policy (CSP) and transport encryption enforcement expose client browsers to script injection and framing.`,
+        id: 'step-live-3',
+        nodeId: primaryFindingNode.id,
+        title: primaryFindingNode.label,
+        subtitle: primaryFindingNode.subtitle || 'Perimeter Security Gap',
+        stage: 'vulnerability',
+        badge: primaryFinding?.severity === 'high' ? 'HIGH RISK' : 'MEDIUM RISK',
+        description: primaryFinding?.fix || `Missing Content-Security-Policy (CSP) and transport encryption enforcement expose client browsers to script injection and framing.`,
+        remediation: primaryFinding?.fix,
+        evidenceIds: findingEvIds,
       },
       {
-        order: 4,
-        entityId: 'client-context',
-        label: 'Client Browser Context',
-        role: 'privilege',
+        id: 'step-live-4',
+        nodeId: 'client-context',
+        title: 'Client Browser Context',
+        subtitle: 'Session & Auth Storage',
+        stage: 'privilege',
+        badge: 'Client Boundary',
         description: `Adversary leverages perimeter weaknesses to compromise client sessions, cookies, or auth tokens.`,
+        evidenceIds: findingEvIds,
       },
       {
-        order: 5,
-        entityId: 'backend-datastore',
-        label: 'Target Backend & Database',
-        role: 'target',
+        id: 'step-live-5',
+        nodeId: 'backend-datastore',
+        title: 'Target Backend & Database',
+        subtitle: 'Crown Jewel API & Data',
+        stage: 'target',
+        badge: 'Crown Jewel',
         description: `Compromised session context enables lateral access to backend APIs and customer data.`,
+        remediation: 'Implement strict CSP headers, enforce HSTS preload, and use partitioned HTTP-only session cookies.',
+        evidenceIds: [rootEvidenceId],
       },
     ],
-    summary: `Publicly accessible live web service at ${baseUrl} lacks defense-in-depth perimeter headers (CSP, HSTS). Attackers can target client sessions to pivot into backend APIs.`,
+    nodeIds: ['public-internet', 'live-app', primaryFindingNode.id, 'client-context', 'backend-datastore'],
+    edgeIds: [
+      'edge-internet-to-app',
+      graph.edges.find(e => e.source === 'live-app' && e.target === primaryFindingNode.id)?.id || 'edge-app-to-csp',
+      graph.edges.find(e => e.source === primaryFindingNode.id && e.target === 'client-context')?.id || 'edge-csp-to-session',
+      'edge-session-to-backend',
+    ].filter(Boolean) as string[],
   };
 
   graph.attackPaths.push(attackPath);
