@@ -1,0 +1,346 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="100%" height="100%" style="background:#090d16; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b101d"/>
+      <stop offset="100%" stop-color="#060911"/>
+    </linearGradient>
+    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#161f33"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="blueAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="purpleAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#7e22ce"/>
+    </linearGradient>
+    <linearGradient id="redAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f87171"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <linearGradient id="emeraldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="amberAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    
+    <!-- Arrow Marker -->
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#475569" />
+    </marker>
+    <marker id="arrowheadActive" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#38bdf8" />
+    </marker>
+  </defs>
+
+  <rect width="1200" height="660" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Grid lines -->
+  <g opacity="0.07" stroke="#94a3b8" stroke-width="1">
+    <line x1="80" y1="0" x2="80" y2="660"/>
+    <line x1="360" y1="0" x2="360" y2="660"/>
+    <line x1="640" y1="0" x2="640" y2="660"/>
+    <line x1="920" y1="0" x2="920" y2="660"/>
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="580" x2="1200" y2="580"/>
+  </g>
+
+  <!-- ==================== HEADER / TITLE ==================== -->
+  <g id="headerGroup">
+    <text x="600" y="46" text-anchor="middle" font-size="20" font-weight="700" fill="#f8fafc" letter-spacing="0.5">
+      Traceveil End-to-End System Architecture &amp; Autonomous Pipeline
+    </text>
+    <text x="600" y="70" text-anchor="middle" font-size="12" font-weight="500" fill="#94a3b8" letter-spacing="0.2">
+      Evidence-Grounded Ingestion, Multi-Agent Threat Triage, and Deterministic Policy Enforcement
+    </text>
+  </g>
+
+  <!-- ==================== FLOW CONNECTIONS ==================== -->
+  <g id="connectorLines" stroke-width="1.8" fill="none">
+    <!-- Tier 1 to Tier 2 -->
+    <path d="M 270 170 L 330 170 L 330 260 L 370 260" stroke="#334155" marker-end="url(#arrowhead)"/>
+    <path d="M 270 295 L 370 295" stroke="#38bdf8" stroke-dasharray="4,4" marker-end="url(#arrowheadActive)"/>
+    <path d="M 270 420 L 330 420 L 330 330 L 370 330" stroke="#334155" marker-end="url(#arrowhead)"/>
+
+    <!-- Tier 2 to Tier 3 -->
+    <path d="M 590 230 L 650 230 L 650 170 L 690 170" stroke="#38bdf8" marker-end="url(#arrowheadActive)"/>
+    <path d="M 590 275 L 690 275" stroke="#38bdf8" marker-end="url(#arrowheadActive)"/>
+    <path d="M 590 320 L 690 320" stroke="#38bdf8" marker-end="url(#arrowheadActive)"/>
+    <path d="M 590 365 L 650 365 L 650 425 L 690 425" stroke="#38bdf8" marker-end="url(#arrowheadActive)"/>
+
+    <!-- Tier 3 to Tier 4 -->
+    <path d="M 890 170 L 930 170 L 930 215 L 960 215" stroke="#334155" marker-end="url(#arrowhead)"/>
+    <path d="M 890 275 L 960 275" stroke="#38bdf8" stroke-dasharray="4,4" marker-end="url(#arrowheadActive)"/>
+    <path d="M 890 360 L 960 360" stroke="#334155" marker-end="url(#arrowhead)"/>
+    <path d="M 890 445 L 930 445 L 930 480 L 960 480" stroke="#334155" marker-end="url(#arrowhead)"/>
+  </g>
+
+  <!-- ==================== TIER 1: INGRESS & ASSETS ==================== -->
+  <g id="tier1Group">
+    <rect x="50" y="100" width="230" height="470" rx="14" fill="#0f172a" fill-opacity="0.75" stroke="#1e293b" stroke-width="1.5" filter="url(#cardShadow)"/>
+    <text x="165" y="128" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">TARGET INPUTS &amp; ASSETS</text>
+
+    <!-- Card 1.1: GitHub Repository -->
+    <g transform="translate(65, 145)">
+      <rect width="200" height="100" rx="10" fill="url(#panelGrad)" stroke="#334155" stroke-width="1.2"/>
+      <!-- GitHub Icon -->
+      <g transform="translate(18, 20)">
+        <circle cx="16" cy="16" r="16" fill="#1e293b"/>
+        <path d="M16 6a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.58 9.58 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 16 6z" fill="#f8fafc"/>
+      </g>
+      <text x="60" y="36" font-size="13" font-weight="600" fill="#f8fafc">Source Repositories</text>
+      <text x="60" y="52" font-size="10.5" fill="#94a3b8">Git Commits &amp; Trees</text>
+      <text x="60" y="72" font-size="9.5" fill="#64748b">Encrypted Token Access</text>
+    </g>
+
+    <!-- Card 1.2: Live Applications -->
+    <g transform="translate(65, 260)">
+      <rect width="200" height="100" rx="10" fill="url(#panelGrad)" stroke="#0284c7" stroke-width="1.5"/>
+      <!-- Globe Icon -->
+      <g transform="translate(18, 20)">
+        <circle cx="16" cy="16" r="16" fill="#0369a1"/>
+        <circle cx="16" cy="16" r="10" fill="none" stroke="#f8fafc" stroke-width="1.5"/>
+        <line x1="6" y1="16" x2="26" y2="16" stroke="#f8fafc" stroke-width="1.5"/>
+        <path d="M16 6 C13 9 13 23 16 26 C19 23 19 9 16 6 Z" fill="none" stroke="#f8fafc" stroke-width="1.5"/>
+      </g>
+      <text x="60" y="36" font-size="13" font-weight="600" fill="#f8fafc">Live Web Services</text>
+      <text x="60" y="52" font-size="10.5" fill="#94a3b8">Endpoints &amp; Ingress</text>
+      <text x="60" y="72" font-size="9.5" fill="#38bdf8">Real HTTP/TLS Probes</text>
+    </g>
+
+    <!-- Card 1.3: MCP Protocol Servers -->
+    <g transform="translate(65, 375)">
+      <rect width="200" height="100" rx="10" fill="url(#panelGrad)" stroke="#334155" stroke-width="1.2"/>
+      <!-- Network Nodes Icon -->
+      <g transform="translate(18, 20)">
+        <circle cx="16" cy="16" r="16" fill="#1e293b"/>
+        <circle cx="16" cy="10" r="3" fill="#a855f7"/>
+        <circle cx="10" cy="20" r="3" fill="#38bdf8"/>
+        <circle cx="22" cy="20" r="3" fill="#34d399"/>
+        <line x1="16" y1="10" x2="10" y2="20" stroke="#cbd5e1" stroke-width="1.2"/>
+        <line x1="16" y1="10" x2="22" y2="20" stroke="#cbd5e1" stroke-width="1.2"/>
+        <line x1="10" y1="20" x2="22" y2="20" stroke="#cbd5e1" stroke-width="1.2"/>
+      </g>
+      <text x="60" y="36" font-size="13" font-weight="600" fill="#f8fafc">MCP Tool Services</text>
+      <text x="60" y="52" font-size="10.5" fill="#94a3b8">Manifests &amp; Schemas</text>
+      <text x="60" y="72" font-size="9.5" fill="#64748b">Tool Poisoning Checks</text>
+    </g>
+  </g>
+
+  <!-- ==================== TIER 2: DETERMINISTIC EVIDENCE CORE ==================== -->
+  <g id="tier2Group">
+    <rect x="365" y="100" width="235" height="470" rx="14" fill="#0f172a" fill-opacity="0.75" stroke="#1e293b" stroke-width="1.5" filter="url(#cardShadow)"/>
+    <text x="482" y="128" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">EVIDENCE VERIFICATION CORE</text>
+
+    <!-- Main Evidence Processor Box -->
+    <g transform="translate(380, 150)">
+      <rect width="205" height="150" rx="10" fill="url(#panelGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+      <!-- Document & Fingerprint Icon -->
+      <g transform="translate(18, 18)">
+        <rect width="32" height="32" rx="8" fill="#0369a1"/>
+        <path d="M12 10 h10 m-10 4 h10 m-10 4 h6" stroke="#f8fafc" stroke-width="2" stroke-linecap="round"/>
+      </g>
+      <text x="60" y="32" font-size="13" font-weight="700" fill="#f8fafc">Evidence Engine</text>
+      <text x="60" y="47" font-size="10" fill="#38bdf8">Deterministic Fact Extraction</text>
+      
+      <!-- Bullet Badges -->
+      <g transform="translate(15, 66)">
+        <rect width="175" height="20" rx="4" fill="#0b1329" stroke="#1e293b"/>
+        <circle cx="10" cy="10" r="3" fill="#38bdf8"/>
+        <text x="20" y="13.5" font-size="9" font-family="monospace" fill="#94a3b8">SHA-256 Commit Fingerprint</text>
+      </g>
+      <g transform="translate(15, 92)">
+        <rect width="175" height="20" rx="4" fill="#0b1329" stroke="#1e293b"/>
+        <circle cx="10" cy="10" r="3" fill="#34d399"/>
+        <text x="20" y="13.5" font-size="9" font-family="monospace" fill="#94a3b8">Exact Source Snippet Map</text>
+      </g>
+      <g transform="translate(15, 118)">
+        <rect width="175" height="20" rx="4" fill="#0b1329" stroke="#1e293b"/>
+        <circle cx="10" cy="10" r="3" fill="#fbbf24"/>
+        <text x="20" y="13.5" font-size="9" font-family="monospace" fill="#94a3b8">Wire Headers &amp; TLS Proof</text>
+      </g>
+    </g>
+
+    <!-- Local Vault Box -->
+    <g transform="translate(380, 320)">
+      <rect width="205" height="135" rx="10" fill="url(#panelGrad)" stroke="#334155" stroke-width="1.2"/>
+      <!-- Database & Lock Icon -->
+      <g transform="translate(18, 18)">
+        <rect width="32" height="32" rx="8" fill="#1e293b"/>
+        <!-- DB cylinders -->
+        <ellipse cx="16" cy="11" rx="8" ry="3" fill="none" stroke="#f8fafc" stroke-width="1.4"/>
+        <path d="M8 11 v10 c0 1.6 3.6 3 8 3 s8-1.4 8-3 v-10" fill="none" stroke="#f8fafc" stroke-width="1.4"/>
+        <path d="M8 16 c0 1.6 3.6 3 8 3 s8-1.4 8-3" fill="none" stroke="#f8fafc" stroke-width="1.4"/>
+      </g>
+      <text x="60" y="32" font-size="13" font-weight="700" fill="#f8fafc">Local Secure Vault</text>
+      <text x="60" y="47" font-size="10" fill="#94a3b8">Zero External DB Dependency</text>
+      
+      <g transform="translate(15, 62)">
+        <rect width="175" height="22" rx="4" fill="#0b1329" stroke="#1e293b"/>
+        <text x="10" y="14.5" font-size="9.5" fill="#cbd5e1">Embedded SQLite Engine</text>
+      </g>
+      <g transform="translate(15, 92)">
+        <rect width="175" height="22" rx="4" fill="#0b1329" stroke="#1e293b"/>
+        <text x="10" y="14.5" font-size="9.5" fill="#cbd5e1">AES-256-GCM Token Encryption</text>
+      </g>
+    </g>
+    
+    <text x="482" y="540" text-anchor="middle" font-size="10" font-weight="600" fill="#10b981">
+      ✓ No LLM Hallucinated Facts
+    </text>
+  </g>
+
+  <!-- ==================== TIER 3: MULTI-AGENT MATRIX ==================== -->
+  <g id="tier3Group">
+    <rect x="675" y="100" width="235" height="470" rx="14" fill="#0f172a" fill-opacity="0.75" stroke="#1e293b" stroke-width="1.5" filter="url(#cardShadow)"/>
+    <text x="792" y="128" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">AUTONOMOUS AGENT MATRIX</text>
+
+    <!-- Agent 1: Tenant Isolation Copilot -->
+    <g transform="translate(690, 145)">
+      <rect width="205" height="85" rx="8" fill="url(#panelGrad)" stroke="#a855f7" stroke-width="1.4"/>
+      <!-- Agent Icon -->
+      <g transform="translate(14, 15)">
+        <rect width="28" height="28" rx="6" fill="#581c87"/>
+        <circle cx="14" cy="14" r="6" fill="none" stroke="#f8fafc" stroke-width="1.5"/>
+        <line x1="8" y1="14" x2="20" y2="14" stroke="#f8fafc" stroke-width="1.5"/>
+      </g>
+      <text x="50" y="28" font-size="12" font-weight="700" fill="#f8fafc">Tenant Isolation Copilot</text>
+      <text x="50" y="42" font-size="9.5" font-weight="600" fill="#c084fc">Argon 4 Model</text>
+      <text x="14" y="66" font-size="9.5" fill="#94a3b8">Interactive Chat, Probes &amp; Policies</text>
+    </g>
+
+    <!-- Agent 2: Red Team Adversary -->
+    <g transform="translate(690, 240)">
+      <rect width="205" height="85" rx="8" fill="url(#panelGrad)" stroke="#ef4444" stroke-width="1.4"/>
+      <!-- Crosshairs Target Icon -->
+      <g transform="translate(14, 15)">
+        <rect width="28" height="28" rx="6" fill="#7f1d1d"/>
+        <circle cx="14" cy="14" r="7" fill="none" stroke="#f8fafc" stroke-width="1.5"/>
+        <circle cx="14" cy="14" r="2" fill="#ef4444"/>
+      </g>
+      <text x="50" y="28" font-size="12" font-weight="700" fill="#f8fafc">Red Team Adversary</text>
+      <text x="50" y="42" font-size="9.5" font-weight="600" fill="#f87171">Argon 4 Model</text>
+      <text x="14" y="66" font-size="9.5" fill="#94a3b8">Live Exploit &amp; Command Execution</text>
+    </g>
+
+    <!-- Agent 3: Remediation Engine -->
+    <g transform="translate(690, 335)">
+      <rect width="205" height="85" rx="8" fill="url(#panelGrad)" stroke="#38bdf8" stroke-width="1.4"/>
+      <!-- PR / Wrench Icon -->
+      <g transform="translate(14, 15)">
+        <rect width="28" height="28" rx="6" fill="#075985"/>
+        <circle cx="10" cy="10" r="3" fill="#f8fafc"/>
+        <circle cx="18" cy="18" r="3" fill="#f8fafc"/>
+        <path d="M10 13 v5" stroke="#f8fafc" stroke-width="1.5"/>
+      </g>
+      <text x="50" y="28" font-size="12" font-weight="700" fill="#f8fafc">Remediation Engine</text>
+      <text x="50" y="42" font-size="9.5" font-weight="600" fill="#38bdf8">Gemini 1.5 Pro</text>
+      <text x="14" y="66" font-size="9.5" fill="#94a3b8">Auto Patching &amp; GitHub Pull Requests</text>
+    </g>
+
+    <!-- Agent 4: Continuous Watchdog -->
+    <g transform="translate(690, 430)">
+      <rect width="205" height="85" rx="8" fill="url(#panelGrad)" stroke="#10b981" stroke-width="1.4"/>
+      <!-- Radar / Eye Icon -->
+      <g transform="translate(14, 15)">
+        <rect width="28" height="28" rx="6" fill="#064e3b"/>
+        <circle cx="14" cy="14" r="8" fill="none" stroke="#f8fafc" stroke-width="1.5"/>
+        <line x1="14" y1="14" x2="19" y2="9" stroke="#34d399" stroke-width="1.5"/>
+      </g>
+      <text x="50" y="28" font-size="12" font-weight="700" fill="#f8fafc">Perimeter Watchdog</text>
+      <text x="50" y="42" font-size="9.5" font-weight="600" fill="#34d399">Gemini 1.5 Flash</text>
+      <text x="14" y="66" font-size="9.5" fill="#94a3b8">60s Continuous Drift Detection</text>
+    </g>
+  </g>
+
+  <!-- ==================== TIER 4: OUTPUT & ENFORCEMENT ==================== -->
+  <g id="tier4Group">
+    <rect x="945" y="100" width="210" height="470" rx="14" fill="#0f172a" fill-opacity="0.75" stroke="#1e293b" stroke-width="1.5" filter="url(#cardShadow)"/>
+    <text x="1050" y="128" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8" letter-spacing="1">DEFENSE &amp; ACTION</text>
+
+    <!-- Output 1: Wiz-Style Attack Graph -->
+    <g transform="translate(958, 145)">
+      <rect width="184" height="90" rx="8" fill="url(#panelGrad)" stroke="#ef4444" stroke-width="1.2"/>
+      <g transform="translate(14, 14)">
+        <circle cx="14" cy="14" r="14" fill="#450a0a"/>
+        <!-- Flame Icon -->
+        <path d="M14 7 c1 3 4 5 4 8 a4 4 0 0 1 -8 0 c0 -2 2 -4 4 -8 z" fill="#f87171"/>
+      </g>
+      <text x="48" y="27" font-size="11.5" font-weight="700" fill="#f8fafc">Wiz Attack Graph</text>
+      <text x="48" y="41" font-size="9" fill="#fca5a5">Multi-Stage Toxic Path</text>
+      <text x="14" y="68" font-size="8.5" fill="#94a3b8">Dagre Horizontal Layout</text>
+    </g>
+
+    <!-- Output 2: Docker & Container Runtime Security -->
+    <g transform="translate(958, 248)">
+      <rect width="184" height="90" rx="8" fill="url(#panelGrad)" stroke="#0284c7" stroke-width="1.2"/>
+      <!-- Official Docker Whale Icon -->
+      <g transform="translate(14, 14)">
+        <circle cx="14" cy="14" r="14" fill="#082f49"/>
+        <g fill="#38bdf8">
+          <rect x="9" y="11" width="2" height="2"/>
+          <rect x="12" y="11" width="2" height="2"/>
+          <rect x="15" y="11" width="2" height="2"/>
+          <rect x="9" y="8" width="2" height="2"/>
+          <rect x="12" y="8" width="2" height="2"/>
+          <path d="M22 13 c-.3-.4-1.2-.6-1.8-.4-.2-.5-.6-.9-1.2-1.1-.1 0-.1 0 0 0-.2-.6-.6-1-1.2-1.3l-.2-.1-.2.2c-.3.4-.5.9-.5 1.5H8.5c-.3 0-.6.1-.8.2-.5.3-.8.8-.8 1.4 0 2.8 2.2 4.6 5.4 4.6 3.8 0 6.6-1.8 7.4-4.5.9.1 1.9-.3 2.3-.6z"/>
+        </g>
+      </g>
+      <text x="48" y="27" font-size="11.5" font-weight="700" fill="#f8fafc">Container Runtime</text>
+      <text x="48" y="41" font-size="9" fill="#7dd3fc">Docker &amp; K8s Sandboxes</text>
+      <text x="14" y="68" font-size="8.5" fill="#94a3b8">Falco Threat Triage</text>
+    </g>
+
+    <!-- Output 3: Automated PR & Git Merge -->
+    <g transform="translate(958, 351)">
+      <rect width="184" height="90" rx="8" fill="url(#panelGrad)" stroke="#10b981" stroke-width="1.2"/>
+      <g transform="translate(14, 14)">
+        <circle cx="14" cy="14" r="14" fill="#064e3b"/>
+        <!-- Git Branch Icon -->
+        <circle cx="10" cy="10" r="2.5" fill="#34d399"/>
+        <circle cx="18" cy="18" r="2.5" fill="#34d399"/>
+        <circle cx="10" cy="18" r="2.5" fill="#34d399"/>
+        <path d="M10 12.5 v3 M10 12.5 a 4 4 0 0 1 4 4 h1.5" stroke="#34d399" stroke-width="1.5" fill="none"/>
+      </g>
+      <text x="48" y="27" font-size="11.5" font-weight="700" fill="#f8fafc">Automated Pull Req</text>
+      <text x="48" y="41" font-size="9" fill="#6ee7b7">Verified Code Patches</text>
+      <text x="14" y="68" font-size="8.5" fill="#94a3b8">Live Execution Feed</text>
+    </g>
+
+    <!-- Output 4: Zero-Trust Guardrails -->
+    <g transform="translate(958, 454)">
+      <rect width="184" height="90" rx="8" fill="url(#panelGrad)" stroke="#f59e0b" stroke-width="1.2"/>
+      <g transform="translate(14, 14)">
+        <circle cx="14" cy="14" r="14" fill="#451a03"/>
+        <!-- Shield Icon -->
+        <path d="M14 6 L20 9 v5 c0 4-3 7-6 8 c-3-1-6-4-6-8 V9 Z" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+        <polyline points="11 14 13 16 17 12" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+      </g>
+      <text x="48" y="27" font-size="11.5" font-weight="700" fill="#f8fafc">Dynamic Guardrails</text>
+      <text x="48" y="41" font-size="9" fill="#fde68a">Network &amp; RLS Policies</text>
+      <text x="14" y="68" font-size="8.5" fill="#94a3b8">Fail-Closed MCP Relay</text>
+    </g>
+  </g>
+
+  <!-- ==================== FOOTER / FIGURE CAPTION ==================== -->
+  <g id="figureCaption">
+    <text x="600" y="625" text-anchor="middle" font-size="13" font-weight="600" fill="#cbd5e1" letter-spacing="0.4">
+      Figure 1: Traceveil End-to-End System Architecture and Evidence Pipeline
+    </text>
+  </g>
+</svg>
