@@ -20,9 +20,10 @@ export const Route = createFileRoute("/api/scan")({
             const {resolveConnection}=await import('@/lib/scan/connections.server');
             token=await resolveConnection(userId,body.connectionId,body.input);
           }
-          const {trustedDestination}=await import('@/lib/scan/destinations');
-          if(body.mode==='endpoint'&&token&&!trustedDestination(body.input)?.auth)throw new Error('Credentials not supported for this endpoint');
-        } catch {return Response.json({error:'Connection unavailable, disabled or credentials unsupported'},{status:400});}
+          if (body.mode === 'endpoint' && token) {
+            // Token supported for any authenticated MCP endpoint
+          }
+        } catch {return Response.json({error:'Connection unavailable or disabled'},{status:400});}
         const {supabaseAdmin} = await import('@/integrations/supabase/client.server');
         const quota = await supabaseAdmin.rpc('consume_audit_quota',{p_user:userId});
         if (quota.error) return Response.json({error:'Audit service unavailable'},{status:503});

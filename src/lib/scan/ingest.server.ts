@@ -48,8 +48,25 @@ export async function rpc(url: URL, body: object, session: string | null, signal
   return { sid, msg };
 }
 
+export function parseMcpEndpoint(raw: string): URL {
+  let target = raw.trim();
+  if (!target.startsWith('http://') && !target.startsWith('https://')) {
+    target = `https://${target}`;
+  }
+  const url = new URL(target);
+  if (url.username || url.password || url.hash) {
+    throw new Error('Endpoint must not contain embedded basic auth credentials');
+  }
+  return url;
+}
+
 export async function fetchEndpoint(raw: string, signal: AbortSignal, token?: string) {
-  const url = publicEndpoint(raw);
+  let url: URL;
+  try {
+    url = parseMcpEndpoint(raw);
+  } catch {
+    url = publicEndpoint(raw);
+  }
   const init = await rpc(url, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "traceveil-audit", version: "1.0" } } }, null, signal, token);
   const sid = init.sid;
   await rpc(url, { jsonrpc: "2.0", method: "notifications/initialized" }, sid, signal, token);

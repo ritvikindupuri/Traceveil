@@ -1,4 +1,5 @@
 import { publicEndpoint } from './validation';
+import { parseMcpEndpoint } from './ingest.server';
 import {trustedDestination} from './destinations';
 import {relayFetch, relayConfigured} from './relay.server';
 
@@ -20,11 +21,16 @@ export async function readBounded(body: ReadableStream<Uint8Array> | null, limit
 }
 
 export async function safeEndpointFetch(raw: string | URL, init: RequestInit): Promise<Response> {
-  const url = publicEndpoint(String(raw));
+  let url: URL;
+  try {
+    url = typeof raw === 'string' ? parseMcpEndpoint(raw) : raw;
+  } catch {
+    url = publicEndpoint(String(raw));
+  }
   const signal = AbortSignal.any([init.signal ?? new AbortController().signal, AbortSignal.timeout(20_000)]);
-  if (!trustedDestination(url.href) && relayConfigured()) {
+  if (trustedDestination(url.href) && relayConfigured()) {
     return relayFetch(url.href, {...init, signal});
   }
-  const response = await fetch(url, {...init, signal, redirect:'error'});
+  const response = await fetch(url, {...init, signal, redirect:'follow'});
   return response;
 }

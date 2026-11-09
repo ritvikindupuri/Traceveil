@@ -105,12 +105,12 @@ function Index() {
     if (!user) {setAccountOpen(true);return;}
     if (mode === 'endpoint') {
       try {
-        if (!trustedDestination(input.trim())) {
-          setError('Custom endpoints are blocked until secure outbound access is connected. Paste this server’s tools/list JSON under Tool definitions instead.');
-          setStage('error');return;
-        }
+        const raw = input.trim();
+        new URL(raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`);
       } catch {
-        setError('Enter a valid MCP endpoint URL.');setStage('error');return;
+        setError('Enter a valid MCP endpoint URL (e.g. https://mcp.deepwiki.com/mcp or http://localhost:8000/sse).');
+        setStage('error');
+        return;
       }
     }
     setRecord(null);setInv(null); setSignals([]); setAgents({}); setVerdict(null); setError(null); setStage("collect");
