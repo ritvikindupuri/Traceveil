@@ -4,12 +4,14 @@ export function validGithubToken(input:unknown):input is string {
 }
 export const githubBinding=(userId:string)=>`traceveil:github-pat:v1:${userId}:https://api.github.com`;
 export async function loadGithubToken(userId:string) {
- const {supabaseAdmin}=await import('@/integrations/supabase/client.server');
- const {data,error}=await supabaseAdmin.from('github_credentials').select('token_ciphertext').eq('user_id',userId).maybeSingle();
- if(error)throw new Error('GitHub credential storage unavailable');
- if(!data)return null;
- try{return await decryptToken(data.token_ciphertext,githubBinding(userId));}
- catch{throw new Error('GitHub credential unavailable. Replace your saved token.');}
+ try {
+  const {supabaseAdmin}=await import('@/integrations/supabase/client.server');
+  const {data,error}=await supabaseAdmin.from('github_credentials').select('token_ciphertext').eq('user_id',userId).maybeSingle();
+  if(error||!data)return null;
+  return await decryptToken(data.token_ciphertext,githubBinding(userId));
+ } catch {
+  return null;
+ }
 }
 export async function saveGithubToken(userId:string,token:string) {
  if(!validGithubToken(token))return {ok:false,error:'Enter a GitHub personal access token.'};

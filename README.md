@@ -1,24 +1,29 @@
 # Traceveil
 
-i want u to build some kind of agentioc securitu tool no mock data sleek ui, no unecessary text, sleek, modern real enteprise sceuritu tool feel. Simple elegant name and unique logo. aGAin this tool solves a security gap securuty teams at google fdace a recent one please most recemt again use the best latest gemini model for the agents
+Evidence-first application security and agentic guardrail auditing platform. Trace repository attack surfaces to verifiable source evidence, evaluate tenant isolation, and audit agent interactions.
 
-This project was built with [Lovable](https://lovable.dev).
+## Features
 
-## Build with Lovable
+- **Evidence-First Security Analysis**: Resolves immutable Git commit snapshots and maps findings to concrete source lines and excerpts.
+- **Autonomous Security Agents**: Red team, remediation reviewer, defense planner, and independent evidence verifiers.
+- **Self-Contained Secure Authentication**: Local scrypt password hashing, session tokens, and zero external database dependencies.
+- **MCP Guardrail Audits**: Inspect tool manifests and agent transcripts for prompt injection, tool poisoning, and parameter escalation.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/32a0ebfc-3b1f-4418-b29e-45e0344dc71b).
+## Getting Started
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+### Prerequisites
 
-## Development
+- Node.js >= 20
+- npm or bun
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+### Installation & Run
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
+
+Open `http://localhost:3000` in your browser.

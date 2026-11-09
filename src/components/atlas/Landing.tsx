@@ -19,7 +19,7 @@ export function Landing(){
  return <div className="tv-landing">
   <header className="flex h-20 items-center justify-between border-b border-border px-6 md:px-12">
    <Link to="/" className="flex items-center gap-3"><Logo className="size-8"/><span className="text-lg font-semibold">Traceveil</span></Link>
-   <div className="flex items-center gap-6"><span className="hidden font-mono text-[10px] uppercase tracking-widest text-muted-foreground sm:block">Application security</span><Button variant="outline" onClick={()=>setOpen(true)}>Sign in<ArrowUpRight className="size-4"/></Button></div>
+   <div className="flex items-center gap-6"><Button variant="outline" onClick={()=>setOpen(true)}>Sign in<ArrowUpRight className="size-4"/></Button></div>
   </header>
   <main>
    <section className="tv-intro relative isolate overflow-hidden border-b border-border">
@@ -40,7 +40,7 @@ export function Landing(){
     </div>
    </section>
   </main>
-  <footer className="flex flex-wrap items-center justify-between gap-5 px-6 py-6 md:px-12"><span className="flex items-center gap-2 text-xs text-muted-foreground"><FileCode2 className="size-4"/>Traceveil · Evidence-first security</span><Link to="/mcp-audits" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary">MCP audits<ArrowUpRight className="size-3.5"/></Link></footer>
+  <footer className="flex flex-wrap items-center justify-between gap-5 px-6 py-6 md:px-12"><span className="flex items-center gap-2 text-xs text-muted-foreground"><FileCode2 className="size-4"/>Traceveil · Evidence-first security</span></footer>
   <AccountDialog open={open} onOpenChange={setOpen}/>
  </div>;
 }

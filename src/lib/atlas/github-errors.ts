@@ -6,7 +6,7 @@ export function githubFailure(status:number,headers:Headers,authenticated=false)
  }
  if(status===429)return 'GitHub temporarily rate-limited this request. Wait before starting another scan.';
  if(status===401)return 'GitHub rejected your saved token. Replace it using the key button.';
- if(status===404)return 'Repository or branch not found, or your token lacks access. Branch names are case-sensitive; leave the branch empty to use its default.';
+ if(status===404)return authenticated ? 'Repository or branch not found, or your token lacks access.' : 'Repository not found or private. If this is a private repository, add a GitHub token using the key button.';
  if(status===403)return 'GitHub denied repository access. This is not an AI analysis error.';
  return `GitHub collection failed (${status})`;
 }

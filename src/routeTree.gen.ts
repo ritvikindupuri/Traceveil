@@ -14,6 +14,7 @@ import { Route as ConsoleRouteImport } from './routes/console'
 import { Route as McpAuditsRouteImport } from './routes/mcp-audits'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ApiApplicationScanRouteImport } from './routes/api/application-scan'
+import { Route as ApiAuthRouteImport } from './routes/api/auth'
 import { Route as ApiGuardRouteImport } from './routes/api/guard'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 
@@ -42,6 +43,11 @@ const ApiApplicationScanRoute = ApiApplicationScanRouteImport.update({
   path: '/api/application-scan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthRoute = ApiAuthRouteImport.update({
+  id: '/api/auth',
+  path: '/api/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGuardRoute = ApiGuardRouteImport.update({
   id: '/api/guard',
   path: '/api/guard',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
+  '/api/auth': typeof ApiAuthRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
+  '/api/auth': typeof ApiAuthRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/mcp-audits': typeof McpAuditsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
+  '/api/auth': typeof ApiAuthRoute
   '/api/guard': typeof ApiGuardRoute
   '/api/scan': typeof ApiScanRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/mcp-audits'
     | '/reset-password'
     | '/api/application-scan'
+    | '/api/auth'
     | '/api/guard'
     | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/mcp-audits'
     | '/reset-password'
     | '/api/application-scan'
+    | '/api/auth'
     | '/api/guard'
     | '/api/scan'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/mcp-audits'
     | '/reset-password'
     | '/api/application-scan'
+    | '/api/auth'
     | '/api/guard'
     | '/api/scan'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   McpAuditsRoute: typeof McpAuditsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiApplicationScanRoute: typeof ApiApplicationScanRoute
+  ApiAuthRoute: typeof ApiAuthRoute
   ApiGuardRoute: typeof ApiGuardRoute
   ApiScanRoute: typeof ApiScanRoute
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiApplicationScanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth': {
+      id: '/api/auth'
+      path: '/api/auth'
+      fullPath: '/api/auth'
+      preLoaderRoute: typeof ApiAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/guard': {
       id: '/api/guard'
       path: '/api/guard'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpAuditsRoute: McpAuditsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiApplicationScanRoute: ApiApplicationScanRoute,
+  ApiAuthRoute: ApiAuthRoute,
   ApiGuardRoute: ApiGuardRoute,
   ApiScanRoute: ApiScanRoute,
 }
