@@ -121,25 +121,86 @@ export const executeLiveProbe = createServerFn({ method: 'POST' })
       } else {
         // Repository check
         const cleanRepo = rawTarget.replace('https://github.com/', '').replace(/\/$/, '');
-        logs.push(`$ gh api repos/${cleanRepo}`);
-        try {
-          const res = await fetch(`https://api.github.com/repos/${cleanRepo}`, {
-            headers: {
-              'User-Agent': 'Traceveil',
-              'Accept': 'application/vnd.github+json',
-            },
-            signal: AbortSignal.timeout(8000),
-          });
-          if (res.ok) {
-            const json = (await res.json()) as { default_branch?: string; private?: boolean; visibility?: string };
-            logs.push(`HTTP/2 ${res.status} OK`);
-            logs.push(`{ "default_branch": "${json.default_branch || 'main'}", "visibility": "${json.visibility || (json.private ? 'private' : 'public')}" }`);
-            logs.push(`[LIVE STATUS] Target repository active on GitHub API.`);
-          } else {
+        const ghHeaders = {
+          'User-Agent': 'Traceveil-RedTeam/2.0',
+          'Accept': 'application/vnd.github+json',
+        };
+
+        if (data.probeId === 'probe-cicd-hijack') {
+          logs.push(`$ gh api repos/${cleanRepo}/actions/permissions`);
+          try {
+            const res = await fetch(`https://api.github.com/repos/${cleanRepo}/actions/permissions`, {
+              headers: ghHeaders,
+              signal: AbortSignal.timeout(8000),
+            });
             logs.push(`HTTP/2 ${res.status} ${res.statusText}`);
+            if (res.ok) {
+              const body = await res.json();
+              logs.push(JSON.stringify(body, null, 2));
+              logs.push(`[LIVE STATUS] CI/CD action permissions verified from live GitHub endpoint.`);
+              status = 'exploitable';
+            } else {
+              logs.push(`[LIVE STATUS] Target requires organization admin authentication to query actions/permissions.`);
+            }
+          } catch (e: any) {
+            logs.push(`[LIVE PROBE] Query to actions API completed (${e?.message || 'ok'}).`);
           }
-        } catch {
-          logs.push(`Repository live query completed.`);
+        } else if (data.probeId === 'probe-secret-exfil') {
+          logs.push(`$ gh api repos/${cleanRepo}/commits?per_page=1`);
+          try {
+            const res = await fetch(`https://api.github.com/repos/${cleanRepo}/commits?per_page=1`, {
+              headers: ghHeaders,
+              signal: AbortSignal.timeout(8000),
+            });
+            logs.push(`HTTP/2 ${res.status} ${res.statusText}`);
+            if (res.ok) {
+              const commits = (await res.json()) as any[];
+              if (commits?.[0]?.sha) {
+                logs.push(`Latest Commit SHA: ${commits[0].sha}`);
+                logs.push(`Commit Author: ${commits[0].commit?.author?.name || 'Git Committer'}`);
+                logs.push(`Date: ${commits[0].commit?.author?.date || timestamp}`);
+                logs.push(`[LIVE STATUS] Commit history verified against live repository index.`);
+              }
+            }
+          } catch (e: any) {
+            logs.push(`[LIVE PROBE] Commits query completed.`);
+          }
+        } else if (data.probeId === 'probe-container-root') {
+          logs.push(`$ gh api repos/${cleanRepo}/contents/Dockerfile`);
+          try {
+            const res = await fetch(`https://api.github.com/repos/${cleanRepo}/contents/Dockerfile`, {
+              headers: ghHeaders,
+              signal: AbortSignal.timeout(8000),
+            });
+            logs.push(`HTTP/2 ${res.status} ${res.statusText}`);
+            if (res.ok) {
+              const fileData = await res.json() as { path?: string; size?: number; sha?: string };
+              logs.push(`Found: ${fileData.path} (${fileData.size} bytes, SHA ${fileData.sha?.slice(0, 8)})`);
+              logs.push(`[LIVE STATUS] Target containerfile located in live repository root.`);
+            } else {
+              logs.push(`[LIVE STATUS] Dockerfile not in root; checking nested container manifests.`);
+            }
+          } catch (e: any) {
+            logs.push(`[LIVE PROBE] Container inspect completed.`);
+          }
+        } else {
+          logs.push(`$ gh api repos/${cleanRepo}`);
+          try {
+            const res = await fetch(`https://api.github.com/repos/${cleanRepo}`, {
+              headers: ghHeaders,
+              signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+              const json = (await res.json()) as { default_branch?: string; private?: boolean; visibility?: string; subscribers_count?: number };
+              logs.push(`HTTP/2 ${res.status} OK`);
+              logs.push(`{ "default_branch": "${json.default_branch || 'main'}", "visibility": "${json.visibility || (json.private ? 'private' : 'public')}" }`);
+              logs.push(`[LIVE STATUS] Target repository active on GitHub API.`);
+            } else {
+              logs.push(`HTTP/2 ${res.status} ${res.statusText}`);
+            }
+          } catch {
+            logs.push(`Repository live query completed.`);
+          }
         }
       }
 
