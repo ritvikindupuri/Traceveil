@@ -37,6 +37,9 @@ W, H = 1800, 1180
 MARGIN = 40
 TEXT_GAP = 14
 ARROW_CLEAR = 8
+# Stop arrowheads this far from a card face that holds a top icon (matches side-entry
+# breathing room once the 18px badge and marker are taken into account).
+HEAD_GAP = 14
 STROKE = 2.2
 STROKE_DASH = 1.6
 TITLE_SIZE = 18
@@ -522,7 +525,7 @@ def build() -> Scene:
     rail_a = spine_y + 4
     you = s.node_card(56, spine_y, "You", "Signed-in investigator", user_icon, "#334155", "you", "Browser")
     console = s.node_card(you.r + 52, spine_y, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console", "Browser")
-    scan = s.node_card(console.r + 52, spine_y, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan", "Server")
+    scan = s.node_card(console.r + 76, spine_y, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan", "Server")
     github = s.node_card(scan.r + 72, 126, "GitHub collector", "Snapshot; optional PAT vault", github_icon, "#E2E8F0", "github", "Server")
     live = s.node_card(scan.r + 72, 500, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live", "Server")
     fork_r = max(github.r, live.r)
@@ -530,7 +533,7 @@ def build() -> Scene:
     agents = s.node_card(graph.r + 48, spine_y, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents", "Server")
     canvas = s.node_card(agents.r + 48, spine_y, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node", "Browser")
 
-    store = s.node_card(scan.x, scan.b + 48, "Local JSON store", "application_scans row", file_icon, "#D97706", "store", "Server")
+    store = s.node_card(scan.x, scan.b + 64, "Local JSON store", "application_scans row", file_icon, "#D97706", "store", "Server")
 
     # ----- Lane B nodes (hang under Console) -----
     isolation = s.node_card(
@@ -548,10 +551,11 @@ def build() -> Scene:
         True,
     )
 
-    # ----- Lane C nodes (hang under Console; drop lands on MCP audits) -----
+    # ----- Lane C nodes (Console sidebar → /mcp-audits; drop lands on that page) -----
     mcp_y = 940
+    mcp_drop_x = isolation.x - 18
     mcp_page = s.node_card(
-        console.x + 8, mcp_y, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", "Browser", True
+        mcp_drop_x - 80, mcp_y, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", "Browser", True
     )
     mcp_scan = s.node_card(
         mcp_page.r + 52, mcp_y, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", "Server", True
@@ -566,10 +570,18 @@ def build() -> Scene:
 
     # ----- Lane A arrows (rail along the top of the spine cards so callouts sit just above) -----
     s.arrow([(you.r + 3, rail_a), (console.x - 3, rail_a)], "a1")
-    s.callout_above(you.r, console.x, rail_a, 1, "Sign in; session stays here", "c1", "a1")
+    c1 = s.callout_above(you.r, console.x, rail_a, 1, "Sign in; session stays here", "c1", "a1")
 
     s.arrow([(console.r + 3, rail_a), (scan.x - 3, rail_a)], "a2")
-    s.callout_above(console.r, scan.x, rail_a, 2, "Pick repo or live app", "c2", "a2")
+    c2_text = "Pick repo or live app"
+    c2_w, c2_h = s.callout_size(c2_text)
+    c3_text = "Authenticated scan starts"
+    c3_w, c3_h = s.callout_size(c3_text)
+    # c2 left of the Console→Scan stroke, c3 right of it — neither on the line nor on the fork.
+    c3_x = (scan.x - 3) + 8
+    c2_x = min(c3_x - 8 - c2_w, max(c1.r + 8, (console.r + 3) - 8 - c2_w))
+    s.callout(c2_x, rail_a - 14 - c2_h, 2, c2_text, "c2", "a2")
+    s.callout(c3_x, rail_a - 14 - c3_h, 3, c3_text, "c3", "a2")
 
     fork_x = (scan.r + github.x) / 2
     s.arrow(
@@ -582,7 +594,6 @@ def build() -> Scene:
         "a-fork-gh",
     )
     s.arrow([(fork_x, rail_a), (fork_x, live.cy), (live.x - 3, live.cy)], "a-fork-live")
-    s.callout_beside(fork_x, github.b + 10, spine_y - 10, 3, "Authenticated scan starts", "c3", "a-fork-gh", "right")
     s.callout_beside(fork_x, scan.b + 10, live.y - 10, 4, "GitHub files or live HTTPS", "c4", "a-fork-live", "right")
 
     join_x = (fork_r + graph.x) / 2
@@ -600,7 +611,7 @@ def build() -> Scene:
     c5_w, _ = s.callout_size(c5_text)
     s.callout(join_x + 8, rail_a - 14 - 30, 5, c5_text, "c5", "a-join-gh")
 
-    s.arrow([(scan.cx, scan.b + 3), (scan.cx, store.y - 3)], "a-save")
+    s.arrow([(scan.cx, scan.b + 8), (scan.cx, store.y - HEAD_GAP)], "a-save")
     s.callout_beside(scan.cx, scan.b, store.y, 6, "Scan API writes the record", "c6", "a-save", "left")
 
     s.arrow([(graph.r + 3, rail_a), (agents.x - 3, rail_a)], "a-agents")
@@ -626,12 +637,14 @@ def build() -> Scene:
     )
     s.callout_above(isolation.r, gemini.x, rail_b, 9, "Isolation tab calls Gemini", "c9", "d-iso-gemini")
 
-    # ----- Lane C: short drop from Console (left of Isolation), then LTR -----
+    # ----- Lane C: from Console bottom-center (sidebar Link to /mcp-audits), around Isolation -----
     rail_c = mcp_page.y + 4
+    mcp_drop_x = mcp_page.cx
     s.arrow(
         [
-            (console.x - 8, console.b + 3),
-            (console.x - 8, mcp_page.y - 3),
+            (console.cx, console.b + 3),
+            (mcp_drop_x, console.b + 3),
+            (mcp_drop_x, mcp_page.y - HEAD_GAP),
         ],
         "d-mcp-drop",
         True,
@@ -639,7 +652,10 @@ def build() -> Scene:
     s.arrow([(mcp_page.r + 3, rail_c), (mcp_scan.x - 3, rail_c)], "d-mcp-1", True)
     s.arrow([(mcp_scan.r + 3, rail_c), (guard.x - 3, rail_c)], "d-mcp-2", True)
     s.arrow([(guard.r + 3, cloudflare.cy), (cloudflare.x - 3, cloudflare.cy)], "d-mcp-hosts", True)
-    s.callout_above(mcp_page.r, mcp_scan.x, rail_c, 10, "Optional MCP audit and guard", "c10", "d-mcp-1")
+    c10_text = "Optional MCP audit and guard"
+    c10_w, c10_h = s.callout_size(c10_text)
+    c10_x = max(mcp_page.cx + 12, (mcp_page.r + mcp_scan.x) / 2 - c10_w / 2)
+    s.callout(c10_x, rail_c - 14 - c10_h, 10, c10_text, "c10", "d-mcp-1")
 
     s.text_box(
         40,
