@@ -33,10 +33,21 @@ import {
   ExternalLink,
   Wrench,
   AlertTriangle,
+  Copy,
+  Check,
+  Minimize2,
+  Maximize2,
 } from 'lucide-react';
-import type { AttackGraph, GraphEntity, AttackPath, AttackPathStep } from '@/lib/atlas/types';
+import type { AttackGraph, GraphEntity, AttackPath, AttackPathStep, Evidence } from '@/lib/atlas/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 type CustomNodeData = {
   entity: GraphEntity;
@@ -134,8 +145,13 @@ function WizNodeComponent({ data, selected }: NodeProps<EntityNode>) {
     rawKind === 'external' ||
     n.id === 'public-internet' ||
     /internet|ingress/i.test(n.label);
-  const Icon = isInternet ? Globe : (stageIcons[rawKind] || FileCode);
-  const theme = getCategoryColor(isInternet ? 'internet' : rawKind, n.severity);
+  const isDatabase =
+    rawKind === 'database' ||
+    rawKind === 'target' ||
+    n.id === 'backend-datastore' ||
+    /database|datastore/i.test(n.label);
+  const Icon = isInternet ? Globe : isDatabase ? Database : (stageIcons[rawKind] || FileCode);
+  const theme = getCategoryColor(isInternet ? 'internet' : isDatabase ? 'target' : rawKind, n.severity);
   const isActive = data.isActiveStep || selected;
   const isAttackPath = data.isAttackPathMode;
 
@@ -333,6 +349,28 @@ export function AttackCanvas({
     if (!activePath || normalizedSteps.length === 0) return null;
     return normalizedSteps[activeStepIdx] || normalizedSteps[0] || null;
   }, [activePath, normalizedSteps, activeStepIdx]);
+
+  const [inspectModalOpen, setInspectModalOpen] = useState(false);
+  const [copiedEvidenceId, setCopiedEvidenceId] = useState<string | null>(null);
+  const [isCardMinimized, setIsCardMinimized] = useState(false);
+
+  const activeStepEvidence = useMemo<Evidence[]>(() => {
+    if (!activeStep || !graph) return [];
+    const directMatches = (graph.evidence || []).filter(e => activeStep.evidenceIds?.includes(e.id));
+    if (directMatches.length > 0) return directMatches;
+    const node = graph.nodes?.find(n => n.id === activeStep.nodeId);
+    if (node && node.evidenceIds?.length) {
+      const nodeMatches = (graph.evidence || []).filter(e => node.evidenceIds.includes(e.id));
+      if (nodeMatches.length > 0) return nodeMatches;
+    }
+    return (graph.evidence || []).slice(0, 3);
+  }, [activeStep, graph]);
+
+  function copyEvidenceText(text: string, id: string) {
+    void navigator.clipboard.writeText(text);
+    setCopiedEvidenceId(id);
+    setTimeout(() => setCopiedEvidenceId(null), 2000);
+  }
 
   const pathNodeIdsList = useMemo<string[]>(() => {
     if (!activePath) return [];
@@ -622,67 +660,245 @@ export function AttackCanvas({
 
         {/* Floating Wiz Walkthrough Card: ONLY VISIBLE WHEN RISK ONLY / ATTACK PATHS IS CLICKED */}
         {riskOnly && activePath && activeStep && (
-          <div className="absolute bottom-4 right-4 z-20 w-full max-w-sm rounded-xl border border-destructive/40 bg-card/95 p-4 shadow-2xl backdrop-blur-md ring-1 ring-destructive/20 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-destructive">
-                <Flame className="size-3 animate-pulse" />
-                Step {activeStepIdx + 1} of {normalizedSteps.length} · {activeStep.badge}
-              </span>
-              <span className="font-mono text-[9px] text-muted-foreground uppercase">
-                {activeStep.stage}
-              </span>
-            </div>
-
-            <div className="pt-2">
-              <h4 className="text-sm font-semibold text-foreground">{activeStep.title}</h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {activeStep.description}
-              </p>
-            </div>
-
-            {activeStep.remediation && (
-              <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs">
-                <div className="flex items-center gap-1.5 font-medium text-primary text-[11px]">
-                  <Wrench className="size-3.5" />
-                  <span>Break This Attack Path</span>
-                </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {activeStep.remediation}
-                </p>
-              </div>
+          <div
+            className={cn(
+              'absolute bottom-3 right-3 z-20 rounded-lg border border-destructive/40 bg-card/95 shadow-xl backdrop-blur-md ring-1 ring-destructive/20 transition-all duration-200 animate-in fade-in',
+              isCardMinimized ? 'w-[260px] p-2.5' : 'w-[290px] max-w-[calc(100vw-2rem)] p-3'
             )}
-
-            <div className="mt-3 flex items-center justify-between pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => onSelect(activeStep.evidenceIds, activeStep.title)}
-              >
-                <ExternalLink className="mr-1 size-3" />
-                Inspect Evidence
-              </Button>
-
-              {activeStepIdx < normalizedSteps.length - 1 ? (
+          >
+            <div className="flex items-center justify-between gap-1.5 border-b border-border/80 pb-1.5">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-destructive">
+                <Flame className="size-3 animate-pulse" />
+                Step {activeStepIdx + 1}/{normalizedSteps.length} · {activeStep.badge}
+              </span>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-[9px] text-muted-foreground uppercase">
+                  {activeStep.stage}
+                </span>
                 <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-5 h-5 w-5 p-0 text-muted-foreground hover:text-foreground"
+                  aria-label={isCardMinimized ? 'Expand walkthrough card' : 'Minimize walkthrough card'}
+                  title={isCardMinimized ? 'Expand' : 'Minimize'}
+                  onClick={() => setIsCardMinimized(prev => !prev)}
+                >
+                  {isCardMinimized ? <Maximize2 className="size-3" /> : <Minimize2 className="size-3" />}
+                </Button>
+              </div>
+            </div>
+
+            {!isCardMinimized ? (
+              <>
+                <div className="pt-2">
+                  <h4 className="text-xs font-semibold text-foreground line-clamp-1">
+                    {activeStep.title}
+                  </h4>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
+                    {activeStep.description}
+                  </p>
+                </div>
+
+                {activeStep.remediation && (
+                  <div className="mt-2 rounded border border-primary/20 bg-primary/5 p-2 text-[10px]">
+                    <div className="flex items-center gap-1 font-medium text-primary text-[10px]">
+                      <Wrench className="size-3" />
+                      <span>Break Path</span>
+                    </div>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground line-clamp-2">
+                      {activeStep.remediation}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-2.5 flex items-center justify-between gap-1 pt-1 border-t border-border/50">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] gap-1 font-medium"
+                    onClick={() => {
+                      onSelect(activeStep.evidenceIds, activeStep.title);
+                      setInspectModalOpen(true);
+                    }}
+                  >
+                    <ExternalLink className="size-3" />
+                    <span>Inspect Evidence</span>
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {activeStepIdx > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 h-6 w-6 p-0"
+                        title="Previous step"
+                        onClick={() => {
+                          const prev = activeStepIdx - 1;
+                          setActiveStepIdx(prev);
+                          const step = normalizedSteps[prev];
+                          if (step) onSelect(step.evidenceIds, step.title);
+                        }}
+                      >
+                        <ChevronLeft className="size-3" />
+                      </Button>
+                    )}
+                    {activeStepIdx < normalizedSteps.length - 1 ? (
+                      <Button
+                        size="sm"
+                        className="h-6 px-2 text-[11px] gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => {
+                          const next = activeStepIdx + 1;
+                          setActiveStepIdx(next);
+                          const step = normalizedSteps[next];
+                          if (step) onSelect(step.evidenceIds, step.title);
+                        }}
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="size-3" />
+                      </Button>
+                    ) : (
+                      <span className="text-[9px] font-mono text-muted-foreground uppercase">Done</span>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="mt-1 flex items-center justify-between gap-1">
+                <span className="truncate text-[11px] font-medium text-foreground">
+                  {activeStep.title}
+                </span>
+                <Button
+                  variant="ghost"
                   size="sm"
-                  className="h-7 text-xs gap-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  className="h-5 px-1.5 text-[10px] text-destructive hover:text-destructive"
                   onClick={() => {
-                    const next = activeStepIdx + 1;
-                    setActiveStepIdx(next);
-                    const step = normalizedSteps[next];
-                    if (step) onSelect(step.evidenceIds, step.title);
+                    onSelect(activeStep.evidenceIds, activeStep.title);
+                    setInspectModalOpen(true);
                   }}
                 >
-                  <span>Next Step</span>
-                  <ChevronRight className="size-3" />
+                  <ExternalLink className="mr-0.5 size-2.5" />
+                  Inspect
                 </Button>
-              ) : (
-                <span className="text-[10px] font-mono text-muted-foreground uppercase">Path Complete</span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Interactive Evidence Inspector Dialog */}
+        <Dialog open={inspectModalOpen} onOpenChange={setInspectModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-destructive/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-destructive uppercase">
+                  {activeStep?.badge || 'Evidence'}
+                </span>
+                <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                  Stage: {activeStep?.stage}
+                </span>
+              </div>
+              <DialogTitle className="text-base font-semibold mt-1">
+                {activeStep?.title || 'Security Evidence Inspector'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {activeStep?.description || 'Collected forensic evidence and code provenance supporting this attack path step.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-4">
+              {activeStepEvidence.length > 0 ? (
+                activeStepEvidence.map((ev, idx) => (
+                  <div key={ev.id || idx} className="rounded-lg border border-border bg-card p-3 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileCode className="size-3.5 text-primary shrink-0" />
+                        <span className="font-mono text-xs font-medium text-foreground truncate">
+                          {ev.path}
+                        </span>
+                        {ev.line > 0 && (
+                          <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                            :L{ev.line}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={() => copyEvidenceText(ev.excerpt, ev.id)}
+                      >
+                        {copiedEvidenceId === ev.id ? (
+                          <>
+                            <Check className="size-3 text-primary" />
+                            <span className="text-primary">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3" />
+                            <span>Copy snippet</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="mt-2.5">
+                      <pre className="overflow-x-auto rounded bg-muted/60 p-2.5 font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
+                        {ev.excerpt || '// No source snippet recorded for this evidence item'}
+                      </pre>
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span className="font-mono">ID: {ev.id}</span>
+                      {ev.url && (
+                        <a
+                          href={ev.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <span>Open in source</span>
+                          <ExternalLink className="size-2.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                  <AlertTriangle className="size-6 mx-auto text-warning mb-2" />
+                  <p className="text-xs font-medium text-foreground">
+                    Inferred Attack Trajectory
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground max-w-sm mx-auto">
+                    This step is inferred from surrounding topological connections and graph reachability rules. No direct single-line file excerpt was associated with this node.
+                  </p>
+                </div>
+              )}
+
+              {activeStep?.remediation && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                  <div className="flex items-center gap-1.5 font-medium text-primary text-xs">
+                    <Wrench className="size-3.5" />
+                    <span>Recommended Remediation to Sever This Link</span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                    {activeStep.remediation}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setInspectModalOpen(false)}
+              >
+                Close Inspector
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
