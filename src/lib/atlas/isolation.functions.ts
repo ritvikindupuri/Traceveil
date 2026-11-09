@@ -328,3 +328,79 @@ console.log('Zero BOLA / IDOR exposures found.');
       runnerScript,
     };
   });
+
+export const chatWithTenantIsolationAgent = createServerFn({ method: 'POST' })
+  .validator(
+    (input: {
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+      target: string;
+    }) => input
+  )
+  .handler(async ({ data }): Promise<{
+    reply: string;
+    boundaryConfig?: AutonomousAgentIsolationResult;
+    suggestedQuestions: string[];
+  }> => {
+    const lastUserMessage =
+      [...data.messages].reverse().find(m => m.role === 'user')?.content || '';
+    const target = data.target || 'production-target';
+
+    const p = lastUserMessage.toLowerCase();
+    let presetKey = 'teams';
+    if (p.includes('order') || p.includes('bill') || p.includes('invoice') || p.includes('payment')) {
+      presetKey = 'billing';
+    } else if (
+      p.includes('doc') ||
+      p.includes('file') ||
+      p.includes('storage') ||
+      p.includes('s3') ||
+      p.includes('attachment')
+    ) {
+      presetKey = 'documents';
+    } else if (p.includes('user') || p.includes('profile') || p.includes('auth') || p.includes('message')) {
+      presetKey = 'users';
+    }
+
+    let detectedStack = 'PostgreSQL / Supabase';
+    if (p.includes('prisma')) detectedStack = 'Prisma / Node.js';
+    else if (p.includes('fastapi') || p.includes('python')) detectedStack = 'FastAPI / SQLAlchemy';
+    else if (p.includes('express') || p.includes('next')) detectedStack = 'Next.js / Express';
+    else if (p.includes('mongo')) detectedStack = 'MongoDB / Mongoose';
+
+    const systemInstruction = `You are Traceveil's Senior Tenant Isolation and Authorization AI Security Agent powered by Argon 4.
+The user is asking questions about multi-tenant security, preventing BOLA (Broken Object Level Authorization), eliminating IDOR (Insecure Direct Object Reference), or setting up Row-Level Security (RLS) and middleware for their app (${target}).
+Respond in clear, helpful, concise Markdown (2-3 short paragraphs). Explain the boundary model and how your synthesized rules protect Tenant A from Tenant B.`;
+
+    const conversationHistory = data.messages
+      .slice(-4)
+      .map(m => `${m.role === 'user' ? 'User' : 'Argon 4'}: ${m.content}`)
+      .join('\n\n');
+
+    const prompt = `Conversation Context:\n${conversationHistory}\n\nLatest User Request: ${lastUserMessage}\nTarget: ${target} (Stack: ${detectedStack})\n\nExplain how to isolate customer tenants and defend against cross-tenant unauthorized data access.`;
+
+    const modelResponse = await callFrontierModel(prompt, {
+      systemInstruction,
+      feature: 'tenant_isolation',
+    });
+
+    const boundaryConfig = await runAutonomousTenantIsolationAgent({
+      data: {
+        target,
+        presetKey,
+        customPrompt: lastUserMessage,
+        stack: detectedStack,
+      },
+    });
+
+    const suggestedQuestions = [
+      'How do I handle users who belong to multiple organizations?',
+      'Can you generate a Prisma multi-tenant query extension?',
+      'How do I run this automated test suite in our GitHub Actions CI?',
+    ];
+
+    return {
+      reply: modelResponse.text,
+      boundaryConfig,
+      suggestedQuestions,
+    };
+  });
