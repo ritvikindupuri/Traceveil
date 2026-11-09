@@ -168,7 +168,7 @@ export function TenantIsolation({
           </span>
 
           <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary border border-primary/20">
-            Gemini 2.5 Security Agent
+            Argon 4 Frontier Agent
           </span>
 
           {agentResult && (
@@ -192,7 +192,7 @@ export function TenantIsolation({
             ) : (
               <Sparkles className="size-3.5" />
             )}
-            {isRunning ? 'Gemini Agent Running...' : 'Run Autonomous Agent'}
+            {isRunning ? 'Argon 4 Running...' : 'Run Autonomous Agent'}
           </Button>
         </div>
       </div>
@@ -253,7 +253,7 @@ export function TenantIsolation({
             type="text"
             value={customPrompt}
             onChange={e => setCustomPrompt(e.target.value)}
-            placeholder="Tell Gemini Agent to tailor policies (e.g. 'Use Supabase auth.jwt() tenant_id claim for organization isolation')..."
+            placeholder="Tell Argon 4 to tailor policies (e.g. 'Use Supabase auth.jwt() tenant_id claim for organization isolation')..."
             className="h-8 w-full rounded bg-transparent px-3 text-xs text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
         </div>

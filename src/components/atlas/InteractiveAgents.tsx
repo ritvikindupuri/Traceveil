@@ -148,6 +148,9 @@ export function InteractiveAgents({ graph, reports }: { graph: AttackGraph; repo
         >
           <Swords className="size-3.5 text-destructive" />
           Autonomous Red Team
+          <span className="rounded bg-primary/10 px-1.5 py-0.2 font-mono text-[9px] font-semibold text-primary border border-primary/20">
+            Argon 4
+          </span>
           <span className="rounded-full bg-destructive/15 px-2 py-0.5 font-mono text-[10px] text-destructive">
             {probes.length} Live Probes
           </span>
