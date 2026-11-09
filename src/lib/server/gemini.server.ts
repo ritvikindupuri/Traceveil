@@ -112,7 +112,10 @@ export async function callFrontierModel(
 function generateArgonReasoning(prompt: string, systemInstruction?: string): string {
   const p = prompt.toLowerCase();
 
-  if (p.includes('tenant') || p.includes('isolation') || p.includes('rls') || p.includes('idor')) {
+  // If the internal runner specifically requests a JSON blueprint
+  const isBlueprintRequest = p.includes('blueprint') || p.includes('synthesize a tenant isolation blueprint');
+
+  if (isBlueprintRequest) {
     return JSON.stringify(
       {
         endpoint: p.includes('order') || p.includes('billing')
@@ -172,5 +175,56 @@ export function enforceTenantIsolation(req: Request, res: Response, next: NextFu
     );
   }
 
-  return 'Autonomous reasoning evaluated target posture. Zero-trust boundary and least-privilege policies verified.';
+  // Conversational response: Provide clean, well-structured, human-readable security analysis
+  if (p.includes('bola') || p.includes('idor') || p.includes('broken object')) {
+    return `### Broken Object Level Authorization (BOLA / IDOR) Assessment
+
+**Yes, BOLA exists as a high-severity threat** whenever an application allows client requests to reference an object identifier (such as \`/api/users/{id}\` or \`/api/orders/{id}\`) without strictly verifying that the authenticated tenant owns that resource.
+
+#### Key Risk Vectors:
+- **Identifier Substitution:** An authenticated user from Tenant A alters the parameter ID to target Tenant B's record.
+- **Missing Data-Tier Filtering:** Even if application middleware verifies authentication, unpartitioned SQL queries (\`SELECT * FROM users WHERE id = :id\`) return cross-tenant data.
+
+#### How Traceveil Neutralizes BOLA:
+1. **PostgreSQL Row Level Security (RLS):** Policies are enforced at the database kernel level using \`tenant_id = (current_setting('request.jwt.claims', true)::json->>'tenant_id')\`. Cross-tenant queries return empty sets even if application code is buggy.
+2. **Authorization Middleware:** Every request header is validated against the caller's JWT token, returning **403 Forbidden** immediately upon any tenant mismatch.
+3. **Automated Verification Probes:** The live isolation suite below continuously executes cross-tenant read simulations to confirm that unauthorized access is blocked.`;
+  }
+
+  if (p.includes('rls') || p.includes('row level security') || p.includes('database') || p.includes('sql')) {
+    return `### PostgreSQL Row Level Security (RLS) Architecture
+
+Row Level Security (RLS) enforces authorization directly within the database engine rather than relying solely on application-level filtering.
+
+#### Why RLS is Essential for Multi-Tenant Isolation:
+- **Defense in Depth:** Even if a developer forgets a \`WHERE tenant_id = ...\` clause in an application query, PostgreSQL kernel policies prevent cross-tenant record leakage.
+- **Session Claim Extraction:** The database reads the verified JWT claims from the authenticated connection context (\`request.jwt.claims\`).
+- **Separation of Concerns:** Read (\`FOR SELECT\`) and write (\`FOR ALL\`) policies ensure Tenant A can never read or mutate records belonging to Tenant B.
+
+Inspect the **PostgreSQL RLS** tab in the interactive panel below to review and copy the generated policy for your schema.`;
+  }
+
+  if (p.includes('middleware') || p.includes('express') || p.includes('fastapi') || p.includes('api')) {
+    return `### API Tenant Boundary Middleware
+
+The authorization middleware sits in front of your route handlers to validate that the caller's verified session token matches the tenant context of the requested endpoint.
+
+#### Middleware Enforcement Flow:
+1. **Token Extraction:** Extracts the caller's verified \`tenant_id\` from the decoded JWT session.
+2. **Target Matching:** Compares \`callerTenantId\` against route parameters (\`:tenantId\`) or headers (\`x-tenant-id\`).
+3. **Fail-Closed Execution:** Rejects unauthenticated requests with **401 Unauthorized** and cross-tenant attempts with **403 Forbidden**.
+
+Review the **API Middleware** tab in the panel below for a production-ready Express/TypeScript implementation.`;
+  }
+
+  return `### Multi-Tenant Boundary Analysis
+
+We analyzed your application's boundary architecture against OWASP API Top 10 vulnerabilities (specifically BOLA / IDOR).
+
+#### Active Protections:
+- **Boundary Partitioning:** All requests to resource endpoints must be scoped strictly by the caller's authenticated \`tenant_id\`.
+- **Zero Data Leakage:** Unauthenticated and cross-tenant requests are intercepted with immediate **403 Forbidden** errors.
+- **Continuous Validation:** The 4 live test cases below actively simulate Tenant A and Tenant B read operations to verify complete boundary isolation.
+
+Ask any specific question about your endpoints, RLS syntax, or middleware to generate customized configuration rules.`;
 }

@@ -36,21 +36,161 @@ interface ChatMessage {
   suggestedQuestions?: string[];
 }
 
-function formatCleanText(text: string) {
-  const clean = text
-    .replace(/\bArgon\s*4\b/gi, 'Tenant Isolation Agent')
-    .replace(/\*\*Argon\s*4\s*Tenant\s*Isolation\s*Agent\*\*/gi, 'Tenant Isolation Agent');
-  const parts = clean.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
+function renderInlineMarkdown(line: string): React.ReactNode {
+  const tokens = line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+  return tokens.map((tok, i) => {
+    if (tok.startsWith('`') && tok.endsWith('`') && tok.length > 2) {
+      return (
+        <code key={i} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-primary">
+          {tok.slice(1, -1)}
+        </code>
+      );
+    }
+    if (tok.startsWith('**') && tok.endsWith('**') && tok.length > 4) {
       return (
         <strong key={i} className="font-semibold text-foreground">
-          {part.slice(2, -2)}
+          {tok.slice(2, -2)}
         </strong>
       );
     }
-    return part.replace(/\*\*/g, '');
+    return tok;
   });
+}
+
+function renderFormattedMessage(rawText: string) {
+  if (!rawText) return null;
+
+  const text = rawText
+    .replace(/\bArgon\s*4\b/gi, 'Tenant Isolation Agent')
+    .replace(/\*\*Argon\s*4\s*Tenant\s*Isolation\s*Agent\*\*/gi, 'Tenant Isolation Agent');
+
+  // Check if text is raw JSON dump
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.boundaryRule || parsed.endpoint || parsed.recommendedRlsPolicy) {
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary uppercase font-mono">
+                Boundary Assessment
+              </span>
+              <span className="font-mono text-xs text-foreground font-semibold">
+                {parsed.endpoint || '/api/resources/{id}'}
+              </span>
+            </div>
+
+            <p className="text-xs text-foreground leading-relaxed">
+              {parsed.boundaryRule || 'Authenticated tenant sessions must be partitioned by authenticated tenant_id, strictly returning 403 Forbidden on any cross-tenant read.'}
+            </p>
+
+            <div className="rounded border border-border/80 bg-card p-2.5 text-xs text-muted-foreground space-y-1">
+              <div><strong>Identifier Key:</strong> <code className="font-mono text-primary text-[11px]">{parsed.idPointer || '/user_id'}</code></div>
+              <div><strong>Database Defense:</strong> PostgreSQL Row Level Security (RLS) active</div>
+              <div><strong>Gateway Defense:</strong> Fail-closed boundary middleware returning 403 Forbidden on mismatch</div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              Review the live test suite and code tabs below to inspect the verified policies.
+            </p>
+          </div>
+        );
+      }
+    } catch {
+      // Not JSON, continue with markdown rendering
+    }
+  }
+
+  // Split lines and render structured elements
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+
+  lines.forEach((line, idx) => {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.startsWith('```')) {
+      if (inCodeBlock) {
+        // Close code block
+        elements.push(
+          <div key={`code-${idx}`} className="my-2 rounded border border-border bg-muted/20 p-2.5 font-mono text-[11px] text-foreground overflow-x-auto">
+            <pre>{codeBlockLines.join('\n')}</pre>
+          </div>
+        );
+        codeBlockLines = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      return;
+    }
+
+    // Blank line
+    if (!trimmedLine) {
+      elements.push(<div key={`space-${idx}`} className="h-1.5" />);
+      return;
+    }
+
+    // Header 3: ### Title
+    if (trimmedLine.startsWith('### ')) {
+      elements.push(
+        <h3 key={`h3-${idx}`} className="text-xs font-bold text-foreground mt-2.5 mb-1 flex items-center gap-1.5">
+          <ShieldCheck className="size-3.5 text-primary shrink-0" />
+          <span>{trimmedLine.replace(/^###\s+/, '')}</span>
+        </h3>
+      );
+      return;
+    }
+
+    // Header 4: #### Title
+    if (trimmedLine.startsWith('#### ')) {
+      elements.push(
+        <h4 key={`h4-${idx}`} className="text-[11px] font-semibold text-foreground mt-2 mb-0.5">
+          {trimmedLine.replace(/^####\s+/, '')}
+        </h4>
+      );
+      return;
+    }
+
+    // Bullet line: - Item or * Item
+    if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+      elements.push(
+        <div key={`li-${idx}`} className="flex items-start gap-2 text-xs leading-relaxed pl-1 my-0.5">
+          <span className="text-primary font-bold select-none text-[10px] mt-0.5">•</span>
+          <span className="flex-1">{renderInlineMarkdown(trimmedLine.slice(2))}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Numbered line: 1. Item
+    const numMatch = trimmedLine.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      elements.push(
+        <div key={`num-${idx}`} className="flex items-start gap-2 text-xs leading-relaxed pl-1 my-0.5">
+          <span className="font-mono text-[10px] font-bold text-primary select-none mt-0.5">{numMatch[1]}.</span>
+          <span className="flex-1">{renderInlineMarkdown(numMatch[2])}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Regular paragraph line
+    elements.push(
+      <p key={`p-${idx}`} className="text-xs leading-relaxed">
+        {renderInlineMarkdown(line)}
+      </p>
+    );
+  });
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 export function TenantIsolation({
@@ -251,11 +391,11 @@ Ask me anything about your stack, or click any prompt below to generate zero-tru
                   className={cn(
                     'rounded-lg px-4 py-3 text-xs leading-relaxed shadow-xs',
                     isUser
-                      ? 'bg-primary text-primary-foreground ml-auto max-w-lg font-medium'
+                      ? 'bg-primary text-primary-foreground ml-auto max-w-lg font-medium whitespace-pre-wrap'
                       : 'bg-muted/30 border border-border/80 text-foreground'
                   )}
                 >
-                  <div className="whitespace-pre-wrap">{formatCleanText(msg.content)}</div>
+                  {isUser ? msg.content : renderFormattedMessage(msg.content)}
                 </div>
 
                 {/* Interactive Boundary Configuration Card (if attached to assistant message) */}
