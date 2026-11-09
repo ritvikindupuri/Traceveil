@@ -281,11 +281,17 @@ export function AttackCanvas({
   onSelect,
   search,
   riskOnly = false,
+  hideFloatingCard = false,
+  controlledStepIdx,
+  onStepChange,
 }: {
   graph: AttackGraph;
   onSelect: (ids: string[], label: string) => void;
   search: string;
   riskOnly: boolean;
+  hideFloatingCard?: boolean;
+  controlledStepIdx?: number;
+  onStepChange?: (idx: number) => void;
 }) {
   const container = useRef<HTMLDivElement | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
@@ -293,15 +299,24 @@ export function AttackCanvas({
   // Attack path state
   const paths = useMemo(() => graph.attackPaths || [], [graph.attackPaths]);
   const [selectedPathId, setSelectedPathId] = useState<string>('');
-  const [activeStepIdx, setActiveStepIdx] = useState<number>(0);
+  const [activeStepIdx, setActiveStepIdx] = useState<number>(controlledStepIdx ?? 0);
+
+  // Sync controlledStepIdx if provided
+  useEffect(() => {
+    if (controlledStepIdx !== undefined && controlledStepIdx !== activeStepIdx) {
+      setActiveStepIdx(controlledStepIdx);
+    }
+  }, [controlledStepIdx]);
 
   // Automatically select the first path when riskOnly is clicked
   useEffect(() => {
     if (riskOnly && paths.length > 0 && !selectedPathId) {
       setSelectedPathId(paths[0].id);
-      setActiveStepIdx(0);
+      if (controlledStepIdx === undefined) {
+        setActiveStepIdx(0);
+      }
     }
-  }, [riskOnly, paths, selectedPathId]);
+  }, [riskOnly, paths, selectedPathId, controlledStepIdx]);
 
   // Active path is STRICTLY enabled when riskOnly is true!
   const activePath: AttackPath | null = useMemo(() => {
@@ -659,7 +674,7 @@ export function AttackCanvas({
         </ReactFlow>
 
         {/* Floating Wiz Walkthrough Card: ONLY VISIBLE WHEN RISK ONLY / ATTACK PATHS IS CLICKED */}
-        {riskOnly && activePath && activeStep && (
+        {!hideFloatingCard && riskOnly && activePath && activeStep && (
           <div
             className={cn(
               'absolute bottom-3 right-3 z-20 rounded-lg border border-destructive/40 bg-card/95 shadow-xl backdrop-blur-md ring-1 ring-destructive/20 transition-all duration-200 animate-in fade-in',
@@ -785,120 +800,122 @@ export function AttackCanvas({
         )}
 
         {/* Interactive Evidence Inspector Dialog */}
-        <Dialog open={inspectModalOpen} onOpenChange={setInspectModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <div className="flex items-center gap-2">
-                <span className="rounded bg-destructive/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-destructive uppercase">
-                  {activeStep?.badge || 'Evidence'}
-                </span>
-                <span className="font-mono text-[10px] text-muted-foreground uppercase">
-                  Stage: {activeStep?.stage}
-                </span>
-              </div>
-              <DialogTitle className="text-base font-semibold mt-1">
-                {activeStep?.title || 'Security Evidence Inspector'}
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                {activeStep?.description || 'Collected forensic evidence and code provenance supporting this attack path step.'}
-              </DialogDescription>
-            </DialogHeader>
+        {!hideFloatingCard && (
+          <Dialog open={inspectModalOpen} onOpenChange={setInspectModalOpen}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-destructive/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-destructive uppercase">
+                    {activeStep?.badge || 'Evidence'}
+                  </span>
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                    Stage: {activeStep?.stage}
+                  </span>
+                </div>
+                <DialogTitle className="text-base font-semibold mt-1">
+                  {activeStep?.title || 'Security Evidence Inspector'}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {activeStep?.description || 'Collected forensic evidence and code provenance supporting this attack path step.'}
+                </DialogDescription>
+              </DialogHeader>
 
-            <div className="mt-4 space-y-4">
-              {activeStepEvidence.length > 0 ? (
-                activeStepEvidence.map((ev, idx) => (
-                  <div key={ev.id || idx} className="rounded-lg border border-border bg-card p-3 shadow-xs">
-                    <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileCode className="size-3.5 text-primary shrink-0" />
-                        <span className="font-mono text-xs font-medium text-foreground truncate">
-                          {ev.path}
-                        </span>
-                        {ev.line > 0 && (
-                          <span className="font-mono text-[10px] text-muted-foreground shrink-0">
-                            :L{ev.line}
+              <div className="mt-4 space-y-4">
+                {activeStepEvidence.length > 0 ? (
+                  activeStepEvidence.map((ev, idx) => (
+                    <div key={ev.id || idx} className="rounded-lg border border-border bg-card p-3 shadow-xs">
+                      <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileCode className="size-3.5 text-primary shrink-0" />
+                          <span className="font-mono text-xs font-medium text-foreground truncate">
+                            {ev.path}
                           </span>
+                          {ev.line > 0 && (
+                            <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                              :L{ev.line}
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                          onClick={() => copyEvidenceText(ev.excerpt, ev.id)}
+                        >
+                          {copiedEvidenceId === ev.id ? (
+                            <>
+                              <Check className="size-3 text-primary" />
+                              <span className="text-primary">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" />
+                              <span>Copy snippet</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      <div className="mt-2.5">
+                        <pre className="overflow-x-auto rounded bg-muted/60 p-2.5 font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
+                          {ev.excerpt || '// No source snippet recorded for this evidence item'}
+                        </pre>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span className="font-mono">ID: {ev.id}</span>
+                        {ev.url && (
+                          <a
+                            href={ev.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <span>Open in source</span>
+                            <ExternalLink className="size-2.5" />
+                          </a>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
-                        onClick={() => copyEvidenceText(ev.excerpt, ev.id)}
-                      >
-                        {copiedEvidenceId === ev.id ? (
-                          <>
-                            <Check className="size-3 text-primary" />
-                            <span className="text-primary">Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="size-3" />
-                            <span>Copy snippet</span>
-                          </>
-                        )}
-                      </Button>
                     </div>
-
-                    <div className="mt-2.5">
-                      <pre className="overflow-x-auto rounded bg-muted/60 p-2.5 font-mono text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
-                        {ev.excerpt || '// No source snippet recorded for this evidence item'}
-                      </pre>
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="font-mono">ID: {ev.id}</span>
-                      {ev.url && (
-                        <a
-                          href={ev.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <span>Open in source</span>
-                          <ExternalLink className="size-2.5" />
-                        </a>
-                      )}
-                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                    <AlertTriangle className="size-6 mx-auto text-warning mb-2" />
+                    <p className="text-xs font-medium text-foreground">
+                      Inferred Attack Trajectory
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground max-w-sm mx-auto">
+                      This step is inferred from surrounding topological connections and graph reachability rules. No direct single-line file excerpt was associated with this node.
+                    </p>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed border-border p-6 text-center">
-                  <AlertTriangle className="size-6 mx-auto text-warning mb-2" />
-                  <p className="text-xs font-medium text-foreground">
-                    Inferred Attack Trajectory
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground max-w-sm mx-auto">
-                    This step is inferred from surrounding topological connections and graph reachability rules. No direct single-line file excerpt was associated with this node.
-                  </p>
-                </div>
-              )}
+                )}
 
-              {activeStep?.remediation && (
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
-                  <div className="flex items-center gap-1.5 font-medium text-primary text-xs">
-                    <Wrench className="size-3.5" />
-                    <span>Recommended Remediation to Sever This Link</span>
+                {activeStep?.remediation && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                    <div className="flex items-center gap-1.5 font-medium text-primary text-xs">
+                      <Wrench className="size-3.5" />
+                      <span>Recommended Remediation to Sever This Link</span>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                      {activeStep.remediation}
+                    </p>
                   </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                    {activeStep.remediation}
-                  </p>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setInspectModalOpen(false)}
-              >
-                Close Inspector
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              <div className="mt-4 flex items-center justify-end gap-2 border-t border-border pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setInspectModalOpen(false)}
+                >
+                  Close Inspector
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
