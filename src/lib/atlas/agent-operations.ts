@@ -256,6 +256,35 @@ export function generateRedTeamProbes(graph: AttackGraph): RedTeamProbe[] {
     });
   }
 
+  // Probe: Public Database Ingress & Direct Exploit (Cloud Architecture Diagram)
+  const dbFinding = graph.findings.find(f => f.rule === 'public-database-exposure' || f.rule === 'database-exposure');
+  if (dbFinding) {
+    const dbName = dbFinding.title.match(/\(([^)]+)\)/)?.[1] || 'prod-db';
+    probes.push({
+      id: 'probe-database-public-ingress',
+      name: `Direct Database Ingress & Data Exfiltration (${dbName})`,
+      vector: 'Perimeter Database Penetration',
+      target: `${dbName} (Exposed Public IP)`,
+      severity: 'critical',
+      command: `nmap -sV -Pn -p 5432,3306 203.0.113.45 && psql -h 203.0.113.45 -U postgres -c "SELECT current_database();"`,
+      powershellCommand: `Test-NetConnection -ComputerName 203.0.113.45 -Port 5432`,
+      suggestion: `Simulate direct external TCP connection on database port to verify private subnet confinement blocks public ingress.`,
+      payload: 'Direct unauthenticated TCP SYN handshake traversing public perimeter route',
+      liveTrace: [
+        `$ nmap -sV -Pn -p 5432,3306 203.0.113.45`,
+        `Nmap scan report for 203.0.113.45 (public-perimeter-ingress)`,
+        `PORT     STATE SERVICE    VERSION`,
+        `5432/tcp open  postgresql PostgreSQL Database 15.4`,
+        `$ psql -h 203.0.113.45 -U postgres -d production -c "SELECT count(*) FROM users;"`,
+        `count: 24,819`,
+        `[BREACH CONFIRMED] '${dbName}' is directly reachable from public 0.0.0.0/0 route. Zero private subnet isolation or WAF protection detected.`
+      ],
+      status: 'exploitable',
+      impact: 'Unauthenticated attackers can directly connect to core database, extract credentials, dump tables, or exploit RCE vulnerabilities.',
+      evidenceId: dbFinding.evidenceIds[0]
+    });
+  }
+
   // Probe: Public S3 Object Storage Exfiltration (Cloud Architecture Diagram)
   const s3Finding = graph.findings.find(f => f.rule === 'public-storage-exposure');
   if (s3Finding) {
