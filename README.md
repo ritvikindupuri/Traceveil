@@ -202,8 +202,13 @@ Traceveil supports two distinct target modes via the mode switcher above the sca
 ### 5. Running Red Team Simulations & Automated Remediation
 1. Navigate to the **Security agents** tab to inspect the autonomous Red Team report. Review real executed exploit commands, observed process behaviors, and escape assessment verdicts.
 2. Click the **Remediation** tab to inspect generated code patches.
-3. In the automated remediation section, enter your target repository details and click **Apply Fix & Create PR**.
-4. Observe the live execution terminal feed as the agent creates a fix branch, commits the verified patch, and automatically submits the GitHub Pull Request.
+
+#### How to Create Real Live PRs on Your Repository
+1. In the top navigation bar of `http://localhost:3000/console`, click **GitHub Credentials**.
+2. Paste a GitHub Personal Access Token (classic or fine-grained) with `repo` (content and pull request write) permissions and click **Save Credential**.
+3. Go to the **Remediation** tab, enter your repository URL, and click **Agent Auto-Fix (PR & Merge)**.
+4. The agent will push the real branch, open the real Pull Request on GitHub, and clicking **View on GitHub** will navigate directly to your live GitHub PR. (If no token is supplied, Traceveil seamlessly generates and downloads a cryptographically signed `.patch` bundle ready for manual `git apply`).
+
 
 ### 6. Continuous Perimeter Monitoring & MCP Tool Auditing
 * **Autonomous Defense**: Click **Autonomous defense** to view the 60-second perimeter watchdog telemetry, historical drift alerts, and configured firewall rules.
