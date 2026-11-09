@@ -65,7 +65,6 @@ flowchart LR
   console -.-> mcpPage[MCP audits]
   mcpPage -.-> mcpScan["POST /api/scan"]
   mcpScan -.-> guard["POST /api/guard"]
-  guard -.-> hosts[Allowlisted MCP hosts]
 ```
 
 </details>

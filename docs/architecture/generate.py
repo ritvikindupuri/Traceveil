@@ -4,8 +4,8 @@
 Three horizontal lanes, each a left-to-right path. Browser vs server is a
 tag on each node, not a column. Style references are color/type quality only.
 
-Official product marks (GitHub, Gemini, Cloudflare, Microsoft) are vendored
-from Simple Icons. AI agents use a generic robot glyph, not a vendor logo.
+Official product marks (GitHub, Gemini) are vendored from Simple Icons.
+AI agents use a generic robot glyph, not a vendor logo.
 
 Run from the repo root:
 
@@ -44,7 +44,6 @@ STROKE = 2.2
 STROKE_DASH = 1.6
 TITLE_SIZE = 18
 SUB_SIZE = 13
-CHIP_SIZE = 12
 CALLOUT_SIZE = 12
 REGION_SIZE = 12
 TAG_SIZE = 10
@@ -142,8 +141,6 @@ def parse_icon_path(name: str) -> str:
 
 GITHUB_PATH = parse_icon_path("github.svg")
 GEMINI_PATH = parse_icon_path("googlegemini.svg")
-CLOUDFLARE_PATH = parse_icon_path("cloudflare.svg")
-MICROSOFT_PATH = parse_icon_path("microsoft.svg")
 
 USER_PATH = (
     "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.4 0-8 2.1-8 4.7V21h16v-2.3C20 16.1 16.4 14 12 14z"
@@ -414,41 +411,6 @@ class Scene:
                 Rect(min(x1, x2) - pad, min(y1, y2) - pad, abs(x2 - x1) + STROKE, abs(y2 - y1) + STROKE, "arrow", f"{name}:{i}")
             )
 
-    def host_chip(
-        self,
-        x: float,
-        y: float,
-        title: str,
-        icon: list[tuple[str, str, str]],
-        icon_bg: str,
-        name: str,
-        trust: str,
-    ) -> Rect:
-        tw, th, ascent = measure(title, CHIP_SIZE, "semibold")
-        tag_tw, tag_th, tag_ascent = measure(trust, TAG_SIZE, "semibold")
-        tag_box_w, tag_box_h = tag_tw + 12, tag_th + 6
-        pad_x, pad_y = 10, 7
-        icon_r = 11
-        w = pad_x + icon_r * 2 + 8 + tw + 8 + tag_box_w + pad_x
-        h = pad_y + max(icon_r * 2, th, tag_box_h) + pad_y
-        card = self.round_rect(x, y, w, h, 10, CARD, CARD_BORDER, 1.1, None, name, "node")
-        mid_y = y + h / 2
-        self.icon_badge(x + pad_x + icon_r, mid_y, icon_r, icon_bg, icon, f"{name}:icon", name, 0.88)
-        self.text_box(
-            x + pad_x + icon_r * 2 + 8,
-            mid_y - th / 2 + ascent,
-            title,
-            CHIP_SIZE,
-            "semibold",
-            INK,
-            "start",
-            f"{name}:title",
-            name,
-        )
-        tag_x = x + w - pad_x - tag_box_w / 2
-        self.trust_tag(tag_x, mid_y - tag_box_h / 2, trust, name)
-        return card
-
 
 def build() -> Scene:
     s = Scene()
@@ -511,9 +473,6 @@ def build() -> Scene:
     ]
     lock_icon = [(LOCK_PATH, "#FFFFFF", "")]
     gemini_icon = [(GEMINI_PATH, "#8E75FF", "")]
-    cf_icon = [(CLOUDFLARE_PATH, "#F38020", "")]
-    ms_icon = [(MICROSOFT_PATH, "#0078D4", "")]
-    wiki_icon = [(FILE_PATH, "#0F172A", "")]
 
     # ----- Lane bands -----
     s.region(40, 100, 1720, 548, "Lane A  ·  Main investigation run", "lane-a")
@@ -558,15 +517,19 @@ def build() -> Scene:
         mcp_drop_x - 80, mcp_y, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", "Browser", True
     )
     mcp_scan = s.node_card(
-        mcp_page.r + 52, mcp_y, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", "Server", True
+        mcp_page.r + 64, mcp_y, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", "Server", True
     )
     guard = s.node_card(
-        mcp_scan.r + 52, mcp_y, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", "Server", True
+        mcp_scan.r + 64,
+        mcp_y,
+        "Tool guard",
+        "Checks allowlist, then tools/call",
+        lock_icon,
+        "#BE123C",
+        "guard",
+        "Server",
+        True,
     )
-    host_x = guard.r + 36
-    deepwiki = s.host_chip(host_x, mcp_page.y, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki", "Host")
-    cloudflare = s.host_chip(host_x, deepwiki.b + 8, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare", "Host")
-    microsoft = s.host_chip(host_x, cloudflare.b + 8, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft", "Host")
 
     # ----- Lane A arrows (rail along the top of the spine cards so callouts sit just above) -----
     s.arrow([(you.r + 3, rail_a), (console.x - 3, rail_a)], "a1")
@@ -651,7 +614,6 @@ def build() -> Scene:
     )
     s.arrow([(mcp_page.r + 3, rail_c), (mcp_scan.x - 3, rail_c)], "d-mcp-1", True)
     s.arrow([(mcp_scan.r + 3, rail_c), (guard.x - 3, rail_c)], "d-mcp-2", True)
-    s.arrow([(guard.r + 3, cloudflare.cy), (cloudflare.x - 3, cloudflare.cy)], "d-mcp-hosts", True)
     c10_text = "Optional MCP audit and guard"
     c10_w, c10_h = s.callout_size(c10_text)
     c10_x = max(mcp_page.cx + 12, (mcp_page.r + mcp_scan.x) / 2 - c10_w / 2)
