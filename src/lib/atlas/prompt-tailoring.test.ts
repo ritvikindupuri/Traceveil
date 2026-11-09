@@ -2,65 +2,35 @@ import { describe, it, expect } from 'vitest';
 import { generateTailoredIsolationPrompts, generateContextualFollowUpPrompts, getCleanTargetName } from './prompt-tailoring';
 import type { AttackGraph } from './types';
 
-describe('prompt-tailoring for all live web apps and codebases', () => {
-  it('tailors prompts for any custom enterprise live domain', () => {
-    const target = 'https://api.acme-corp.io/v1';
-    const info = getCleanTargetName(target);
-    expect(info.isLive).toBe(true);
-    expect(info.name).toBe('Api');
-
-    const prompts = generateTailoredIsolationPrompts(target);
-    expect(prompts.length).toBe(4);
-    expect(prompts.some(p => p.includes('Api'))).toBe(true);
-    expect(prompts.some(p => p.toLowerCase().includes('tenant isolation') || p.toLowerCase().includes('bola'))).toBe(true);
-  });
-
-  it('tailors prompts for live fintech & banking web applications', () => {
-    const target = 'https://vault-banking.fintech-ledger.net';
-    const prompts = generateTailoredIsolationPrompts(target);
-    expect(prompts.some(p => p.toLowerCase().includes('transaction') || p.toLowerCase().includes('financial'))).toBe(true);
-    expect(prompts.some(p => p.toLowerCase().includes('transfer') || p.toLowerCase().includes('idor'))).toBe(true);
-  });
-
-  it('tailors prompts for live healthcare & patient web applications', () => {
-    const target = 'https://patient-records.healthclinic.org';
-    const prompts = generateTailoredIsolationPrompts(target);
-    expect(prompts.some(p => p.toLowerCase().includes('hipaa') || p.toLowerCase().includes('patient'))).toBe(true);
-    expect(prompts.some(p => p.toLowerCase().includes('phi'))).toBe(true);
-  });
-
-  it('tailors prompts for live e-commerce & retail web applications', () => {
-    const target = 'https://checkout-cart.my-store.shop';
-    const prompts = generateTailoredIsolationPrompts(target);
-    expect(prompts.some(p => p.toLowerCase().includes('billing') || p.toLowerCase().includes('order'))).toBe(true);
-  });
-
-  it('tailors prompts for Vercel, Fly.io, AWS, and Cloudflare live web apps', () => {
-    const vercelTarget = 'https://my-saas-dashboard.vercel.app';
-    const vercelPrompts = generateTailoredIsolationPrompts(vercelTarget);
-    expect(vercelPrompts.some(p => p.includes('Vercel'))).toBe(true);
-
-    const flyTarget = 'https://auth-service.fly.dev';
-    const flyPrompts = generateTailoredIsolationPrompts(flyTarget);
-    expect(flyPrompts.some(p => p.includes('Fly.io') || p.toLowerCase().includes('jwt'))).toBe(true);
-
-    const cfTarget = 'https://cloudpilot-ai.codeworker.workers.dev';
-    const cfPrompts = generateTailoredIsolationPrompts(cfTarget);
-    expect(cfPrompts.some(p => p.toLowerCase().includes('cloudflare workers'))).toBe(true);
-  });
-
-  it('incorporates real live scanner findings into tailored prompts', () => {
-    const target = 'https://my-live-app.example.com';
+describe('prompt-tailoring for actually scanned & validated findings', () => {
+  it('generates prompts directly from REAL live scan findings (Cloudflare, CSP, HSTS)', () => {
+    const target = 'https://cloudpilot-ai.codeworker.workers.dev';
     const mockGraph: Partial<AttackGraph> = {
       target,
       findings: [
         {
-          id: 'f1',
-          title: 'Missing Content-Security-Policy',
-          severity: 'high',
+          id: 'finding-live-banner',
+          rule: 'server-banner-leak',
+          severity: 'medium',
+          title: 'Server Banner & Routing Header Leakage (cloudflare)',
+          fix: 'Suppress server header',
           evidenceIds: ['e1'],
-          rule: 'csp',
+        },
+        {
+          id: 'finding-live-csp',
+          rule: 'missing-csp',
+          severity: 'high',
+          title: 'Missing Content-Security-Policy (CSP) Protection',
           fix: 'Add CSP',
+          evidenceIds: ['e2'],
+        },
+        {
+          id: 'finding-live-hsts',
+          rule: 'missing-hsts',
+          severity: 'high',
+          title: 'Missing Strict-Transport-Security (HSTS) Header',
+          fix: 'Add HSTS',
+          evidenceIds: ['e3'],
         },
       ],
       nodes: [
@@ -68,24 +38,59 @@ describe('prompt-tailoring for all live web apps and codebases', () => {
           id: 'live-app',
           label: 'Live Web Service',
           kind: 'compute',
-          subtitle: 'TLS Web Server · Nginx Ingress · Status 200',
+          subtitle: 'TLS Web Server · cloudflare · Status 200',
           evidenceIds: ['e1'],
         },
       ],
     };
 
     const prompts = generateTailoredIsolationPrompts(target, mockGraph as AttackGraph);
-    expect(prompts.some(p => p.toLowerCase().includes('content-security-policy') || p.toLowerCase().includes('csp'))).toBe(true);
+    expect(prompts.length).toBe(4);
+    // Directly addresses the real Cloudflare banner leak finding
+    expect(prompts.some(p => p.toLowerCase().includes('cloudflare') || p.toLowerCase().includes('banner'))).toBe(true);
+    // Directly addresses the real missing CSP finding
+    expect(prompts.some(p => p.toLowerCase().includes('csp'))).toBe(true);
+    // Directly addresses the real missing HSTS finding
+    expect(prompts.some(p => p.toLowerCase().includes('hsts'))).toBe(true);
+    // Always provides a verification probe
+    expect(prompts.some(p => p.toLowerCase().includes('probes'))).toBe(true);
   });
 
-  it('identifies and formats GitHub repositories', () => {
-    const target = 'https://github.com/ritvikindupuri/Traceveil';
-    const info = getCleanTargetName(target);
-    expect(info.isGithub).toBe(true);
-    expect(info.name).toBe('Traceveil');
+  it('generates prompts from real GitHub repository scan findings', () => {
+    const target = 'https://github.com/ritvikindupuri/Cloudpilot';
+    const mockGraph: Partial<AttackGraph> = {
+      target,
+      findings: [
+        {
+          id: 'f1',
+          rule: 'public-cidr',
+          title: 'Unrestricted Ingress (0.0.0.0/0)',
+          severity: 'high',
+          fix: 'Restrict CIDR',
+          evidenceIds: ['e1'],
+        },
+        {
+          id: 'f2',
+          rule: 'secret-in-code',
+          title: 'Hardcoded Secret',
+          severity: 'high',
+          fix: 'Remove secret',
+          evidenceIds: ['e2'],
+        },
+      ],
+      nodes: [],
+    };
 
-    const prompts = generateTailoredIsolationPrompts(target);
-    expect(prompts.some(p => p.includes('Traceveil'))).toBe(true);
+    const prompts = generateTailoredIsolationPrompts(target, mockGraph as AttackGraph);
+    expect(prompts.some(p => p.toLowerCase().includes('cidr') || p.toLowerCase().includes('ingress'))).toBe(true);
+    expect(prompts.some(p => p.toLowerCase().includes('secret') || p.toLowerCase().includes('credentials'))).toBe(true);
+  });
+
+  it('generates pre-scan prompts directing user to actually scan and validate', () => {
+    const target = 'https://api.acme-corp.io/v1';
+    const prompts = generateTailoredIsolationPrompts(target, null);
+    expect(prompts.some(p => p.toLowerCase().includes('scan'))).toBe(true);
+    expect(prompts.some(p => p.toLowerCase().includes('probes'))).toBe(true);
   });
 
   it('generates contextual follow-up prompts for any live web app', () => {
