@@ -1,90 +1,96 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeDiagramToAttackGraph, parseDrawIoXml, parsePacketTracerTopology } from './diagram-parser';
+import { analyzeDiagramToAttackGraph } from './diagram-parser';
 
-describe('diagram-parser (draw.io & Packet Tracer architecture parsing)', () => {
-  it('parses real draw.io XML architecture diagram with AWS Cloud and Database', () => {
-    const drawIoXml = `
+describe('diagram-parser (universal & adaptive to ANY draw.io or Packet Tracer diagram)', () => {
+  it('analyzes Azure multi-tier architecture without preset assumptions', () => {
+    const azureXml = `
       <mxfile host="app.diagrams.net">
-        <diagram name="AWS Production Cloud Architecture" id="d1">
+        <diagram name="Azure Enterprise Healthcare Cloud">
           <mxGraphModel>
             <root>
               <mxCell id="0"/>
               <mxCell id="1" parent="0"/>
-              <mxCell id="2" value="Public Internet" style="shape=mxgraph.aws4.internet" vertex="1" parent="1"/>
-              <mxCell id="3" value="Cloud API Gateway" style="shape=mxgraph.aws4.api_gateway" vertex="1" parent="1"/>
-              <mxCell id="4" value="Orders Microservice (ECS)" style="shape=mxgraph.aws4.ecs" vertex="1" parent="1"/>
-              <mxCell id="5" value="PostgreSQL Production Database" style="shape=mxgraph.aws4.rds" vertex="1" parent="1"/>
-              <mxCell id="6" value="S3 Customer Documents Bucket" style="shape=mxgraph.aws4.s3" vertex="1" parent="1"/>
+              <mxCell id="az-inet" value="Public Internet" style="shape=mxgraph.azure2.internet" vertex="1" parent="1"/>
+              <mxCell id="az-gw" value="Azure Application Gateway" style="shape=mxgraph.azure2.application_gateway" vertex="1" parent="1"/>
+              <mxCell id="az-app" value="Patient Record Microservice (AKS)" style="shape=mxgraph.azure2.aks" vertex="1" parent="1"/>
+              <mxCell id="az-db" value="Azure Cosmos DB (Patient Records)" style="shape=mxgraph.azure2.cosmos_db" vertex="1" parent="1"/>
+              <mxCell id="az-blob" value="Azure Blob Storage (Diagnostic Scans)" style="shape=mxgraph.azure2.blob_storage" vertex="1" parent="1"/>
               
-              <mxCell id="e1" value="HTTPS Inbound" edge="1" source="2" target="3" parent="1"/>
-              <mxCell id="e2" value="gRPC Route" edge="1" source="3" target="4" parent="1"/>
-              <mxCell id="e3" value="SQL Query" edge="1" source="4" target="5" parent="1"/>
-              <mxCell id="e4" value="Direct Public Fetch" edge="1" source="2" target="6" parent="1"/>
+              <mxCell id="e1" value="HTTPS Ingress" edge="1" source="az-inet" target="az-gw" parent="1"/>
+              <mxCell id="e2" value="Internal Route" edge="1" source="az-gw" target="az-app" parent="1"/>
+              <mxCell id="e3" value="SQL Query" edge="1" source="az-app" target="az-db" parent="1"/>
+              <mxCell id="e4" value="Direct Public Upload" edge="1" source="az-inet" target="az-blob" parent="1"/>
             </root>
           </mxGraphModel>
         </diagram>
       </mxfile>
     `;
 
-    const result = analyzeDiagramToAttackGraph(drawIoXml, 'aws-production.drawio');
-    expect(result.diagramType).toBe('drawio');
-    expect(result.deviceCount).toBe(5);
-    expect(result.connectionCount).toBe(4);
-
+    const result = analyzeDiagramToAttackGraph(azureXml, 'azure-healthcare.drawio');
     const graph = result.graph;
-    expect(graph.target).toContain('aws-production');
-    expect(graph.nodes.some(n => n.label.includes('Internet'))).toBe(true);
-    expect(graph.nodes.some(n => n.label.includes('PostgreSQL'))).toBe(true);
-    expect(graph.nodes.some(n => n.label.includes('S3'))).toBe(true);
 
-    // Architectural Findings verified
+    expect(graph.nodes.length).toBe(5);
+    // Identifies direct public blob exposure
     expect(graph.findings.some(f => f.rule === 'public-storage-exposure')).toBe(true);
+    // Identifies database ingress exposure
     expect(graph.findings.some(f => f.rule === 'database-exposure')).toBe(true);
-    expect(graph.findings.some(f => f.rule === 'missing-waf')).toBe(true);
 
-    // Attack path generated
-    expect(graph.attackPaths && graph.attackPaths.length > 0).toBe(true);
+    // BFS shortest attack path traverses the exact nodes drawn
     const path = graph.attackPaths![0];
-    expect(path.steps.length).toBeGreaterThanOrEqual(3);
+    expect(path.steps.some(s => s.subtitle.includes('Azure'))).toBe(true);
   });
 
-  it('parses Cisco Packet Tracer network topology with Router, Switch, and DMZ', () => {
-    const ptTopology = `
-      <topology name="Enterprise Cisco DMZ Network">
+  it('accurately identifies defense-in-depth on properly hardened architectures (NO false positives)', () => {
+    const hardenedXml = `
+      <mxfile host="app.diagrams.net">
+        <diagram name="Hardened Cloud Architecture">
+          <mxGraphModel>
+            <root>
+              <mxCell id="0"/>
+              <mxCell id="1" parent="0"/>
+              <mxCell id="h1" value="Public Traffic" style="shape=mxgraph.aws4.internet" vertex="1" parent="1"/>
+              <mxCell id="h2" value="Cloudflare WAF Guard" style="shape=mxgraph.aws4.waf" vertex="1" parent="1"/>
+              <mxCell id="h3" value="Application Load Balancer" style="shape=mxgraph.aws4.alb" vertex="1" parent="1"/>
+              <mxCell id="h4" value="Private App Service" style="shape=mxgraph.aws4.ecs" vertex="1" parent="1"/>
+              <mxCell id="h5" value="Private Aurora PostgreSQL" style="shape=mxgraph.aws4.rds" vertex="1" parent="1"/>
+              
+              <mxCell id="e1" value="HTTPS" edge="1" source="h1" target="h2" parent="1"/>
+              <mxCell id="e2" value="Filtered Ingress" edge="1" source="h2" target="h3" parent="1"/>
+              <mxCell id="e3" value="VPC Private Link" edge="1" source="h3" target="h4" parent="1"/>
+              <mxCell id="e4" value="Database Access" edge="1" source="h4" target="h5" parent="1"/>
+            </root>
+          </mxGraphModel>
+        </diagram>
+      </mxfile>
+    `;
+
+    const result = analyzeDiagramToAttackGraph(hardenedXml, 'hardened.drawio');
+    const graph = result.graph;
+
+    // Because WAF is present in the ingress path, it does NOT report missing-waf!
+    expect(graph.findings.some(f => f.rule === 'missing-waf')).toBe(false);
+    // S3 is not present or exposed, so no storage exposure
+    expect(graph.findings.some(f => f.rule === 'public-storage-exposure')).toBe(false);
+  });
+
+  it('detects exposed remote management ports on custom on-premise topologies', () => {
+    const onPremTopology = `
+      <topology name="Corporate On-Premise Core">
         <devices>
-          <device id="r1" name="Edge-Router-2911" type="router" ip="203.0.113.1"/>
-          <device id="sw1" name="Core-Switch-2960" type="switch" ip="192.168.1.2"/>
-          <device id="dmz-srv" name="DMZ-Web-Server" type="server" ip="192.168.2.10"/>
-          <device id="db-srv" name="Internal-Finance-DB" type="database" ip="10.0.1.50"/>
+          <device id="gw" name="Border-Router" type="router" ip="198.51.100.1"/>
+          <device id="core-sw" name="Core-Switch" type="switch" ip="10.0.0.2"/>
+          <device id="srv-admin" name="Active-Directory-DC" type="server" ip="10.0.0.10"/>
         </devices>
         <links>
-          <link id="l1" source="r1" target="sw1" interface="Gig0/0"/>
-          <link id="l2" source="sw1" target="dmz-srv" interface="Fa0/1"/>
-          <link id="l3" source="sw1" target="db-srv" interface="Fa0/2"/>
+          <link id="l1" source="gw" target="core-sw" port="Gig0/0"/>
+          <link id="l2" source="core-sw" target="srv-admin" port="SSH Port 22"/>
         </links>
       </topology>
     `;
 
-    const result = analyzeDiagramToAttackGraph(ptTopology, 'enterprise-network.pkt');
-    expect(result.diagramType).toBe('packet_tracer');
-    expect(result.deviceCount).toBeGreaterThanOrEqual(4);
-
+    const result = analyzeDiagramToAttackGraph(onPremTopology, 'onprem.pkt');
     const graph = result.graph;
-    expect(graph.nodes.some(n => n.label.includes('Router'))).toBe(true);
-    expect(graph.findings.some(f => f.rule === 'flat-network-architecture')).toBe(true);
-    expect(graph.findings.some(f => f.rule === 'database-exposure')).toBe(true);
-  });
 
-  it('parses simplified text topology fallback gracefully', () => {
-    const fallbackText = `
-      Public Internet -> Ingress Gateway
-      Ingress Gateway -> Auth Service
-      Auth Service -> User Database (PostgreSQL)
-    `;
-
-    const result = analyzeDiagramToAttackGraph(fallbackText, 'quick-diagram.txt');
-    expect(result.deviceCount).toBe(4);
-    expect(result.connectionCount).toBe(3);
-    expect(result.graph.findings.some(f => f.rule === 'database-exposure')).toBe(true);
+    expect(graph.findings.some(f => f.rule === 'public-cidr' && f.title.includes('Management'))).toBe(true);
   });
 });

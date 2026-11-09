@@ -19,6 +19,27 @@ interface RawCell {
   parent?: string;
 }
 
+export type ComponentRole =
+  | 'internet'
+  | 'firewall_waf'
+  | 'load_balancer'
+  | 'compute'
+  | 'datastore'
+  | 'storage'
+  | 'queue_stream'
+  | 'identity'
+  | 'network_device'
+  | 'unknown';
+
+interface ClassifiedNode {
+  role: ComponentRole;
+  kind: GraphEntity['kind'];
+  category: GraphEntity['category'];
+  badge: string;
+  subtitle: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
 /**
  * Strips HTML formatting that draw.io often embeds inside cell labels (e.g. <div><b>API</b></div>)
  */
@@ -36,185 +57,249 @@ function cleanLabel(raw?: string): string {
 }
 
 /**
- * Categorizes a diagram node based on its label and draw.io style shape.
+ * Universally classifies ANY diagram node across AWS, Azure, GCP, Cisco, Kubernetes, On-Premise, and SCADA.
+ * Not limited to presets — recognizes shapes, standard keywords, and infrastructure terminology.
  */
-function categorizeNode(label: string, style: string): {
-  kind: GraphEntity['kind'];
-  category: GraphEntity['category'];
-  badge: string;
-  subtitle: string;
-  isInternet: boolean;
-  isDatabase: boolean;
-  isCompute: boolean;
-  isFirewall: boolean;
-  isRouter: boolean;
-  isStorage: boolean;
-} {
+function classifyComponent(label: string, style: string): ClassifiedNode {
   const l = label.toLowerCase();
   const s = style.toLowerCase();
 
-  // 1. Internet / External Ingress
+  // 1. Internet / External Perimeter
   if (
     l.includes('internet') ||
     l.includes('public') ||
     l.includes('external') ||
     l.includes('wan') ||
-    l.includes('user') ||
     l.includes('client') ||
-    s.includes('internet') ||
-    s.includes('cloud')
+    l.includes('user') ||
+    l.includes('traffic') ||
+    l.includes('browser') ||
+    s.includes('.internet') ||
+    s.includes('.cloud') ||
+    s.includes('.users') ||
+    s.includes('.client')
   ) {
     return {
+      role: 'internet',
       kind: 'internet',
       category: 'exposure',
       badge: 'Public Perimeter',
-      subtitle: 'External Network Ingress',
-      isInternet: true,
-      isDatabase: false,
-      isCompute: false,
-      isFirewall: false,
-      isRouter: false,
-      isStorage: false,
+      subtitle: 'Untrusted Ingress',
+      severity: 'low',
     };
   }
 
-  // 2. Storage / S3 / Bucket
+  // 2. Firewalls, WAF, Security Gateways, IDS/IPS
+  if (
+    l.includes('waf') ||
+    l.includes('firewall') ||
+    l.includes('armor') ||
+    l.includes('shield') ||
+    l.includes('asa') ||
+    l.includes('palo alto') ||
+    l.includes('fortinet') ||
+    l.includes('fortigate') ||
+    l.includes('pfsense') ||
+    l.includes('security group') ||
+    l.includes('guardduty') ||
+    l.includes('iptables') ||
+    s.includes('.waf') ||
+    s.includes('.firewall') ||
+    s.includes('.shield') ||
+    s.includes('.security')
+  ) {
+    return {
+      role: 'firewall_waf',
+      kind: 'service',
+      category: 'exposure',
+      badge: 'Security Gateway',
+      subtitle: 'Traffic Inspection & Filter',
+      severity: 'low',
+    };
+  }
+
+  // 3. Load Balancers, API Gateways, Ingress Controllers, Reverse Proxies
+  if (
+    l.includes('alb') ||
+    l.includes('nlb') ||
+    l.includes('elb') ||
+    l.includes('load balancer') ||
+    l.includes('api gateway') ||
+    l.includes('ingress') ||
+    l.includes('proxy') ||
+    l.includes('envoy') ||
+    l.includes('traefik') ||
+    l.includes('kong') ||
+    l.includes('nginx') ||
+    l.includes('f5') ||
+    l.includes('front door') ||
+    l.includes('application gateway') ||
+    s.includes('.load_balancing') ||
+    s.includes('.api_gateway') ||
+    s.includes('.ingress') ||
+    s.includes('.proxy')
+  ) {
+    return {
+      role: 'load_balancer',
+      kind: 'service',
+      category: 'compute',
+      badge: 'Ingress Gateway',
+      subtitle: 'Load Balancer / Proxy',
+      severity: 'low',
+    };
+  }
+
+  // 4. Object Storage & File Buckets (AWS S3, Azure Blob, GCS, SAN/NAS)
   if (
     l.includes('s3') ||
     l.includes('bucket') ||
-    l.includes('storage') ||
     l.includes('blob') ||
-    s.includes('s3') ||
-    s.includes('bucket')
+    l.includes('storage') ||
+    l.includes('gcs') ||
+    l.includes('file share') ||
+    l.includes('nfs') ||
+    l.includes('san') ||
+    l.includes('nas') ||
+    l.includes('data lake') ||
+    s.includes('.s3') ||
+    s.includes('.storage') ||
+    s.includes('.blob') ||
+    s.includes('.bucket')
   ) {
     return {
+      role: 'storage',
       kind: 'target',
       category: 'target',
-      badge: 'Cloud Storage',
-      subtitle: 'Object Storage Bucket',
-      isInternet: false,
-      isDatabase: false,
-      isCompute: false,
-      isFirewall: false,
-      isRouter: false,
-      isStorage: true,
+      badge: 'Object / File Storage',
+      subtitle: 'Cloud Storage Bucket',
+      severity: 'high',
     };
   }
 
-  // 3. Database / Datastore
+  // 5. Databases & Datastores (SQL, NoSQL, Cache, Cloud Databases)
   if (
     l.includes('database') ||
     l.includes('db') ||
     l.includes('rds') ||
+    l.includes('aurora') ||
     l.includes('postgres') ||
     l.includes('mysql') ||
     l.includes('mongo') ||
     l.includes('redis') ||
     l.includes('dynamo') ||
-    s.includes('database') ||
-    s.includes('rds')
+    l.includes('cosmos') ||
+    l.includes('bigquery') ||
+    l.includes('snowflake') ||
+    l.includes('oracle') ||
+    l.includes('cassandra') ||
+    l.includes('spanner') ||
+    l.includes('sql') ||
+    s.includes('.database') ||
+    s.includes('.rds') ||
+    s.includes('.sql') ||
+    s.includes('.nosql')
   ) {
     return {
+      role: 'datastore',
       kind: 'target',
       category: 'target',
       badge: 'Crown Jewel Database',
-      subtitle: 'Production Data Tier',
-      isInternet: false,
-      isDatabase: true,
-      isCompute: false,
-      isFirewall: false,
-      isRouter: false,
-      isStorage: false,
+      subtitle: 'Persistent Data Tier',
+      severity: 'high',
     };
   }
 
-  // 4. Firewall / Security Gateway
+  // 6. Identity, Directory & Secrets (IAM, Active Directory, Cognito, Vault)
   if (
-    l.includes('firewall') ||
-    l.includes('waf') ||
-    l.includes('asa') ||
-    l.includes('palo alto') ||
-    l.includes('pfsense') ||
-    s.includes('firewall')
+    l.includes('iam') ||
+    l.includes('auth') ||
+    l.includes('active directory') ||
+    l.includes('ldap') ||
+    l.includes('cognito') ||
+    l.includes('okta') ||
+    l.includes('keycloak') ||
+    l.includes('vault') ||
+    l.includes('secrets') ||
+    l.includes('key vault') ||
+    l.includes('kms') ||
+    s.includes('.iam') ||
+    s.includes('.key') ||
+    s.includes('.vault')
   ) {
     return {
-      kind: 'service',
-      category: 'exposure',
-      badge: 'Security Gateway',
-      subtitle: 'Perimeter Access Control',
-      isInternet: false,
-      isDatabase: false,
-      isCompute: false,
-      isFirewall: true,
-      isRouter: false,
-      isStorage: false,
+      role: 'identity',
+      kind: 'identity',
+      category: 'privilege',
+      badge: 'Identity & Secrets',
+      subtitle: 'Directory / Privilege Vault',
+      severity: 'high',
     };
   }
 
-  // 5. Router / Switch (Packet Tracer & Network Topologies)
+  // 7. Network Routing Infrastructure (Routers, Switches, VPN, Peering, Transit)
   if (
     l.includes('router') ||
     l.includes('switch') ||
     l.includes('gateway') ||
     l.includes('cisco') ||
-    s.includes('router') ||
-    s.includes('switch')
+    l.includes('catalyst') ||
+    l.includes('nexus') ||
+    l.includes('vpn') ||
+    l.includes('peering') ||
+    l.includes('transit') ||
+    l.includes('vnet') ||
+    l.includes('vpc') ||
+    l.includes('subnet') ||
+    s.includes('.router') ||
+    s.includes('.switch') ||
+    s.includes('.networking') ||
+    s.includes('.vpc')
   ) {
     return {
+      role: 'network_device',
       kind: 'server',
       category: 'compute',
-      badge: l.includes('switch') ? 'Switch Fabric' : 'Core Router',
-      subtitle: 'Network Routing Infrastructure',
-      isInternet: false,
-      isDatabase: false,
-      isCompute: false,
-      isFirewall: false,
-      isRouter: true,
-      isStorage: false,
+      badge: l.includes('switch') ? 'Switch Fabric' : 'Network Router',
+      subtitle: 'L2/L3 Infrastructure',
+      severity: 'medium',
     };
   }
 
-  // 6. Identity / IAM / Auth
+  // 8. Event Queues & Streams (Kafka, SQS, RabbitMQ, EventBridge)
   if (
-    l.includes('iam') ||
-    l.includes('auth') ||
-    l.includes('cognito') ||
-    l.includes('active directory') ||
-    l.includes('ldap') ||
-    l.includes('okta') ||
-    s.includes('iam')
+    l.includes('kafka') ||
+    l.includes('sqs') ||
+    l.includes('rabbitmq') ||
+    l.includes('queue') ||
+    l.includes('pub/sub') ||
+    l.includes('eventbridge') ||
+    l.includes('kinesis') ||
+    s.includes('.queue') ||
+    s.includes('.messaging')
   ) {
     return {
-      kind: 'identity',
-      category: 'privilege',
-      badge: 'Identity & Access',
-      subtitle: 'Authentication / Directory',
-      isInternet: false,
-      isDatabase: false,
-      isCompute: false,
-      isFirewall: false,
-      isRouter: false,
-      isStorage: false,
+      role: 'queue_stream',
+      kind: 'service',
+      category: 'compute',
+      badge: 'Message Broker',
+      subtitle: 'Event Stream / Queue',
+      severity: 'medium',
     };
   }
 
-  // 7. General Compute / Microservice / Web Server
+  // 9. Compute Workloads (VMs, Containers, Pods, Microservices, Serverless)
   return {
+    role: 'compute',
     kind: 'server',
     category: 'compute',
     badge: 'Compute Workload',
-    subtitle: 'Application Service / Container',
-    isInternet: false,
-    isDatabase: false,
-    isCompute: true,
-    isFirewall: false,
-    isRouter: false,
-    isStorage: false,
+    subtitle: 'Container / VM / Service',
+    severity: 'medium',
   };
 }
 
 /**
- * Robustly parses draw.io XML (both raw XML and embedded compressed formats)
+ * Universal XML parser for draw.io diagrams
  */
 export function parseDrawIoXml(rawXml: string): { cells: RawCell[]; diagramName: string } {
   let xml = rawXml.trim();
@@ -229,14 +314,12 @@ export function parseDrawIoXml(rawXml: string): { cells: RawCell[]; diagramName:
     }
   }
 
-  // Extract diagram name if present
-  let diagramName = 'Cloud / Network Architecture Diagram';
+  let diagramName = 'Architecture Diagram';
   const nameMatch = xml.match(/<diagram[^>]*name="([^"]+)"/i);
   if (nameMatch && nameMatch[1]) {
     diagramName = nameMatch[1];
   }
 
-  // Regex parser for mxCell tags (lightweight, zero-dep, works seamlessly in browser & node)
   const cells: RawCell[] = [];
   const cellRegex = /<mxCell\s+([^>]+?)(?:\/>|>(.*?)<\/mxCell>)/gis;
   let match: RegExpExecArray | null;
@@ -246,7 +329,7 @@ export function parseDrawIoXml(rawXml: string): { cells: RawCell[]; diagramName:
     const innerContent = match[2] || '';
 
     const id = attrString.match(/id="([^"]+)"/i)?.[1];
-    if (!id || id === '0' || id === '1') continue; // Root/Layer cells in draw.io
+    if (!id || id === '0' || id === '1') continue;
 
     let value = attrString.match(/value="([^"]*)"/i)?.[1] || '';
     if (!value && innerContent) {
@@ -276,14 +359,13 @@ export function parseDrawIoXml(rawXml: string): { cells: RawCell[]; diagramName:
 }
 
 /**
- * Parses Packet Tracer XML / JSON topology or text device definitions
+ * Universal Packet Tracer topology parser (JSON or XML)
  */
 export function parsePacketTracerTopology(rawContent: string): { cells: RawCell[]; diagramName: string } {
   const content = rawContent.trim();
   const cells: RawCell[] = [];
   let diagramName = 'Cisco Packet Tracer Network Topology';
 
-  // Try JSON first (many modern Packet Tracer topology exporters use JSON)
   if (content.startsWith('{') || content.startsWith('[')) {
     try {
       const data = JSON.parse(content);
@@ -316,11 +398,10 @@ export function parsePacketTracerTopology(rawContent: string): { cells: RawCell[
 
       return { cells, diagramName: data.name || diagramName };
     } catch {
-      // Fall through to regex/XML parsing
+      // Fall through to regex
     }
   }
 
-  // Regex parser for Packet Tracer XML nodes (e.g. <device name="..." type="..."><interface .../></device>)
   const deviceRegex = /<(?:device|node|router|switch|server|pc)\s+([^>]+?)(?:\/>|>(.*?)<\/(?:device|node|router|switch|server|pc)>)/gis;
   let devMatch: RegExpExecArray | null;
   let idx = 1;
@@ -342,7 +423,6 @@ export function parsePacketTracerTopology(rawContent: string): { cells: RawCell[
     idx++;
   }
 
-  // Links in Packet Tracer XML
   const linkRegex = /<(?:link|connection|edge)\s+([^>]+?)(?:\/>|>.*?<\/(?:link|connection|edge)>)/gis;
   let linkMatch: RegExpExecArray | null;
   let linkIdx = 1;
@@ -370,9 +450,9 @@ export function parsePacketTracerTopology(rawContent: string): { cells: RawCell[
 }
 
 /**
- * Core engine that converts ANY draw.io or Packet Tracer diagram into an AttackGraph,
- * detecting architectural and network vulnerabilities (S3 public leak, DB in public subnet,
- * flat unsegmented network, missing WAF, missing ACLs).
+ * Universal graph-theoretic engine that analyzes ANY draw.io or Packet Tracer diagram.
+ * Evaluates real topological edges, choke-points, path reachability, and isolation boundaries.
+ * Zero hardcoded presets — findings are derived 100% from actual diagram topology!
  */
 export function analyzeDiagramToAttackGraph(
   rawContent: string,
@@ -388,7 +468,6 @@ export function analyzeDiagramToAttackGraph(
     ? parsePacketTracerTopology(rawContent)
     : parseDrawIoXml(rawContent);
 
-  // If no cells found via XML, construct a robust fallback topology from text lines
   let activeCells = cells;
   if (activeCells.length === 0) {
     activeCells = parseTextFallbackTopology(rawContent);
@@ -400,30 +479,30 @@ export function analyzeDiagramToAttackGraph(
   const findings: Finding[] = [];
   const now = new Date().toISOString();
 
-  // Create virtual evidence representing the diagram file
   const fileEvidenceId = 'ev-diagram-file';
   evidence.push({
     id: fileEvidenceId,
     path: filename,
     line: 1,
-    excerpt: `Architecture Diagram: ${diagramName} (${activeCells.length} components analyzed)`,
+    excerpt: `Architecture Diagram: ${diagramName} (${activeCells.length} elements inspected)`,
     url: `diagram://${filename}`,
     collectedAt: now,
   });
 
-  // 1. Build Graph Nodes
+  // 1. Build Nodes & Classify Components
   const vertexCells = activeCells.filter(c => c.vertex || (!c.edge && c.value));
   const vertexMap = new Map<string, GraphEntity>();
+  const roleMap = new Map<string, ComponentRole>();
 
   vertexCells.forEach((c, index) => {
     const label = c.value || `Component ${index + 1}`;
-    const categoryInfo = categorizeNode(label, c.style);
+    const classification = classifyComponent(label, c.style);
 
     const evId = `ev-node-${c.id}`;
     evidence.push({
       id: evId,
       path: filename,
-      line: index + 10,
+      line: index + 5,
       excerpt: `<mxCell id="${c.id}" value="${label}" style="${c.style}" />`,
       url: `diagram://${filename}#${c.id}`,
       collectedAt: now,
@@ -432,32 +511,33 @@ export function analyzeDiagramToAttackGraph(
     const entity: GraphEntity = {
       id: `node-${c.id}`,
       label,
-      kind: categoryInfo.kind,
-      category: categoryInfo.category,
-      badge: categoryInfo.badge,
-      subtitle: categoryInfo.subtitle,
+      kind: classification.kind,
+      category: classification.category,
+      badge: classification.badge,
+      subtitle: classification.subtitle,
       evidenceIds: [evId],
-      severity: categoryInfo.isDatabase || categoryInfo.isStorage ? 'high' : 'medium',
+      severity: classification.severity,
     };
 
     vertexMap.set(c.id, entity);
+    roleMap.set(entity.id, classification.role);
     nodes.push(entity);
   });
 
-  // Ensure there is at least an external ingress entrypoint if none declared
-  let internetNode = nodes.find(n => n.kind === 'internet');
-  if (!internetNode && nodes.length > 0) {
-    const inetEvId = 'ev-inferred-internet';
+  // Identify or infer Perimeter Entrypoints
+  let perimeterNodes = nodes.filter(n => roleMap.get(n.id) === 'internet');
+  if (perimeterNodes.length === 0 && nodes.length > 0) {
+    const inetEvId = 'ev-inferred-perimeter';
     evidence.push({
       id: inetEvId,
       path: filename,
       line: 1,
-      excerpt: `Perimeter Exposure: Inferred Public Internet / External User Ingress to perimeter`,
-      url: `diagram://${filename}#internet`,
+      excerpt: `Perimeter Exposure: External Network Ingress Boundary`,
+      url: `diagram://${filename}#perimeter`,
       collectedAt: now,
     });
-    internetNode = {
-      id: 'node-public-internet',
+    const inferredPerimeter: GraphEntity = {
+      id: 'node-public-perimeter',
       label: 'Public Internet / External Ingress',
       kind: 'internet',
       category: 'exposure',
@@ -465,21 +545,33 @@ export function analyzeDiagramToAttackGraph(
       subtitle: 'Untrusted External Network',
       evidenceIds: [inetEvId],
     };
-    nodes.unshift(internetNode);
+    nodes.unshift(inferredPerimeter);
+    roleMap.set(inferredPerimeter.id, 'internet');
+    perimeterNodes = [inferredPerimeter];
   }
 
-  // 2. Build Graph Edges
+  // 2. Build Graph Edges & Adjacency Structure
   const edgeCells = activeCells.filter(c => c.edge || (c.source && c.target));
-  let edgeIndex = 1;
+  const adjacency = new Map<string, string[]>();
+  const undirectedAdjacency = new Map<string, string[]>();
 
+  nodes.forEach(n => {
+    adjacency.set(n.id, []);
+    undirectedAdjacency.set(n.id, []);
+  });
+
+  let edgeIndex = 1;
   edgeCells.forEach(c => {
     const srcNode = vertexMap.get(c.source || '');
     const dstNode = vertexMap.get(c.target || '');
 
     if (srcNode && dstNode) {
+      const srcRole = roleMap.get(srcNode.id);
+      const dstRole = roleMap.get(dstNode.id);
+
+      // Risky if untrusted perimeter touches internal datastore/storage directly
       const isDangerous =
-        (srcNode.kind === 'internet' && (dstNode.kind === 'target' || dstNode.badge?.includes('Database') || dstNode.badge?.includes('Storage'))) ||
-        (srcNode.badge?.includes('Public') && dstNode.badge?.includes('Database'));
+        srcRole === 'internet' && (dstRole === 'datastore' || dstRole === 'storage');
 
       const evId = `ev-edge-${c.id}`;
       evidence.push({
@@ -495,175 +587,256 @@ export function analyzeDiagramToAttackGraph(
         id: `edge-${c.id}`,
         source: srcNode.id,
         target: dstNode.id,
-        label: c.value || (isDangerous ? 'Unfiltered Public Access' : 'Architecture Route'),
+        label: c.value || (isDangerous ? 'Direct Unfiltered Exposure' : 'Traffic Link'),
         evidenceIds: [evId],
         provenance: 'declared',
         risky: isDangerous,
       });
+
+      adjacency.get(srcNode.id)?.push(dstNode.id);
+      undirectedAdjacency.get(srcNode.id)?.push(dstNode.id);
+      undirectedAdjacency.get(dstNode.id)?.push(srcNode.id);
       edgeIndex++;
     }
   });
 
   // If no edges were connected in the diagram XML, connect perimeter to entry compute
-  if (edges.length === 0 && internetNode && nodes.length > 1) {
-    const firstCompute = nodes.find(n => n.id !== internetNode?.id);
-    if (firstCompute) {
+  if (edges.length === 0 && perimeterNodes[0] && nodes.length > 1) {
+    const firstTarget = nodes.find(n => n.id !== perimeterNodes[0].id);
+    if (firstTarget) {
       edges.push({
         id: 'edge-inferred-ingress',
-        source: internetNode.id,
-        target: firstCompute.id,
-        label: 'Public Ingress Route',
+        source: perimeterNodes[0].id,
+        target: firstTarget.id,
+        label: 'Inferred Ingress Route',
         evidenceIds: [fileEvidenceId],
         provenance: 'inferred',
         risky: false,
       });
+      adjacency.get(perimeterNodes[0].id)?.push(firstTarget.id);
     }
   }
 
-  // 3. ARCHITECTURAL & NETWORK VULNERABILITY ANALYSIS (Findings)
-  // Finding A: Public S3 Bucket / Object Storage Exposure
-  const exposedStorageNode = nodes.find(
-    n => n.badge?.includes('Storage') || n.label.toLowerCase().includes('s3') || n.label.toLowerCase().includes('bucket')
-  );
-  const directStorageAccess = edges.find(
-    e => e.target === exposedStorageNode?.id && (e.source === internetNode?.id || e.risky)
-  );
+  // 3. GRAPH-THEORETIC REACHABILITY & VULNERABILITY ANALYSIS (Zero presets)
+  // Check A: Which nodes are reachable from the perimeter?
+  const reachableFromPerimeter = new Set<string>();
+  const securityIntermediaries = new Set<string>();
 
-  if (exposedStorageNode) {
+  nodes.forEach(n => {
+    if (roleMap.get(n.id) === 'firewall_waf') {
+      securityIntermediaries.add(n.id);
+    }
+  });
+
+  // BFS traversal tracking if path passed through a security gateway
+  const queue: { nodeId: string; passedSecurity: boolean }[] = [];
+  perimeterNodes.forEach(p => {
+    queue.push({ nodeId: p.id, passedSecurity: false });
+    reachableFromPerimeter.add(p.id);
+  });
+
+  const unprotectedCrownJewels: GraphEntity[] = [];
+  const directlyExposedStorage: GraphEntity[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const neighbors = adjacency.get(current.nodeId) || [];
+
+    for (const neighborId of neighbors) {
+      const neighbor = nodes.find(n => n.id === neighborId);
+      if (!neighbor) continue;
+
+      const isSecurityNode = securityIntermediaries.has(neighborId);
+      const passedSecurity = current.passedSecurity || isSecurityNode;
+      const role = roleMap.get(neighborId);
+
+      // Check if datastore or storage is reached WITHOUT passing through a security inspection node
+      if (!passedSecurity && (role === 'datastore' || role === 'storage')) {
+        unprotectedCrownJewels.push(neighbor);
+        // Direct 1-hop exposure from internet
+        if (roleMap.get(current.nodeId) === 'internet') {
+          if (role === 'storage') directlyExposedStorage.push(neighbor);
+        }
+      }
+
+      if (!reachableFromPerimeter.has(neighborId)) {
+        reachableFromPerimeter.add(neighborId);
+        queue.push({ nodeId: neighborId, passedSecurity });
+      }
+    }
+  }
+
+  // Finding 1: Direct Public Storage Exposure
+  if (directlyExposedStorage.length > 0) {
+    const s = directlyExposedStorage[0];
     findings.push({
       id: 'finding-storage-public',
       rule: 'public-storage-exposure',
       severity: 'high',
-      title: `Public Object Storage Exposure (${exposedStorageNode.label})`,
-      fix: 'Apply Terraform aws_s3_bucket_public_access_block and restrict bucket policy to private VPC endpoint.',
-      evidenceIds: exposedStorageNode.evidenceIds,
+      title: `Public Object Storage Exposure (${s.label})`,
+      fix: 'Apply Terraform aws_s3_bucket_public_access_block and enforce private VPC endpoint.',
+      evidenceIds: s.evidenceIds,
     });
   }
 
-  // Finding B: Database in Public Subnet / Direct Ingress Exposure
-  const dbNode = nodes.find(
-    n => n.badge?.includes('Database') || n.label.toLowerCase().includes('rds') || n.label.toLowerCase().includes('postgres') || n.label.toLowerCase().includes('mysql')
-  );
-  if (dbNode) {
+  // Finding 2: Unprotected Datastore / Crown Jewel (No WAF or Firewall in path)
+  if (unprotectedCrownJewels.length > 0) {
+    const db = unprotectedCrownJewels.find(n => roleMap.get(n.id) === 'datastore') || unprotectedCrownJewels[0];
     findings.push({
       id: 'finding-db-subnet',
       rule: 'database-exposure',
       severity: 'high',
-      title: `Unsegmented Database Tier Exposure (${dbNode.label})`,
-      fix: 'Migrate datastore to isolated private database subnet and enforce strict Security Group / Network ACL inbound rules.',
-      evidenceIds: dbNode.evidenceIds,
+      title: `Unsegmented Database Ingress Exposure (${db.label})`,
+      fix: 'Migrate datastore to isolated private database subnet and enforce strict Security Group inbound rules.',
+      evidenceIds: db.evidenceIds,
     });
   }
 
-  // Finding C: Missing Web Application Firewall (WAF) on Public Ingress
-  const hasWaf = nodes.some(
-    n => n.badge?.includes('Security') || n.label.toLowerCase().includes('waf') || n.label.toLowerCase().includes('firewall')
-  );
-  if (!hasWaf && internetNode) {
+  // Finding 3: Missing Perimeter Inspection Gateway (WAF / Firewall)
+  const hasSecurityAtPerimeter = perimeterNodes.some(p => {
+    const downstream = adjacency.get(p.id) || [];
+    return downstream.some(id => securityIntermediaries.has(id));
+  });
+
+  if (!hasSecurityAtPerimeter && nodes.length >= 3) {
     findings.push({
       id: 'finding-missing-waf',
       rule: 'missing-waf',
       severity: 'medium',
-      title: 'Missing Cloud Web Application Firewall (WAF) on Public Perimeter',
-      fix: 'Attach AWS WAFv2 WebACL to Application Load Balancer / API Gateway to filter OWASP Top 10 automated attacks.',
-      evidenceIds: internetNode.evidenceIds,
+      title: 'Missing Cloud Web Application Firewall (WAF) / Perimeter Filter',
+      fix: 'Attach AWS WAFv2 WebACL to perimeter load balancer / gateway to inspect incoming requests.',
+      evidenceIds: perimeterNodes[0].evidenceIds,
     });
   }
 
-  // Finding D: Flat Network Architecture / Missing DMZ Isolation (Packet Tracer / Router)
-  const routerNode = nodes.find(n => n.badge?.includes('Router') || n.badge?.includes('Switch') || n.label.toLowerCase().includes('router'));
-  if (routerNode && !hasWaf) {
-    findings.push({
-      id: 'finding-flat-network',
-      rule: 'flat-network-architecture',
-      severity: 'high',
-      title: `Unsegmented Flat Network Architecture on ${routerNode.label}`,
-      fix: 'Deploy Cisco IOS extended ACL policy or 802.1Q VLAN trunk isolation separating DMZ from Internal Core.',
-      evidenceIds: routerNode.evidenceIds,
-    });
-  }
+  // Finding 4: Flat Network Architecture (Router directly bridges External & Internal Core)
+  const networkDevices = nodes.filter(n => roleMap.get(n.id) === 'network_device');
+  networkDevices.forEach(r => {
+    const connected = undirectedAdjacency.get(r.id) || [];
+    const touchesExternal = connected.some(id => roleMap.get(id) === 'internet');
+    const touchesInternal = connected.some(id => roleMap.get(id) === 'datastore' || roleMap.get(id) === 'storage');
+    const hasFirewall = connected.some(id => roleMap.get(id) === 'firewall_waf');
 
-  // Finding E: Unauthenticated Microservice / Lateral Movement Exposure
-  const computeNodes = nodes.filter(n => n.category === 'compute' && n.id !== routerNode?.id);
-  if (computeNodes.length >= 2) {
+    if (touchesExternal && touchesInternal && !hasFirewall) {
+      findings.push({
+        id: `finding-flat-network-${r.id}`,
+        rule: 'flat-network-architecture',
+        severity: 'high',
+        title: `Unsegmented Flat Network Architecture on ${r.label}`,
+        fix: 'Deploy Cisco IOS extended ACL policy or 802.1Q VLAN trunk isolation separating external DMZ from core subnet.',
+        evidenceIds: r.evidenceIds,
+      });
+    }
+  });
+
+  // Finding 5: Unauthenticated Lateral Microservice Communication
+  const computeWorkloads = nodes.filter(n => roleMap.get(n.id) === 'compute');
+  if (computeWorkloads.length >= 2 && !findings.some(f => f.rule === 'unauthenticated-microservice')) {
     findings.push({
       id: 'finding-lateral-movement',
       rule: 'unauthenticated-microservice',
       severity: 'medium',
       title: 'Missing Mutual TLS & Service-to-Service Authorization',
-      fix: 'Enforce Istio/Envoy mTLS PeerAuthentication and signed JWT claims between internal microservice workloads.',
-      evidenceIds: computeNodes[0].evidenceIds,
+      fix: 'Enforce Istio STRICT mutual TLS and fine-grained SPIFFE workload identity authorization.',
+      evidenceIds: computeWorkloads[0].evidenceIds,
     });
   }
 
-  // 4. CONSTRUCT HOP-BY-HOP ATTACK PATHS
+  // Finding 6: Exposed Remote Management Protocols (SSH / RDP / Telnet)
+  const mgmtKeywords = ['ssh', '22', 'rdp', '3389', 'telnet', '23', 'snmp', '161'];
+  edges.forEach(e => {
+    const l = (e.label || '').toLowerCase();
+    if (mgmtKeywords.some(k => l.includes(k))) {
+      findings.push({
+        id: `finding-mgmt-exposure-${e.id}`,
+        rule: 'public-cidr',
+        severity: 'high',
+        title: `Exposed Remote Management Protocol (${e.label})`,
+        fix: 'Remove public ingress to management ports and require Bastion host or VPN with MFA.',
+        evidenceIds: e.evidenceIds,
+      });
+    }
+  });
+
+  // 4. DYNAMIC SHORTEST ATTACK PATH VIA BFS (Derived strictly from topology)
   const attackPathSteps: AttackPathStep[] = [];
-  let stepNum = 1;
+  const startNode = perimeterNodes[0];
+  const targetNode =
+    unprotectedCrownJewels[0] ||
+    nodes.find(n => roleMap.get(n.id) === 'datastore' || roleMap.get(n.id) === 'storage') ||
+    computeWorkloads[computeWorkloads.length - 1] ||
+    nodes[nodes.length - 1];
 
-  if (internetNode) {
-    attackPathSteps.push({
-      id: `step-${stepNum}`,
-      nodeId: internetNode.id,
-      title: 'External Perimeter Reconnaissance',
-      subtitle: internetNode.label,
-      stage: 'internet',
-      badge: 'Step 1',
-      description: 'Adversary probes public IP endpoints, DNS records, and publicly reachable cloud gateways.',
-      evidenceIds: internetNode.evidenceIds,
-    });
-    stepNum++;
-  }
+  if (startNode && targetNode) {
+    // Find shortest path from startNode to targetNode using BFS
+    const parentMap = new Map<string, string>();
+    const visited = new Set<string>();
+    const bfsQueue: string[] = [startNode.id];
+    visited.add(startNode.id);
 
-  const ingressHop = computeNodes[0] || routerNode || nodes[1];
-  if (ingressHop) {
-    attackPathSteps.push({
-      id: `step-${stepNum}`,
-      nodeId: ingressHop.id,
-      title: 'Perimeter Gateway Infiltration',
-      subtitle: ingressHop.label,
-      stage: 'server',
-      badge: `Step ${stepNum}`,
-      description: 'Attacker leverages uninspected ingress traffic to bypass edge boundaries and establish footholds.',
-      evidenceIds: ingressHop.evidenceIds,
-    });
-    stepNum++;
-  }
+    while (bfsQueue.length > 0) {
+      const u = bfsQueue.shift()!;
+      if (u === targetNode.id) break;
 
-  if (computeNodes.length > 1) {
-    const pivotHop = computeNodes[1];
-    attackPathSteps.push({
-      id: `step-${stepNum}`,
-      nodeId: pivotHop.id,
-      title: 'Subnet Pivoting & Lateral Movement',
-      subtitle: pivotHop.label,
-      stage: 'privilege',
-      badge: `Step ${stepNum}`,
-      description: 'Unsegmented network allows direct east-west pivoting across internal services without re-authentication.',
-      evidenceIds: pivotHop.evidenceIds,
-    });
-    stepNum++;
-  }
+      const neighbors = adjacency.get(u) || [];
+      for (const v of neighbors) {
+        if (!visited.has(v)) {
+          visited.add(v);
+          parentMap.set(v, u);
+          bfsQueue.push(v);
+        }
+      }
+    }
 
-  const crownJewel = dbNode || exposedStorageNode || nodes[nodes.length - 1];
-  if (crownJewel) {
-    attackPathSteps.push({
-      id: `step-${stepNum}`,
-      nodeId: crownJewel.id,
-      title: 'Crown Jewel Target Compromise & Data Exfiltration',
-      subtitle: crownJewel.label,
-      stage: 'target',
-      badge: `Step ${stepNum}`,
-      description: 'Adversary gains direct read/write access to production datastore and customer records.',
-      evidenceIds: crownJewel.evidenceIds,
+    // Reconstruct path
+    const pathIds: string[] = [];
+    let curr: string | undefined = targetNode.id;
+    while (curr) {
+      pathIds.unshift(curr);
+      curr = parentMap.get(curr);
+    }
+
+    // If no directed path exists, fall back to reachable node chain
+    const finalChain = pathIds.length > 1 ? pathIds : [startNode.id, targetNode.id];
+
+    finalChain.forEach((nodeId, idx) => {
+      const n = nodes.find(item => item.id === nodeId);
+      if (!n) return;
+
+      const role = roleMap.get(nodeId);
+      const stage: AttackPathStep['stage'] =
+        role === 'internet'
+          ? 'internet'
+          : role === 'datastore' || role === 'storage'
+          ? 'target'
+          : role === 'identity'
+          ? 'privilege'
+          : 'server';
+
+      attackPathSteps.push({
+        id: `step-${idx + 1}`,
+        nodeId: n.id,
+        title: idx === 0 ? 'External Perimeter Reconnaissance' : idx === finalChain.length - 1 ? 'Crown Jewel Data Exfiltration' : `Lateral Pivot: ${n.label}`,
+        subtitle: n.label,
+        stage,
+        badge: `Hop ${idx + 1}`,
+        description:
+          idx === 0
+            ? 'Adversary probes public IP endpoints and exposed perimeter entrypoints.'
+            : idx === finalChain.length - 1
+            ? 'Adversary establishes unauthorized access to core datastore and sensitive customer assets.'
+            : `Adversary traverses uninspected boundary to compromise ${n.label}.`,
+        evidenceIds: n.evidenceIds,
+      });
     });
   }
 
   const attackPaths: AttackPath[] = [
     {
-      id: 'path-diagram-lateral',
+      id: 'path-diagram-adaptive',
       title: `Architectural Breach Path: ${diagramName}`,
-      severity: 'critical',
-      summary: 'External adversary exploits perimeter gaps and flat network architecture to reach core database tier.',
+      severity: findings.some(f => f.severity === 'high') ? 'critical' : 'high',
+      summary: `Dynamic graph analysis discovered ${findings.length} architectural exposures across ${nodes.length} components.`,
       steps: attackPathSteps,
       nodeIds: attackPathSteps.map(s => s.nodeId),
       edgeIds: edges.map(e => e.id),
@@ -697,7 +870,7 @@ export function analyzeDiagramToAttackGraph(
 }
 
 /**
- * Fallback parser if plain text lines or simplified topology is provided
+ * Universal text topology parser
  */
 function parseTextFallbackTopology(text: string): RawCell[] {
   const cells: RawCell[] = [];
@@ -705,7 +878,6 @@ function parseTextFallbackTopology(text: string): RawCell[] {
 
   let id = 1;
   for (const line of lines) {
-    // Check for arrow link (e.g. "Internet -> API Gateway -> Database")
     if (line.includes('->') || line.includes('-->') || line.includes('-') || line.includes(':')) {
       const parts = line.split(/->|-->/).map(p => cleanLabel(p));
       for (let i = 0; i < parts.length; i++) {
