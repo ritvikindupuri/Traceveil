@@ -1,203 +1,227 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 980" width="1800" height="980" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1180" width="1800" height="1180" role="img" aria-labelledby="title desc">
 <defs>
 <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0.4 L9.2,5 L0,9.6" fill="#475569"/></marker>
 <marker id="arrow-dash" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0.4 L9.2,5 L0,9.6" fill="#94A3B8"/></marker>
-<style>svg { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }text { paint-order: stroke; stroke: none; }</style>
+<marker id="arrow-start-dash" markerWidth="10" markerHeight="10" refX="1" refY="5" orient="auto"><path d="M9.2,0.4 L0,5 L9.2,9.6" fill="#94A3B8"/></marker>
+<style>svg { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }</style>
 </defs>
-<rect x="0.00" y="0.00" width="1800.00" height="980.00" rx="0" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0" />
+<rect x="0.00" y="0.00" width="1800.00" height="1180.00" rx="0" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0" />
 <text x="900.00" y="62.00" font-size="22" font-weight="700" fill="#0F172A" text-anchor="middle" >How a Traceveil investigation run works</text>
-<text x="900.00" y="84.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >One signed-in scan: collect evidence, save an owner-scoped record, then inspect the graph.</text>
-<rect x="16.00" y="104.00" width="292.00" height="836.00" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.4" />
-<text x="32.00" y="124.00" font-size="12" font-weight="600" fill="#64748B"  >Browser</text>
-<rect x="320.00" y="104.00" width="1056.00" height="836.00" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.4" />
-<text x="336.00" y="124.00" font-size="12" font-weight="600" fill="#64748B"  >Traceveil server  ·  Node process, no repository code executed</text>
-<rect x="1388.00" y="104.00" width="396.00" height="400.00" rx="18" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.4" />
-<text x="1404.00" y="124.00" font-size="12" font-weight="600" fill="#64748B"  >Browser</text>
-<rect x="1388.00" y="680.00" width="396.00" height="260.00" rx="18" fill="#FAFBFC" stroke="#94A3B8" stroke-width="1.4" stroke-dasharray="6 5"/>
-<text x="1404.00" y="700.00" font-size="12" font-weight="600" fill="#64748B"  >Allowlisted MCP hosts  ·  runtime tools/call</text>
-<rect x="80.00" y="178.00" width="173.12" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="166.56" cy="209.00" r="20.00" fill="#334155"/>
-<g transform="translate(148.16 190.60) scale(1.5333)">
+<text x="900.00" y="84.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Three lanes, left to right. Tags mark where each step runs. Dashed lanes are optional.</text>
+<rect x="40.00" y="100.00" width="1720.00" height="548.00" rx="16" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.3" />
+<text x="1744.00" y="120.00" font-size="12" font-weight="600" fill="#64748B" text-anchor="end" >Lane A  ·  Main investigation run</text>
+<rect x="40.00" y="672.00" width="1720.00" height="200.00" rx="16" fill="#FAFBFC" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<text x="1744.00" y="692.00" font-size="12" font-weight="600" fill="#64748B" text-anchor="end" >Lane B  ·  Optional: tenant isolation chat</text>
+<rect x="40.00" y="892.00" width="1720.00" height="196.00" rx="16" fill="#FAFBFC" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<text x="1744.00" y="912.00" font-size="12" font-weight="600" fill="#64748B" text-anchor="end" >Lane C  ·  Optional: MCP audit and guard</text>
+<rect x="56.00" y="308.00" width="160.00" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="136.00" cy="336.00" r="18.00" fill="#334155"/>
+<g transform="translate(119.44 319.44) scale(1.3800)">
 <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.4 0-8 2.1-8 4.7V21h16v-2.3C20 16.1 16.4 14 12 14z" fill="#FFFFFF" />
 </g>
-<text x="166.56" y="255.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >You</text>
-<text x="166.56" y="278.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Signed-in investigator</text>
-<rect x="62.00" y="340.00" width="186.81" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="155.41" cy="371.00" r="20.00" fill="#4F46E5"/>
-<g transform="translate(137.01 352.60) scale(1.5333)">
+<text x="136.00" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >You</text>
+<text x="136.00" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Signed-in investigator</text>
+<rect x="109.98" y="411.00" width="52.05" height="19.00" rx="7" fill="#EEF2FF" stroke="#4338CA" stroke-width="0.8"/>
+<text x="136.00" y="424.00" font-size="10" font-weight="600" fill="#4338CA" text-anchor="middle" >Browser</text>
+<rect x="268.00" y="308.00" width="171.50" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="353.75" cy="336.00" r="18.00" fill="#4F46E5"/>
+<g transform="translate(337.19 319.44) scale(1.3800)">
 <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z M5.4 4.7h13.2v2.6H5.4z" fill="#FFFFFF" fill-rule="evenodd"/>
 </g>
-<text x="155.41" y="417.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Console</text>
-<text x="155.41" y="440.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Workspace after sign-in</text>
-<rect x="62.00" y="740.00" width="168.00" height="115.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<circle cx="146.00" cy="771.00" r="20.00" fill="#9A3412"/>
-<g transform="translate(127.60 752.60) scale(1.5333)">
-<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z M5.4 4.7h13.2v2.6H5.4z" fill="#FFFFFF" fill-rule="evenodd"/>
-</g>
-<text x="146.00" y="817.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >MCP audits</text>
-<text x="146.00" y="840.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >/mcp-audits page</text>
-<rect x="348.00" y="340.00" width="209.97" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="452.98" cy="371.00" r="20.00" fill="#0284C7"/>
-<g transform="translate(434.58 352.60) scale(1.5333)">
+<text x="353.75" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Console</text>
+<text x="353.75" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Workspace after sign-in</text>
+<rect x="327.73" y="411.00" width="52.05" height="19.00" rx="7" fill="#EEF2FF" stroke="#4338CA" stroke-width="0.8"/>
+<text x="353.75" y="424.00" font-size="10" font-weight="600" fill="#4338CA" text-anchor="middle" >Browser</text>
+<rect x="491.50" y="308.00" width="192.97" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="587.98" cy="336.00" r="18.00" fill="#0284C7"/>
+<g transform="translate(571.42 319.44) scale(1.3800)">
 <path d="M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z" fill="#FFFFFF" />
 </g>
-<text x="452.98" y="417.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Scan API</text>
-<text x="452.98" y="440.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >POST /api/application-scan</text>
-<rect x="628.00" y="148.00" width="196.23" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="726.12" cy="179.00" r="20.00" fill="#E2E8F0"/>
-<g transform="translate(707.72 160.60) scale(1.5333)">
+<text x="587.98" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Scan API</text>
+<text x="587.98" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >POST /api/application-scan</text>
+<rect x="565.94" y="411.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="587.98" y="424.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="756.47" y="126.00" width="199.28" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="856.11" cy="154.00" r="18.00" fill="#E2E8F0"/>
+<g transform="translate(839.55 137.44) scale(1.3800)">
 <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" fill="#181717" />
 </g>
-<text x="726.12" y="225.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >GitHub collector</text>
-<text x="726.12" y="248.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Bounded public snapshot</text>
-<rect x="635.91" y="283.00" width="180.42" height="40.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
-<circle cx="657.91" cy="303.00" r="12.00" fill="#334155"/>
-<g transform="translate(647.35 292.44) scale(0.8800)">
-<path d="M8 10V7.8A4 4 0 0 1 12 4a4 4 0 0 1 4 3.8V10h1.5A1.5 1.5 0 0 1 19 11.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10H8zm1.5 0h5V7.8A2.5 2.5 0 0 0 12 5.5 2.5 2.5 0 0 0 9.5 7.8V10z" fill="#FFFFFF" />
-</g>
-<text x="677.91" y="307.50" font-size="12" font-weight="600" fill="#0F172A"  >Encrypted GitHub PAT</text>
-<rect x="635.91" y="283.00" width="180.42" height="40.00" rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<rect x="628.00" y="520.00" width="195.11" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="725.55" cy="551.00" r="20.00" fill="#0F766E"/>
-<g transform="translate(707.15 532.60) scale(1.5333)">
+<text x="856.11" y="196.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >GitHub collector</text>
+<text x="856.11" y="217.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Snapshot; optional PAT vault</text>
+<rect x="834.06" y="229.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="856.11" y="242.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="756.47" y="500.00" width="191.11" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="852.02" cy="528.00" r="18.00" fill="#0F766E"/>
+<g transform="translate(835.46 511.44) scale(1.3800)">
 <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"  fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
 <path d="M3 12h18"  fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
 <path d="M12 3c2.4 2.4 3.6 5.6 3.6 9s-1.2 6.6-3.6 9c-2.4-2.4-3.6-5.6-3.6-9S9.6 5.4 12 3z"  fill="none" stroke="#FFFFFF" stroke-width="1.8"/>
 </g>
-<text x="725.55" y="597.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Live HTTPS probes</text>
-<text x="725.55" y="620.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Four GETs on port 443</text>
-<rect x="880.00" y="340.00" width="195.36" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="977.68" cy="371.00" r="20.00" fill="#7C3AED"/>
-<g transform="translate(959.28 352.60) scale(1.5333)">
+<text x="852.02" y="570.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Live HTTPS probes</text>
+<text x="852.02" y="591.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Four GETs on port 443</text>
+<rect x="829.98" y="603.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="852.02" y="616.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="1011.75" y="308.00" width="179.41" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="1101.45" cy="336.00" r="18.00" fill="#7C3AED"/>
+<g transform="translate(1084.89 319.44) scale(1.3800)">
 <path d="M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z" fill="#FFFFFF" />
 </g>
-<text x="977.68" y="417.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Graph engine</text>
-<text x="977.68" y="440.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Static rules, evidence IDs</text>
-<rect x="1124.00" y="340.00" width="186.34" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="1217.17" cy="371.00" r="20.00" fill="#0F766E"/>
-<g transform="translate(1198.77 352.60) scale(1.5333)">
+<text x="1101.45" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Graph engine</text>
+<text x="1101.45" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Static rules, evidence IDs</text>
+<rect x="1079.41" y="411.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="1101.45" y="424.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="1239.16" y="308.00" width="171.05" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="1324.68" cy="336.00" r="18.00" fill="#0F766E"/>
+<g transform="translate(1308.12 319.44) scale(1.3800)">
 <path d="M12 2.5a1 1 0 0 1 1 1V5h3.5A2.5 2.5 0 0 1 19 7.5v8A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-8A2.5 2.5 0 0 1 7.5 5H11V3.5a1 1 0 0 1 1-1z M9 10.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z M9.5 14h5a.75.75 0 0 1 0 1.5h-5A.75.75 0 0 1 9.5 14z" fill="#FFFFFF" fill-rule="evenodd"/>
 <path d="M8 18.5v1.2A2.3 2.3 0 0 0 10.3 22h3.4A2.3 2.3 0 0 0 16 19.7v-1.2" fill="#FFFFFF" />
 </g>
-<text x="1217.17" y="417.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Report agents</text>
-<text x="1217.17" y="440.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Four template write-ups</text>
-<rect x="880.00" y="520.00" width="203.80" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="981.90" cy="551.00" r="20.00" fill="#D97706"/>
-<g transform="translate(963.50 532.60) scale(1.5333)">
-<path d="M7 3.5h6.2L17 7.3V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7.5 3.5H7zm6 0v4h4" fill="#FFFFFF" />
-</g>
-<text x="981.90" y="597.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Local JSON store</text>
-<text x="981.90" y="620.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Scan API writes the record</text>
-<rect x="1124.00" y="520.00" width="189.17" height="115.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<circle cx="1218.59" cy="551.00" r="20.00" fill="#5B21B6"/>
-<g transform="translate(1200.19 532.60) scale(1.5333)">
-<path d="M12 2.5a1 1 0 0 1 1 1V5h3.5A2.5 2.5 0 0 1 19 7.5v8A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-8A2.5 2.5 0 0 1 7.5 5H11V3.5a1 1 0 0 1 1-1z M9 10.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z M9.5 14h5a.75.75 0 0 1 0 1.5h-5A.75.75 0 0 1 9.5 14z" fill="#FFFFFF" fill-rule="evenodd"/>
-<path d="M8 18.5v1.2A2.3 2.3 0 0 0 10.3 22h3.4A2.3 2.3 0 0 0 16 19.7v-1.2" fill="#FFFFFF" />
-</g>
-<text x="1218.59" y="597.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Isolation agent</text>
-<text x="1218.59" y="620.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Drafts RLS on the server</text>
-<rect x="1132.00" y="653.00" width="136.89" height="40.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
-<circle cx="1154.00" cy="673.00" r="12.00" fill="#EDE9FE"/>
-<g transform="translate(1143.44 662.44) scale(0.8800)">
-<path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" fill="#8E75FF" />
-</g>
-<text x="1174.00" y="677.50" font-size="12" font-weight="600" fill="#0F172A"  >Google Gemini</text>
-<rect x="1132.00" y="653.00" width="136.89" height="40.00" rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<rect x="348.00" y="740.00" width="214.09" height="115.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<circle cx="455.05" cy="771.00" r="20.00" fill="#C2410C"/>
-<g transform="translate(436.65 752.60) scale(1.5333)">
-<path d="M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z" fill="#FFFFFF" />
-</g>
-<text x="455.05" y="817.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >MCP ingest</text>
-<text x="455.05" y="840.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >POST /api/scan; saves audit</text>
-<rect x="640.00" y="740.00" width="178.77" height="115.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
-<circle cx="729.38" cy="771.00" r="20.00" fill="#BE123C"/>
-<g transform="translate(710.98 752.60) scale(1.5333)">
-<path d="M8 10V7.8A4 4 0 0 1 12 4a4 4 0 0 1 4 3.8V10h1.5A1.5 1.5 0 0 1 19 11.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10H8zm1.5 0h5V7.8A2.5 2.5 0 0 0 12 5.5 2.5 2.5 0 0 0 9.5 7.8V10z" fill="#FFFFFF" />
-</g>
-<text x="729.38" y="817.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Tool guard</text>
-<text x="729.38" y="840.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >Checks, then tools/call</text>
-<rect x="1470.00" y="340.00" width="201.47" height="115.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
-<circle cx="1570.73" cy="371.00" r="20.00" fill="#4338CA"/>
-<g transform="translate(1552.33 352.60) scale(1.5333)">
+<text x="1324.68" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Report agents</text>
+<text x="1324.68" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Four template write-ups</text>
+<rect x="1302.63" y="411.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="1324.68" y="424.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="1458.20" y="308.00" width="185.05" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="1550.73" cy="336.00" r="18.00" fill="#4338CA"/>
+<g transform="translate(1534.17 319.44) scale(1.3800)">
 <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z M5.4 4.7h13.2v2.6H5.4z" fill="#FFFFFF" fill-rule="evenodd"/>
 </g>
-<text x="1570.73" y="417.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Results canvas</text>
-<text x="1570.73" y="440.00" font-size="14" font-weight="400" fill="#64748B" text-anchor="middle" >React Flow + Dagre layout</text>
-<rect x="1460.00" y="784.00" width="107.08" height="40.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
-<circle cx="1482.00" cy="804.00" r="12.00" fill="#E2E8F0"/>
-<g transform="translate(1471.44 793.44) scale(0.8800)">
+<text x="1550.73" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Results canvas</text>
+<text x="1550.73" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >React Flow + Dagre layout</text>
+<rect x="1524.70" y="411.00" width="52.05" height="19.00" rx="7" fill="#EEF2FF" stroke="#4338CA" stroke-width="0.8"/>
+<text x="1550.73" y="424.00" font-size="10" font-weight="600" fill="#4338CA" text-anchor="middle" >Browser</text>
+<rect x="491.50" y="488.00" width="174.89" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="578.95" cy="516.00" r="18.00" fill="#D97706"/>
+<g transform="translate(562.39 499.44) scale(1.3800)">
+<path d="M7 3.5h6.2L17 7.3V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7.5 3.5H7zm6 0v4h4" fill="#FFFFFF" />
+</g>
+<text x="578.95" y="558.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Local JSON store</text>
+<text x="578.95" y="579.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >application_scans row</text>
+<rect x="556.90" y="591.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="578.95" y="604.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="292.00" y="720.00" width="160.00" height="132.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<circle cx="372.00" cy="748.00" r="18.00" fill="#5B21B6"/>
+<g transform="translate(355.44 731.44) scale(1.3800)">
+<path d="M12 2.5a1 1 0 0 1 1 1V5h3.5A2.5 2.5 0 0 1 19 7.5v8A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-8A2.5 2.5 0 0 1 7.5 5H11V3.5a1 1 0 0 1 1-1z M9 10.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z M9.5 14h5a.75.75 0 0 1 0 1.5h-5A.75.75 0 0 1 9.5 14z" fill="#FFFFFF" fill-rule="evenodd"/>
+<path d="M8 18.5v1.2A2.3 2.3 0 0 0 10.3 22h3.4A2.3 2.3 0 0 0 16 19.7v-1.2" fill="#FFFFFF" />
+</g>
+<text x="372.00" y="790.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Isolation agent</text>
+<text x="372.00" y="811.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Server fn; drafts RLS</text>
+<rect x="349.95" y="823.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="372.00" y="836.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="508.00" y="720.00" width="160.00" height="132.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<circle cx="588.00" cy="748.00" r="18.00" fill="#EDE9FE"/>
+<g transform="translate(571.44 731.44) scale(1.3800)">
+<path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" fill="#8E75FF" />
+</g>
+<text x="588.00" y="790.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Google Gemini</text>
+<text x="588.00" y="811.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Optional frontier API</text>
+<rect x="570.71" y="823.00" width="34.58" height="19.00" rx="7" fill="#FFF7ED" stroke="#9A3412" stroke-width="0.8"/>
+<text x="588.00" y="836.00" font-size="10" font-weight="600" fill="#9A3412" text-anchor="middle" >Host</text>
+<rect x="276.00" y="940.00" width="160.00" height="132.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<circle cx="356.00" cy="968.00" r="18.00" fill="#9A3412"/>
+<g transform="translate(339.44 951.44) scale(1.3800)">
+<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z M5.4 4.7h13.2v2.6H5.4z" fill="#FFFFFF" fill-rule="evenodd"/>
+</g>
+<text x="356.00" y="1010.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >MCP audits</text>
+<text x="356.00" y="1031.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >/mcp-audits page</text>
+<rect x="329.98" y="1043.00" width="52.05" height="19.00" rx="7" fill="#EEF2FF" stroke="#4338CA" stroke-width="0.8"/>
+<text x="356.00" y="1056.00" font-size="10" font-weight="600" fill="#4338CA" text-anchor="middle" >Browser</text>
+<rect x="488.00" y="940.00" width="196.78" height="132.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<circle cx="586.39" cy="968.00" r="18.00" fill="#C2410C"/>
+<g transform="translate(569.83 951.44) scale(1.3800)">
+<path d="M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z" fill="#FFFFFF" />
+</g>
+<text x="586.39" y="1010.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >MCP ingest</text>
+<text x="586.39" y="1031.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >POST /api/scan; saves audit</text>
+<rect x="564.34" y="1043.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="586.39" y="1056.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="736.78" y="940.00" width="164.03" height="132.00" rx="14" fill="#FCFCFD" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6 5"/>
+<circle cx="818.80" cy="968.00" r="18.00" fill="#BE123C"/>
+<g transform="translate(802.24 951.44) scale(1.3800)">
+<path d="M8 10V7.8A4 4 0 0 1 12 4a4 4 0 0 1 4 3.8V10h1.5A1.5 1.5 0 0 1 19 11.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10H8zm1.5 0h5V7.8A2.5 2.5 0 0 0 12 5.5 2.5 2.5 0 0 0 9.5 7.8V10z" fill="#FFFFFF" />
+</g>
+<text x="818.80" y="1010.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Tool guard</text>
+<text x="818.80" y="1031.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Checks, then tools/call</text>
+<rect x="796.75" y="1043.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
+<text x="818.80" y="1056.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="936.81" y="940.00" width="147.66" height="36.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
+<circle cx="957.81" cy="958.00" r="11.00" fill="#E2E8F0"/>
+<g transform="translate(948.13 948.32) scale(0.8067)">
 <path d="M7 3.5h6.2L17 7.3V20a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 6 20V5A1.5 1.5 0 0 1 7.5 3.5H7zm6 0v4h4" fill="#0F172A" />
 </g>
-<text x="1502.00" y="808.50" font-size="12" font-weight="600" fill="#0F172A"  >DeepWiki</text>
-<rect x="1460.00" y="840.00" width="145.02" height="40.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
-<circle cx="1482.00" cy="860.00" r="12.00" fill="#FFF7ED"/>
-<g transform="translate(1471.44 849.44) scale(0.8800)">
+<text x="976.81" y="962.50" font-size="12" font-weight="600" fill="#0F172A"  >DeepWiki</text>
+<rect x="1039.89" y="948.50" width="34.58" height="19.00" rx="7" fill="#FFF7ED" stroke="#9A3412" stroke-width="0.8"/>
+<text x="1057.18" y="961.50" font-size="10" font-weight="600" fill="#9A3412" text-anchor="middle" >Host</text>
+<rect x="936.81" y="984.00" width="185.59" height="36.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
+<circle cx="957.81" cy="1002.00" r="11.00" fill="#FFF7ED"/>
+<g transform="translate(948.13 992.32) scale(0.8067)">
 <path d="M16.5088 16.8447c.1475-.5068.0908-.9707-.1553-1.3154-.2246-.3164-.6045-.499-1.0615-.5205l-8.6592-.1123a.1559.1559 0 0 1-.1333-.0713c-.0283-.042-.0351-.0986-.021-.1553.0278-.084.1123-.1484.2036-.1562l8.7359-.1123c1.0351-.0489 2.1601-.8868 2.5537-1.9136l.499-1.3013c.0215-.0561.0293-.1128.0147-.168-.5625-2.5463-2.835-4.4453-5.5499-4.4453-2.5039 0-4.6284 1.6177-5.3876 3.8614-.4927-.3658-1.1187-.5625-1.794-.499-1.2026.119-2.1665 1.083-2.2861 2.2856-.0283.31-.0069.6128.0635.894C1.5683 13.171 0 14.7754 0 16.752c0 .1748.0142.3515.0352.5273.0141.083.0844.1475.1689.1475h15.9814c.0909 0 .1758-.0645.2032-.1553l.12-.4268zm2.7568-5.5634c-.0771 0-.1611 0-.2383.0112-.0566 0-.1054.0415-.127.0976l-.3378 1.1744c-.1475.5068-.0918.9707.1543 1.3164.2256.3164.6055.498 1.0625.5195l1.8437.1133c.0557 0 .1055.0263.1329.0703.0283.043.0351.1074.0214.1562-.0283.084-.1132.1485-.204.1553l-1.921.1123c-1.041.0488-2.1582.8867-2.5527 1.914l-.1406.3585c-.0283.0713.0215.1416.0986.1416h6.5977c.0771 0 .1474-.0489.169-.126.1122-.4082.1757-.837.1757-1.2803 0-2.6025-2.125-4.727-4.7344-4.727" fill="#F38020" />
 </g>
-<text x="1502.00" y="864.50" font-size="12" font-weight="600" fill="#0F172A"  >Cloudflare Docs</text>
-<rect x="1460.00" y="896.00" width="143.52" height="40.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
-<circle cx="1482.00" cy="916.00" r="12.00" fill="#EFF6FF"/>
-<g transform="translate(1471.44 905.44) scale(0.8800)">
+<text x="976.81" y="1006.50" font-size="12" font-weight="600" fill="#0F172A"  >Cloudflare Docs</text>
+<rect x="1077.83" y="992.50" width="34.58" height="19.00" rx="7" fill="#FFF7ED" stroke="#9A3412" stroke-width="0.8"/>
+<text x="1095.12" y="1005.50" font-size="10" font-weight="600" fill="#9A3412" text-anchor="middle" >Host</text>
+<rect x="936.81" y="1028.00" width="184.09" height="36.00" rx="10" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.1" />
+<circle cx="957.81" cy="1046.00" r="11.00" fill="#EFF6FF"/>
+<g transform="translate(948.13 1036.32) scale(0.8067)">
 <path d="M0 0v11.408h11.408V0zm12.594 0v11.408H24V0zM0 12.594V24h11.408V12.594zm12.594 0V24H24V12.594z" fill="#0078D4" />
 </g>
-<text x="1502.00" y="920.50" font-size="12" font-weight="600" fill="#0F172A"  >Microsoft Learn</text>
-<path d="M 166.56 296.00 L 166.56 338.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 256.81 397.50 L 320.00 397.50 L 320.00 397.50 L 340.00 397.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 565.97 397.50 L 592.98 397.50 L 592.98 205.50 L 620.00 205.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 592.98 397.50 L 592.98 577.50 L 620.00 577.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 832.23 205.50 L 852.12 205.50 L 852.12 397.50 L 872.00 397.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 831.11 577.50 L 852.12 577.50 L 852.12 397.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 1083.36 397.50 L 1116.00 397.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 1318.34 397.50 L 1390.17 397.50 L 1390.17 397.50 L 1462.00 397.50" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 452.98 463.00 L 452.98 691.00 L 981.90 691.00 L 981.90 643.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)" />
-<path d="M 726.12 266.00 L 726.12 280.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 251.81 437.50 L 316.00 437.50 L 316.00 487.50 L 1116.00 487.50 L 1116.00 577.50" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 1218.59 638.00 L 1218.59 650.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 1200.45 696.00 L 1200.45 717.00 L 332.00 717.00 L 332.00 443.00 L 251.81 443.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 155.41 463.00 L 146.00 732.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 238.00 797.50 L 340.00 797.50" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 570.09 797.50 L 632.00 797.50" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<path d="M 826.77 797.50 L 1139.38 797.50 L 1139.38 860.00 L 1452.00 860.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" stroke-dasharray="6 5"/>
-<rect x="112.00" y="138.00" width="185.28" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="94.00" cy="152.50" r="10.00" fill="#EA580C"/>
-<text x="94.00" y="156.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >1</text>
-<text x="122.00" y="157.00" font-size="13" font-weight="500" fill="#9A3412"  >Sign in; session stays here</text>
-<rect x="94.00" y="467.00" width="146.33" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="76.00" cy="481.50" r="10.00" fill="#EA580C"/>
-<text x="76.00" y="485.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >2</text>
-<text x="104.00" y="486.00" font-size="13" font-weight="500" fill="#9A3412"  >Pick repo or live app</text>
-<rect x="380.00" y="298.00" width="179.64" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="362.00" cy="312.50" r="10.00" fill="#EA580C"/>
-<text x="362.00" y="316.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >3</text>
-<text x="390.00" y="317.00" font-size="13" font-weight="500" fill="#9A3412"  >Authenticated scan starts</text>
-<rect x="380.00" y="189.50" width="180.73" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="362.00" cy="204.00" r="10.00" fill="#EA580C"/>
-<text x="362.00" y="207.50" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >4</text>
-<text x="390.00" y="208.50" font-size="13" font-weight="500" fill="#9A3412"  >GitHub files or live HTTPS</text>
-<rect x="912.00" y="298.00" width="180.59" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="894.00" cy="312.50" r="10.00" fill="#EA580C"/>
-<text x="894.00" y="316.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >5</text>
-<text x="922.00" y="317.00" font-size="13" font-weight="500" fill="#9A3412"  >Static rules bind evidence</text>
-<rect x="660.00" y="645.00" width="184.84" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="642.00" cy="659.50" r="10.00" fill="#EA580C"/>
-<text x="642.00" y="663.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >6</text>
-<text x="670.00" y="664.00" font-size="13" font-weight="500" fill="#9A3412"  >Scan API writes the record</text>
-<rect x="1156.00" y="298.00" width="216.25" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="1138.00" cy="312.50" r="10.00" fill="#EA580C"/>
-<text x="1138.00" y="316.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >7</text>
-<text x="1166.00" y="317.00" font-size="13" font-weight="500" fill="#9A3412"  >Agents stream template reports</text>
-<rect x="1502.00" y="298.00" width="171.03" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="1484.00" cy="312.50" r="10.00" fill="#EA580C"/>
-<text x="1484.00" y="316.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >8</text>
-<text x="1512.00" y="317.00" font-size="13" font-weight="500" fill="#9A3412"  >Canvas draws the graph</text>
-<rect x="1156.00" y="478.00" width="174.61" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="1138.00" cy="492.50" r="10.00" fill="#EA580C"/>
-<text x="1138.00" y="496.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >9</text>
-<text x="1166.00" y="497.00" font-size="13" font-weight="500" fill="#9A3412"  >Isolation tab calls Gemini</text>
-<rect x="1432.00" y="716.00" width="205.91" height="29.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="1414.00" cy="730.50" r="10.00" fill="#EA580C"/>
-<text x="1414.00" y="734.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >10</text>
-<text x="1442.00" y="735.00" font-size="13" font-weight="500" fill="#9A3412"  >Optional MCP audit and guard</text>
-<text x="20.00" y="928.00" font-size="12" font-weight="400" fill="#64748B"  >Dashed = optional or config-dependent (GitHub PAT, Gemini API key, isolation chat, MCP audit). Callouts 1–10 match the README.</text>
+<text x="976.81" y="1050.50" font-size="12" font-weight="600" fill="#0F172A"  >Microsoft Learn</text>
+<rect x="1076.33" y="1036.50" width="34.58" height="19.00" rx="7" fill="#FFF7ED" stroke="#9A3412" stroke-width="0.8"/>
+<text x="1093.62" y="1049.50" font-size="10" font-weight="600" fill="#9A3412" text-anchor="middle" >Host</text>
+<path d="M 219.00 312.00 L 265.00 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="171.72" y="268.00" width="168.56" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="156.72" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="156.72" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >1</text>
+<text x="179.72" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Sign in; session stays here</text>
+<path d="M 442.50 312.00 L 488.50 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="413.20" y="268.00" width="132.61" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="398.20" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="398.20" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >2</text>
+<text x="421.20" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Pick repo or live app</text>
+<path d="M 687.47 312.00 L 720.47 312.00 L 720.47 192.00 L 753.47 192.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<path d="M 720.47 312.00 L 720.47 566.00 L 753.47 566.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="756.47" y="268.00" width="163.38" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="741.47" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="741.47" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >3</text>
+<text x="764.47" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Authenticated scan starts</text>
+<rect x="756.47" y="455.00" width="164.34" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="741.47" cy="467.50" r="9.00" fill="#EA580C"/>
+<text x="741.47" y="471.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >4</text>
+<text x="764.47" y="472.00" font-size="12" font-weight="500" fill="#9A3412"  >GitHub files or live HTTPS</text>
+<path d="M 958.75 192.00 L 983.75 192.00 L 983.75 312.00 L 1008.75 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<path d="M 950.58 566.00 L 983.75 566.00 L 983.75 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="1019.75" y="268.00" width="164.23" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="1004.75" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="1004.75" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >5</text>
+<text x="1027.75" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Static rules bind evidence</text>
+<path d="M 587.98 443.00 L 587.98 485.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="411.84" y="449.00" width="168.14" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="396.84" cy="461.50" r="9.00" fill="#EA580C"/>
+<text x="396.84" y="465.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >6</text>
+<text x="419.84" y="466.00" font-size="12" font-weight="500" fill="#9A3412"  >Scan API writes the record</text>
+<path d="M 1194.16 312.00 L 1236.16 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="1219.98" y="268.00" width="197.12" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="1204.98" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="1204.98" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >7</text>
+<text x="1227.98" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Agents stream template reports</text>
+<path d="M 1413.20 312.00 L 1455.20 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<rect x="1453.11" y="268.00" width="155.44" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="1438.11" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="1438.11" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >8</text>
+<text x="1461.11" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Canvas draws the graph</text>
+<path d="M 353.75 443.00 L 353.75 717.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)"  stroke-dasharray="6 5"/>
+<path d="M 455.00 724.00 L 505.00 724.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)" marker-start="url(#arrow-start-dash)" stroke-dasharray="6 5"/>
+<rect x="414.63" y="680.00" width="158.73" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="399.63" cy="692.50" r="9.00" fill="#EA580C"/>
+<text x="399.63" y="696.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >9</text>
+<text x="422.63" y="697.00" font-size="12" font-weight="500" fill="#9A3412"  >Isolation tab calls Gemini</text>
+<path d="M 260.00 443.00 L 260.00 937.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)"  stroke-dasharray="6 5"/>
+<path d="M 439.00 944.00 L 485.00 944.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)"  stroke-dasharray="6 5"/>
+<path d="M 687.78 944.00 L 733.78 944.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)"  stroke-dasharray="6 5"/>
+<path d="M 903.81 1002.00 L 933.81 1002.00" fill="none" stroke="#94A3B8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow-dash)"  stroke-dasharray="6 5"/>
+<rect x="382.19" y="900.00" width="187.62" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="367.19" cy="912.50" r="9.00" fill="#EA580C"/>
+<text x="367.19" y="916.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >10</text>
+<text x="390.19" y="917.00" font-size="12" font-weight="500" fill="#9A3412"  >Optional MCP audit and guard</text>
+<text x="40.00" y="1136.00" font-size="12" font-weight="400" fill="#64748B"  >Browser = UI  ·  Server = Node process (no repository code executed)  ·  Host = outbound API.  Dashed lanes need a Console action plus config.  Callouts 1–10 match the README.</text>
 </svg>

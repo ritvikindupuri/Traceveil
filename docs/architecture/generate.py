@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Generate the Traceveil architecture diagram from measured layout.
 
-Layout is original to Traceveil: one left-to-right investigation run, a
-GitHub/live collection fork, and a dashed MCP lane. Style references are
-color and type quality only — do not copy their structure.
+Three horizontal lanes, each a left-to-right path. Browser vs server is a
+tag on each node, not a column. Style references are color/type quality only.
 
 Official product marks (GitHub, Gemini, Cloudflare, Microsoft) are vendored
 from Simple Icons. AI agents use a generic robot glyph, not a vendor logo.
@@ -13,11 +12,13 @@ Run from the repo root:
     python3 docs/architecture/generate.py
 
 Needs Pillow and CairoSVG. Writes SVG + PNG and exits non-zero if text, icons,
-or arrows intersect, if text overflows its box, or if anything is clipped.
+or arrows intersect, if text overflows its box, if anything is clipped, or if
+a callout is more than 40px from its arrow.
 """
 
 from __future__ import annotations
 
+import math
 import re
 import sys
 from dataclasses import dataclass, field
@@ -27,38 +28,36 @@ from xml.sax.saxutils import escape
 from PIL import Image, ImageFont
 
 ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parent.parent
 ICONS = ROOT / "icons"
 OUT_SVG = ROOT / "traceveil-architecture.svg"
 OUT_PNG = ROOT / "traceveil-architecture.png"
 OUT_PNG_838 = ROOT / "traceveil-architecture-838.png"
 
-W, H = 1800, 980
-MARGIN = 16
-MARGIN_Y = 40
+W, H = 1800, 1180
+MARGIN = 40
 TEXT_GAP = 14
 ARROW_CLEAR = 8
 STROKE = 2.2
 STROKE_DASH = 1.6
 TITLE_SIZE = 18
-SUB_SIZE = 14
+SUB_SIZE = 13
 CHIP_SIZE = 12
-CALLOUT_SIZE = 13
+CALLOUT_SIZE = 12
 REGION_SIZE = 12
+TAG_SIZE = 10
+CALLOUT_ARROW_MAX = 40
 
 FONT_REG_PATH = "/usr/share/fonts/truetype/macos/Inter-Regular.ttf"
 FONT_MED_PATH = "/usr/share/fonts/truetype/macos/Inter-Medium.ttf"
 FONT_SEM_PATH = "/usr/share/fonts/truetype/macos/Inter-SemiBold.ttf"
 FONT_BOLD_PATH = "/usr/share/fonts/truetype/macos/Inter-Bold.ttf"
 
-# Ink colors chosen to match the shipped diagrams' quality, not their layout.
 INK = "#0F172A"
 MUTED = "#64748B"
 LINE = "#94A3B8"
 LINE_STRONG = "#475569"
 CARD = "#FFFFFF"
 CARD_BORDER = "#E2E8F0"
-REGION = "#F8FAFC"
 REGION_BORDER = "#CBD5E1"
 BADGE = "#EA580C"
 BADGE_TEXT = "#FFFFFF"
@@ -66,9 +65,11 @@ CALLOUT_BG = "#FFF7ED"
 CALLOUT_BORDER = "#FDBA74"
 DASH = "6 5"
 
-# ---------------------------------------------------------------------------
-# Geometry
-# ---------------------------------------------------------------------------
+TAG_STYLE = {
+    "Browser": ("#EEF2FF", "#4338CA"),
+    "Server": ("#F0FDF4", "#166534"),
+    "Host": ("#FFF7ED", "#9A3412"),
+}
 
 
 @dataclass
@@ -122,7 +123,6 @@ def fonts(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
 
 
 def measure(text: str, size: int, weight: str = "regular") -> tuple[float, float, float]:
-    """Return (width, height, ascent) for SVG baseline placement."""
     font = fonts(size, weight)
     ascent, descent = font.getmetrics()
     width = float(font.getlength(text))
@@ -142,7 +142,6 @@ GEMINI_PATH = parse_icon_path("googlegemini.svg")
 CLOUDFLARE_PATH = parse_icon_path("cloudflare.svg")
 MICROSOFT_PATH = parse_icon_path("microsoft.svg")
 
-# Generic 24x24 icons (Heroicons-style outlines, drawn filled for this diagram).
 USER_PATH = (
     "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.4 0-8 2.1-8 4.7V21h16v-2.3C20 16.1 16.4 14 12 14z"
 )
@@ -163,19 +162,15 @@ GLOBE_PATHS = [
 LOCK_PATH = (
     "M8 10V7.8A4 4 0 0 1 12 4a4 4 0 0 1 4 3.8V10h1.5A1.5 1.5 0 0 1 19 11.5v7A1.5 1.5 0 0 1 17.5 20h-11A1.5 1.5 0 0 1 5 18.5v-7A1.5 1.5 0 0 1 6.5 10H8zm1.5 0h5V7.8A2.5 2.5 0 0 0 12 5.5 2.5 2.5 0 0 0 9.5 7.8V10z"
 )
-SHIELD_PATH = (
-    "M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z"
-)
+SHIELD_PATH = "M12 3.2 19 6v6.2c0 4.2-2.8 7.2-7 8.6-4.2-1.4-7-4.4-7-8.6V6l7-2.8z"
 WINDOW_PATHS = [
     "M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-11z",
     "M4 8.5h16",
-    "M7 6.4h.01M9.2 6.4h.01M11.4 6.4h.01",
 ]
 
 
-# ---------------------------------------------------------------------------
-# Scene
-# ---------------------------------------------------------------------------
+def weight_css(weight: str) -> str:
+    return {"regular": "400", "medium": "500", "semibold": "600", "bold": "700"}[weight]
 
 
 class Scene:
@@ -183,7 +178,7 @@ class Scene:
         self.svg: list[str] = []
         self.rects: list[Rect] = []
         self.segs: list[Seg] = []
-        self._z = 0
+        self.callout_arrows: dict[str, str] = {}
 
     def add_rect(self, rect: Rect) -> Rect:
         self.rects.append(rect)
@@ -204,15 +199,11 @@ class Scene:
     ) -> Rect:
         tw, th, ascent = measure(text, size, weight)
         if anchor == "middle":
-            tx = x
-            box_x = x - tw / 2
+            tx, box_x = x, x - tw / 2
         elif anchor == "end":
-            tx = x
-            box_x = x - tw
+            tx, box_x = x, x - tw
         else:
-            tx = x
-            box_x = x
-        # SVG y is baseline; box covers ink.
+            tx, box_x = x, x
         box = Rect(box_x, y - ascent, tw, th, "text", name or f"text:{text}", parent)
         self.add_rect(box)
         anchor_attr = f'text-anchor="{anchor}"' if anchor != "start" else ""
@@ -254,7 +245,6 @@ class Scene:
         parent: str,
         scale: float = 0.92,
     ) -> Rect:
-        """paths: list of (d, fill, extra_attrs) in 24x24 space."""
         self.svg.append(f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="{bg}"/>')
         box = self.add_rect(Rect(cx - r, cy - r, 2 * r, 2 * r, "icon", name, parent))
         s = (r * scale * 2) / 24
@@ -267,6 +257,18 @@ class Scene:
         self.svg.append("</g>")
         return box
 
+    def trust_tag(self, cx: float, y: float, label: str, name: str) -> tuple[float, float]:
+        tw, th, ascent = measure(label, TAG_SIZE, "semibold")
+        w, h = tw + 12, th + 6
+        bg, fg = TAG_STYLE[label]
+        x = cx - w / 2
+        self.svg.append(
+            f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" rx="7" '
+            f'fill="{bg}" stroke="{fg}" stroke-width="0.8"/>'
+        )
+        self.text_box(cx, y + (h - th) / 2 + ascent, label, TAG_SIZE, "semibold", fg, "middle", f"{name}:tag", name)
+        return w, h
+
     def node_card(
         self,
         x: float,
@@ -276,16 +278,18 @@ class Scene:
         icon: list[tuple[str, str, str]],
         icon_bg: str,
         name: str,
+        trust: str,
         dashed: bool = False,
-        min_w: float = 168,
+        min_w: float = 160,
     ) -> Rect:
         title_w, title_h, title_ascent = measure(title, TITLE_SIZE, "bold")
         sub_w, sub_h, sub_ascent = measure(subtitle, SUB_SIZE, "regular")
-        pad_x, pad_y = 14, 11
-        icon_r = 20
-        inner_w = max(min_w - 2 * pad_x, title_w, sub_w, icon_r * 2)
+        tag_w, tag_h, _ = measure(trust, TAG_SIZE, "semibold")
+        pad_x, pad_y = 12, 10
+        icon_r = 18
+        inner_w = max(min_w - 2 * pad_x, title_w, sub_w, tag_w + 12, icon_r * 2)
         w = inner_w + 2 * pad_x
-        h = pad_y + icon_r * 2 + 8 + title_h + 4 + sub_h + pad_y
+        h = pad_y + icon_r * 2 + 6 + title_h + 3 + sub_h + 8 + (tag_h + 6) + pad_y
         dash = DASH if dashed else None
         fill = "#FCFCFD" if dashed else CARD
         stroke = "#94A3B8" if dashed else CARD_BORDER
@@ -293,31 +297,31 @@ class Scene:
         cx = x + w / 2
         icon_cy = y + pad_y + icon_r
         self.icon_badge(cx, icon_cy, icon_r, icon_bg, icon, f"{name}:icon", name)
-        title_y = icon_cy + icon_r + 8 + title_ascent
+        title_y = icon_cy + icon_r + 6 + title_ascent
         self.text_box(cx, title_y, title, TITLE_SIZE, "bold", INK, "middle", f"{name}:title", name)
-        sub_y = title_y + (title_h - title_ascent) + 4 + sub_ascent
+        sub_y = title_y + (title_h - title_ascent) + 3 + sub_ascent
         self.text_box(cx, sub_y, subtitle, SUB_SIZE, "regular", MUTED, "middle", f"{name}:sub", name)
-        # Ensure computed height really contains text (defensive).
+        tag_y = sub_y + (sub_h - sub_ascent) + 8
+        self.trust_tag(cx, tag_y, trust, name)
         last = [r for r in self.rects if r.parent == name and r.kind == "text"][-1]
         if last.b + pad_y - y > h + 0.5:
             raise SystemExit(f"node {name} height too small for text")
         return card
 
-    def callout(self, x: float, y: float, number: int, text: str, name: str) -> Rect:
-        """Badge + label. (x,y) is the top-left of the combined group."""
+    def callout(self, x: float, y: float, number: int, text: str, name: str, arrow: str) -> Rect:
         tw, th, ascent = measure(text, CALLOUT_SIZE, "medium")
-        badge_r = 10
-        pad_x, pad_y = 10, 6
-        gap = 8
+        badge_r = 9
+        pad_x, pad_y = 8, 5
+        gap = 6
         box_w = pad_x + tw + pad_x
         box_h = pad_y + th + pad_y
-        # Badge sits on the left, vertically centered with the label box.
         group_h = max(badge_r * 2, box_h)
         badge_cx = x + badge_r + 4
         badge_cy = y + group_h / 2
         box_x = badge_cx + badge_r + gap
         box_y = y + (group_h - box_h) / 2
         group = self.add_rect(Rect(x, y, box_x + box_w - x, group_h, "callout", name))
+        self.callout_arrows[name] = arrow
         self.svg.append(
             f'<rect x="{box_x:.2f}" y="{box_y:.2f}" width="{box_w:.2f}" height="{box_h:.2f}" '
             f'rx="8" fill="{CALLOUT_BG}" stroke="{CALLOUT_BORDER}" stroke-width="1"/>'
@@ -333,17 +337,38 @@ class Scene:
         nw, nh, nas = measure(num, 10, "bold")
         self.text_box(badge_cx, badge_cy - nh / 2 + nas, num, 10, "bold", BADGE_TEXT, "middle", f"{name}:num", name)
         self.text_box(
-            box_x + pad_x,
-            box_y + pad_y + ascent,
-            text,
-            CALLOUT_SIZE,
-            "medium",
-            "#9A3412",
-            "start",
-            f"{name}:label",
-            name,
+            box_x + pad_x, box_y + pad_y + ascent, text, CALLOUT_SIZE, "medium", "#9A3412", "start", f"{name}:label", name
         )
         return group
+
+    def callout_size(self, text: str) -> tuple[float, float]:
+        tw, _, _ = measure(text, CALLOUT_SIZE, "medium")
+        return 4 + 18 + 6 + 8 + tw + 8, 30
+
+    def callout_above(self, x1: float, x2: float, y: float, number: int, text: str, name: str, arrow: str) -> Rect:
+        """Sit the callout directly above a horizontal stroke, ~14px gap."""
+        gw, gh = self.callout_size(text)
+        cx = (x1 + x2) / 2
+        return self.callout(cx - gw / 2, y - 14 - gh, number, text, name, arrow)
+
+    def callout_beside(
+        self,
+        x: float,
+        y1: float,
+        y2: float,
+        number: int,
+        text: str,
+        name: str,
+        arrow: str,
+        side: str = "left",
+    ) -> Rect:
+        """Sit the callout beside a vertical stroke, mid-gap, ~8px off the line."""
+        tw, th, _ = measure(text, CALLOUT_SIZE, "medium")
+        gw = 4 + 18 + 6 + 8 + tw + 8
+        gh = 30
+        mid_y = (y1 + y2) / 2
+        cx = x + 8 if side == "right" else x - 8 - gw
+        return self.callout(cx, mid_y - gh / 2, number, text, name, arrow)
 
     def region(
         self,
@@ -358,39 +383,32 @@ class Scene:
         dash = DASH if dashed else None
         fill = "#F8FAFC" if not dashed else "#FAFBFC"
         stroke = "#94A3B8" if dashed else REGION_BORDER
-        self.round_rect(x, y, w, h, 18, fill, stroke, 1.4, dash, name, "region")
-        self.text_box(x + 16, y + 20, label, REGION_SIZE, "semibold", MUTED, "start", f"{name}:label", name)
+        self.round_rect(x, y, w, h, 16, fill, stroke, 1.3, dash, name, "region")
+        self.text_box(x + w - 16, y + 20, label, REGION_SIZE, "semibold", MUTED, "end", f"{name}:label", name)
         return self.rects[-2]
 
-    def arrow(self, points: list[tuple[float, float]], name: str, dashed: bool = False) -> None:
+    def arrow(self, points: list[tuple[float, float]], name: str, dashed: bool = False, double: bool = False) -> None:
         if len(points) < 2:
             raise SystemExit(f"arrow {name} needs 2+ points")
         d = f"M {points[0][0]:.2f} {points[0][1]:.2f}"
         for x, y in points[1:]:
             d += f" L {x:.2f} {y:.2f}"
         dash_attr = f'stroke-dasharray="{DASH}"' if dashed else ""
-        marker = "url(#arrow-dash)" if dashed else "url(#arrow)"
+        end = "url(#arrow-dash)" if dashed else "url(#arrow)"
+        start = 'marker-start="url(#arrow-start-dash)"' if double else ""
         stroke = LINE if dashed else LINE_STRONG
         width = STROKE_DASH if dashed else STROKE
         self.svg.append(
             f'<path d="{d}" fill="none" stroke="{stroke}" stroke-width="{width}" '
-            f'stroke-linejoin="round" stroke-linecap="round" marker-end="{marker}" {dash_attr}/>'
+            f'stroke-linejoin="round" stroke-linecap="round" marker-end="{end}" {start} {dash_attr}/>'
         )
         for i in range(len(points) - 1):
-            self.segs.append(Seg(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1], name))
-            # Keep a rect around each segment for coarse tests.
             x1, y1 = points[i]
             x2, y2 = points[i + 1]
+            self.segs.append(Seg(x1, y1, x2, y2, name))
             pad = STROKE / 2
             self.add_rect(
-                Rect(
-                    min(x1, x2) - pad,
-                    min(y1, y2) - pad,
-                    abs(x2 - x1) + STROKE,
-                    abs(y2 - y1) + STROKE,
-                    "arrow",
-                    f"{name}:{i}",
-                )
+                Rect(min(x1, x2) - pad, min(y1, y2) - pad, abs(x2 - x1) + STROKE, abs(y2 - y1) + STROKE, "arrow", f"{name}:{i}")
             )
 
     def host_chip(
@@ -401,17 +419,21 @@ class Scene:
         icon: list[tuple[str, str, str]],
         icon_bg: str,
         name: str,
+        trust: str,
     ) -> Rect:
         tw, th, ascent = measure(title, CHIP_SIZE, "semibold")
-        pad_x, pad_y = 10, 8
-        icon_r = 12
-        w = pad_x + icon_r * 2 + 8 + tw + pad_x
-        h = pad_y + max(icon_r * 2, th) + pad_y
+        tag_tw, tag_th, tag_ascent = measure(trust, TAG_SIZE, "semibold")
+        tag_box_w, tag_box_h = tag_tw + 12, tag_th + 6
+        pad_x, pad_y = 10, 7
+        icon_r = 11
+        w = pad_x + icon_r * 2 + 8 + tw + 8 + tag_box_w + pad_x
+        h = pad_y + max(icon_r * 2, th, tag_box_h) + pad_y
         card = self.round_rect(x, y, w, h, 10, CARD, CARD_BORDER, 1.1, None, name, "node")
-        self.icon_badge(x + pad_x + icon_r, y + h / 2, icon_r, icon_bg, icon, f"{name}:icon", name, 0.88)
+        mid_y = y + h / 2
+        self.icon_badge(x + pad_x + icon_r, mid_y, icon_r, icon_bg, icon, f"{name}:icon", name, 0.88)
         self.text_box(
             x + pad_x + icon_r * 2 + 8,
-            y + (h - th) / 2 + ascent,
+            mid_y - th / 2 + ascent,
             title,
             CHIP_SIZE,
             "semibold",
@@ -420,41 +442,9 @@ class Scene:
             f"{name}:title",
             name,
         )
+        tag_x = x + w - pad_x - tag_box_w / 2
+        self.trust_tag(tag_x, mid_y - tag_box_h / 2, trust, name)
         return card
-
-
-def weight_css(weight: str) -> str:
-    return {"regular": "400", "medium": "500", "semibold": "600", "bold": "700"}[weight]
-
-
-def node_anchor(rect: Rect, side: str, inset: float = 0) -> tuple[float, float]:
-    gap = ARROW_CLEAR + inset
-    if side == "left":
-        return rect.x - gap, rect.cy
-    if side == "right":
-        return rect.r + gap, rect.cy
-    if side == "top":
-        return rect.cx, rect.y - gap
-    if side == "bottom":
-        return rect.cx, rect.b + gap
-    raise ValueError(side)
-
-
-def hline(a: Rect, b: Rect, y: float | None = None) -> list[tuple[float, float]]:
-    y = a.cy if y is None else y
-    return [(a.r + ARROW_CLEAR, y), (b.x - ARROW_CLEAR, y)]
-
-
-# ---------------------------------------------------------------------------
-# Layout — original investigation run (LTR + collection fork + MCP lane)
-# ---------------------------------------------------------------------------
-
-
-def dash_chip(scene: Scene, chip: Rect) -> None:
-    scene.svg.append(
-        f'<rect x="{chip.x:.2f}" y="{chip.y:.2f}" width="{chip.w:.2f}" height="{chip.h:.2f}" '
-        f'rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="{DASH}"/>'
-    )
 
 
 def build() -> Scene:
@@ -475,9 +465,13 @@ def build() -> Scene:
         "</marker>"
     )
     s.svg.append(
+        '<marker id="arrow-start-dash" markerWidth="10" markerHeight="10" refX="1" refY="5" orient="auto">'
+        f'<path d="M9.2,0.4 L0,5 L9.2,9.6" fill="{LINE}"/>'
+        "</marker>"
+    )
+    s.svg.append(
         "<style>"
         "svg { font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; }"
-        "text { paint-order: stroke; stroke: none; }"
         "</style>"
     )
     s.svg.append("</defs>")
@@ -488,7 +482,7 @@ def build() -> Scene:
     s.text_box(
         W / 2,
         84,
-        "One signed-in scan: collect evidence, save an owner-scoped record, then inspect the graph.",
+        "Three lanes, left to right. Tags mark where each step runs. Dashed lanes are optional.",
         13,
         "regular",
         MUTED,
@@ -518,191 +512,139 @@ def build() -> Scene:
     ms_icon = [(MICROSOFT_PATH, "#0078D4", "")]
     wiki_icon = [(FILE_PATH, "#0F172A", "")]
 
-    # Regions sit under the title with 40px canvas margin above/below the figure.
-    s.region(16, 104, 292, 836, "Browser", "region-browser")
-    s.region(320, 104, 1056, 836, "Traceveil server  ·  Node process, no repository code executed", "region-server")
-    s.region(1388, 104, 396, 400, "Browser", "region-results")
-    s.region(1388, 680, 396, 260, "Allowlisted MCP hosts  ·  runtime tools/call", "region-mcp", dashed=True)
+    # ----- Lane bands -----
+    s.region(40, 100, 1720, 548, "Lane A  ·  Main investigation run", "lane-a")
+    s.region(40, 672, 1720, 200, "Lane B  ·  Optional: tenant isolation chat", "lane-b", True)
+    s.region(40, 892, 1720, 196, "Lane C  ·  Optional: MCP audit and guard", "lane-c", True)
 
-    you = s.node_card(80, 178, "You", "Signed-in investigator", user_icon, "#334155", "you")
-    console = s.node_card(62, 340, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console")
-    mcp_page = s.node_card(62, 740, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", True)
+    # ----- Lane A nodes -----
+    spine_y = 308
+    rail_a = spine_y + 4
+    you = s.node_card(56, spine_y, "You", "Signed-in investigator", user_icon, "#334155", "you", "Browser")
+    console = s.node_card(you.r + 52, spine_y, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console", "Browser")
+    scan = s.node_card(console.r + 52, spine_y, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan", "Server")
+    github = s.node_card(scan.r + 72, 126, "GitHub collector", "Snapshot; optional PAT vault", github_icon, "#E2E8F0", "github", "Server")
+    live = s.node_card(scan.r + 72, 500, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live", "Server")
+    fork_r = max(github.r, live.r)
+    graph = s.node_card(fork_r + 56, spine_y, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph", "Server")
+    agents = s.node_card(graph.r + 48, spine_y, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents", "Server")
+    canvas = s.node_card(agents.r + 48, spine_y, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node", "Browser")
 
-    scan = s.node_card(348, 340, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan")
-    github = s.node_card(628, 148, "GitHub collector", "Bounded public snapshot", github_icon, "#E2E8F0", "github")
-    pat_title = "Encrypted GitHub PAT"
-    pat_tw, _, _ = measure(pat_title, CHIP_SIZE, "semibold")
-    pat_w = 10 + 24 + 8 + pat_tw + 10
-    pat = s.host_chip(github.x + (github.w - pat_w) / 2, github.b + 20, pat_title, lock_icon, "#334155", "pat")
-    dash_chip(s, pat)
-    live = s.node_card(628, 520, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live")
-    graph = s.node_card(880, 340, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph")
-    agents = s.node_card(1124, 340, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents")
-    store = s.node_card(880, 520, "Local JSON store", "Scan API writes the record", file_icon, "#D97706", "store")
-    isolation = s.node_card(1124, 520, "Isolation agent", "Drafts RLS on the server", robot_icon, "#5B21B6", "isolation", True)
-    gemini = s.host_chip(isolation.x + 8, isolation.b + 18, "Google Gemini", gemini_icon, "#EDE9FE", "gemini")
-    dash_chip(s, gemini)
+    store = s.node_card(scan.x, scan.b + 48, "Local JSON store", "application_scans row", file_icon, "#D97706", "store", "Server")
 
-    mcp_scan = s.node_card(348, 740, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", True)
-    guard = s.node_card(640, 740, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", True)
-
-    canvas = s.node_card(1470, 340, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node")
-
-    deepwiki = s.host_chip(1460, 784, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki")
-    cloudflare = s.host_chip(1460, 840, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare")
-    microsoft = s.host_chip(1460, 896, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft")
-
-    # Dominant solid path: You → Console → Scan → (GitHub | Live) → Graph → Agents → Canvas
-    # Tip sits on the Console card so the head is visible (callout 1 is beside You, not on this stroke).
-    s.arrow([(you.cx, you.b + 3), (you.cx, console.y - 2)], "a1")
-
-    rail = scan.x - 28
-    s.arrow(
-        [
-            (console.r + ARROW_CLEAR, console.cy),
-            (rail, console.cy),
-            (rail, scan.cy),
-            (scan.x - ARROW_CLEAR, scan.cy),
-        ],
-        "a2",
+    # ----- Lane B nodes (hang under Console) -----
+    isolation = s.node_card(
+        console.x + 24, 720, "Isolation agent", "Server fn; drafts RLS", robot_icon, "#5B21B6", "isolation", "Server", True
     )
+    gemini = s.node_card(
+        isolation.r + 56,
+        isolation.y,
+        "Google Gemini",
+        "Optional frontier API",
+        gemini_icon,
+        "#EDE9FE",
+        "gemini",
+        "Host",
+        True,
+    )
+
+    # ----- Lane C nodes (hang under Console; drop lands on MCP audits) -----
+    mcp_y = 940
+    mcp_page = s.node_card(
+        console.x + 8, mcp_y, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", "Browser", True
+    )
+    mcp_scan = s.node_card(
+        mcp_page.r + 52, mcp_y, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", "Server", True
+    )
+    guard = s.node_card(
+        mcp_scan.r + 52, mcp_y, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", "Server", True
+    )
+    host_x = guard.r + 36
+    deepwiki = s.host_chip(host_x, mcp_page.y, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki", "Host")
+    cloudflare = s.host_chip(host_x, deepwiki.b + 8, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare", "Host")
+    microsoft = s.host_chip(host_x, cloudflare.b + 8, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft", "Host")
+
+    # ----- Lane A arrows (rail along the top of the spine cards so callouts sit just above) -----
+    s.arrow([(you.r + 3, rail_a), (console.x - 3, rail_a)], "a1")
+    s.callout_above(you.r, console.x, rail_a, 1, "Sign in; session stays here", "c1", "a1")
+
+    s.arrow([(console.r + 3, rail_a), (scan.x - 3, rail_a)], "a2")
+    s.callout_above(console.r, scan.x, rail_a, 2, "Pick repo or live app", "c2", "a2")
 
     fork_x = (scan.r + github.x) / 2
     s.arrow(
         [
-            (scan.r + ARROW_CLEAR, scan.cy),
-            (fork_x, scan.cy),
+            (scan.r + 3, rail_a),
+            (fork_x, rail_a),
             (fork_x, github.cy),
-            (github.x - ARROW_CLEAR, github.cy),
+            (github.x - 3, github.cy),
         ],
-        "a3-gh",
+        "a-fork-gh",
     )
-    s.arrow(
-        [
-            (fork_x, scan.cy),
-            (fork_x, live.cy),
-            (live.x - ARROW_CLEAR, live.cy),
-        ],
-        "a3-live",
-    )
+    s.arrow([(fork_x, rail_a), (fork_x, live.cy), (live.x - 3, live.cy)], "a-fork-live")
+    s.callout_beside(fork_x, github.b + 10, spine_y - 10, 3, "Authenticated scan starts", "c3", "a-fork-gh", "right")
+    s.callout_beside(fork_x, scan.b + 10, live.y - 10, 4, "GitHub files or live HTTPS", "c4", "a-fork-live", "right")
 
-    join_x = (max(github.r, live.r) + graph.x) / 2
+    join_x = (fork_r + graph.x) / 2
     s.arrow(
         [
-            (github.r + ARROW_CLEAR, github.cy),
+            (github.r + 3, github.cy),
             (join_x, github.cy),
-            (join_x, graph.cy),
-            (graph.x - ARROW_CLEAR, graph.cy),
+            (join_x, rail_a),
+            (graph.x - 3, rail_a),
         ],
-        "a4-gh",
+        "a-join-gh",
     )
+    s.arrow([(live.r + 3, live.cy), (join_x, live.cy), (join_x, rail_a)], "a-join-live")
+    c5_text = "Static rules bind evidence"
+    c5_w, _ = s.callout_size(c5_text)
+    s.callout(join_x + 8, rail_a - 14 - 30, 5, c5_text, "c5", "a-join-gh")
+
+    s.arrow([(scan.cx, scan.b + 3), (scan.cx, store.y - 3)], "a-save")
+    s.callout_beside(scan.cx, scan.b, store.y, 6, "Scan API writes the record", "c6", "a-save", "left")
+
+    s.arrow([(graph.r + 3, rail_a), (agents.x - 3, rail_a)], "a-agents")
+    c7_text = "Agents stream template reports"
+    c7_w, _ = s.callout_size(c7_text)
+    c7_x = max(join_x + 8 + c5_w + 8, (graph.r + agents.x) / 2 - c7_w / 2)
+    s.callout(c7_x, rail_a - 14 - 30, 7, c7_text, "c7", "a-agents")
+
+    s.arrow([(agents.r + 3, rail_a), (canvas.x - 3, rail_a)], "a-canvas")
+    c8_text = "Canvas draws the graph"
+    c8_w, _ = s.callout_size(c8_text)
+    c8_x = max(c7_x + c7_w + 8, (agents.r + canvas.x) / 2 - c8_w / 2)
+    s.callout(c8_x, rail_a - 14 - 30, 8, c8_text, "c8", "a-canvas")
+
+    # ----- Lane B: short drop from Console, then two-headed Isolation ↔ Gemini -----
+    rail_b = isolation.y + 4
+    s.arrow([(console.cx, console.b + 3), (console.cx, isolation.y - 3)], "d-iso-drop", True)
+    s.arrow(
+        [(isolation.r + 3, rail_b), (gemini.x - 3, rail_b)],
+        "d-iso-gemini",
+        True,
+        double=True,
+    )
+    s.callout_above(isolation.r, gemini.x, rail_b, 9, "Isolation tab calls Gemini", "c9", "d-iso-gemini")
+
+    # ----- Lane C: short drop from Console (left of Isolation), then LTR -----
+    rail_c = mcp_page.y + 4
     s.arrow(
         [
-            (live.r + ARROW_CLEAR, live.cy),
-            (join_x, live.cy),
-            (join_x, graph.cy),
+            (console.x - 8, console.b + 3),
+            (console.x - 8, mcp_page.y - 3),
         ],
-        "a4-live",
-    )
-
-    s.arrow([(graph.r + ARROW_CLEAR, graph.cy), (agents.x - ARROW_CLEAR, agents.cy)], "a6")
-
-    out_x = (agents.r + canvas.x) / 2
-    s.arrow(
-        [
-            (agents.r + ARROW_CLEAR, agents.cy),
-            (out_x, agents.cy),
-            (out_x, canvas.cy),
-            (canvas.x - ARROW_CLEAR, canvas.cy),
-        ],
-        "a7",
-    )
-
-    # Save is application-scan.ts insert — Scan API writes the JSON store, not Graph engine.
-    save_y = max(scan.b, live.b, store.b) + 56
-    s.arrow(
-        [
-            (scan.cx, scan.b + ARROW_CLEAR),
-            (scan.cx, save_y),
-            (store.cx, save_y),
-            (store.cx, store.b + ARROW_CLEAR),
-        ],
-        "a-save",
-    )
-
-    s.arrow([(github.cx, github.b + 3), (github.cx, pat.y - 3)], "d-pat", True)
-
-    # Isolation round-trip: Console tab → server fn → Gemini → reply back in the Console UI.
-    stem_out = scan.x - 32
-    stem_ret = scan.x - 16
-    gutter_y = (scan.b + live.y) / 2
-    iso_in_x = isolation.x - ARROW_CLEAR
-    out_y = console.cy + 40
-    s.arrow(
-        [
-            (console.r + 3, out_y),
-            (stem_out, out_y),
-            (stem_out, gutter_y),
-            (iso_in_x, gutter_y),
-            (iso_in_x, isolation.cy),
-        ],
-        "d-iso-out",
+        "d-mcp-drop",
         True,
     )
-    s.arrow([(isolation.cx, isolation.b + 3), (isolation.cx, gemini.y - 3)], "d-gemini", True)
-    ret_y = gemini.b + 24
-    back_y = min(console.b - 12, out_y + 24)
-    s.arrow(
-        [
-            (gemini.cx, gemini.b + 3),
-            (gemini.cx, ret_y),
-            (stem_ret, ret_y),
-            (stem_ret, back_y),
-            (console.r + 3, back_y),
-        ],
-        "d-iso-back",
-        True,
-    )
-
-    # One dashed MCP lane: Console → audits → ingest → guard → hosts (guard itself forwards tools/call).
-    s.arrow([node_anchor(console, "bottom"), node_anchor(mcp_page, "top")], "d-mcp-1", True)
-    s.arrow(
-        [(mcp_page.r + ARROW_CLEAR, mcp_page.cy), (mcp_scan.x - ARROW_CLEAR, mcp_scan.cy)],
-        "d-mcp-2",
-        True,
-    )
-    s.arrow(
-        [(mcp_scan.r + ARROW_CLEAR, mcp_scan.cy), (guard.x - ARROW_CLEAR, guard.cy)],
-        "d-mcp-3",
-        True,
-    )
-    host_rail = (guard.r + cloudflare.x) / 2
-    s.arrow(
-        [
-            (guard.r + ARROW_CLEAR, guard.cy),
-            (host_rail, guard.cy),
-            (host_rail, cloudflare.cy),
-            (cloudflare.x - ARROW_CLEAR, cloudflare.cy),
-        ],
-        "d-guard-hosts",
-        True,
-    )
-
-    s.callout(you.x, you.y - 40, 1, "Sign in; session stays here", "c1")
-    s.callout(console.x, console.b + 12, 2, "Pick repo or live app", "c2")
-    s.callout(scan.x, scan.y - 42, 3, "Authenticated scan starts", "c3")
-    s.callout(scan.x, github.cy - 16, 4, "GitHub files or live HTTPS", "c4")
-    s.callout(graph.x, graph.y - 42, 5, "Static rules bind evidence", "c5")
-    s.callout(live.x, live.b + 10, 6, "Scan API writes the record", "c6")
-    s.callout(agents.x, agents.y - 42, 7, "Agents stream template reports", "c7")
-    s.callout(canvas.x, canvas.y - 42, 8, "Canvas draws the graph", "c8")
-    s.callout(isolation.x, isolation.y - 42, 9, "Isolation tab calls Gemini", "c9")
-    s.callout(1400, 716, 10, "Optional MCP audit and guard", "c10")
+    s.arrow([(mcp_page.r + 3, rail_c), (mcp_scan.x - 3, rail_c)], "d-mcp-1", True)
+    s.arrow([(mcp_scan.r + 3, rail_c), (guard.x - 3, rail_c)], "d-mcp-2", True)
+    s.arrow([(guard.r + 3, cloudflare.cy), (cloudflare.x - 3, cloudflare.cy)], "d-mcp-hosts", True)
+    s.callout_above(mcp_page.r, mcp_scan.x, rail_c, 10, "Optional MCP audit and guard", "c10", "d-mcp-1")
 
     s.text_box(
-        20,
-        928,
-        "Dashed = optional or config-dependent (GitHub PAT, Gemini API key, isolation chat, MCP audit). Callouts 1–10 match the README.",
+        40,
+        1136,
+        "Browser = UI  ·  Server = Node process (no repository code executed)  ·  Host = outbound API.  Dashed lanes need a Console action plus config.  Callouts 1–10 match the README.",
         12,
         "regular",
         MUTED,
@@ -714,17 +656,11 @@ def build() -> Scene:
     return s
 
 
-# ---------------------------------------------------------------------------
-# Collision checks
-# ---------------------------------------------------------------------------
-
-
 def rects_overlap(a: Rect, b: Rect, gap: float = 0) -> bool:
     return not (a.r + gap <= b.x or b.r + gap <= a.x or a.b + gap <= b.y or b.b + gap <= a.y)
 
 
 def seg_intersects_rect(seg: Seg, rect: Rect, clearance: float) -> bool:
-    # Axis-aligned segments only (this diagram uses orthogonal arrows).
     pad = clearance
     rx, ry, rw, rh = rect.x - pad, rect.y - pad, rect.w + 2 * pad, rect.h + 2 * pad
     x1, y1, x2, y2 = seg.x1, seg.y1, seg.x2, seg.y2
@@ -736,15 +672,39 @@ def seg_intersects_rect(seg: Seg, rect: Rect, clearance: float) -> bool:
         x = x1
         ylo, yhi = min(y1, y2), max(y1, y2)
         return rx <= x <= rx + rw and ylo <= ry + rh and yhi >= ry
-    # Fallback for non-ortho (should not happen).
     return False
 
 
-def parent_box(scene: Scene, name: str) -> Rect | None:
-    for r in scene.rects:
-        if r.name == name and r.kind in {"node", "callout", "callout-box", "region"}:
-            return r
-    return None
+def rect_seg_dist(rect: Rect, seg: Seg) -> float:
+    """Minimum distance from a rectangle to a segment (0 if they touch or cross)."""
+    if seg_intersects_rect(seg, rect, 0):
+        return 0.0
+    corners = [
+        (rect.x, rect.y),
+        (rect.r, rect.y),
+        (rect.x, rect.b),
+        (rect.r, rect.b),
+        (rect.cx, rect.y),
+        (rect.cx, rect.b),
+        (rect.x, rect.cy),
+        (rect.r, rect.cy),
+    ]
+    d = min(point_seg_dist(px, py, seg) for px, py in corners)
+    for px, py in ((seg.x1, seg.y1), (seg.x2, seg.y2)):
+        dx = 0.0 if rect.x <= px <= rect.r else (rect.x - px if px < rect.x else px - rect.r)
+        dy = 0.0 if rect.y <= py <= rect.b else (rect.y - py if py < rect.y else py - rect.b)
+        d = min(d, math.hypot(dx, dy))
+    return d
+
+
+def point_seg_dist(px: float, py: float, seg: Seg) -> float:
+    x1, y1, x2, y2 = seg.x1, seg.y1, seg.x2, seg.y2
+    dx, dy = x2 - x1, y2 - y1
+    length2 = dx * dx + dy * dy
+    if length2 < 1e-6:
+        return math.hypot(px - x1, py - y1)
+    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / length2))
+    return math.hypot(px - (x1 + t * dx), py - (y1 + t * dy))
 
 
 def check(scene: Scene) -> list[str]:
@@ -753,42 +713,44 @@ def check(scene: Scene) -> list[str]:
     icons = [r for r in scene.rects if r.kind == "icon"]
     nodes = [r for r in scene.rects if r.kind == "node"]
     callouts = [r for r in scene.rects if r.kind == "callout"]
-    arrows = [r for r in scene.rects if r.kind == "arrow"]
 
-    canvas = Rect(MARGIN, MARGIN_Y, W - 2 * MARGIN, H - 2 * MARGIN_Y, "canvas", "safe")
+    canvas = Rect(MARGIN, MARGIN, W - 2 * MARGIN, H - 2 * MARGIN, "canvas", "safe")
 
     def in_canvas(r: Rect) -> bool:
         return r.x >= canvas.x - 0.5 and r.y >= canvas.y - 0.5 and r.r <= canvas.r + 0.5 and r.b <= canvas.b + 0.5
 
     for r in texts + icons + nodes + callouts:
-        if r.name in {"title", "subtitle", "legend"} or (r.parent in {None, "title", "subtitle", "legend"} and r.kind == "text"):
-            if not (r.x >= 8 and r.r <= W - 8 and r.y >= MARGIN_Y - 0.5 and r.b <= H - MARGIN_Y + 0.5):
+        if r.name in {"title", "subtitle", "legend"} or (
+            r.parent in {None, "title", "subtitle", "legend"} and r.kind == "text"
+        ):
+            if not (r.x >= MARGIN - 0.5 and r.r <= W - MARGIN + 0.5 and r.y >= MARGIN - 0.5 and r.b <= H - MARGIN + 0.5):
                 errors.append(f"clipped {r.name} ({r.x:.1f},{r.y:.1f} {r.w:.1f}x{r.h:.1f})")
             continue
         if not in_canvas(r):
             errors.append(f"clipped {r.name} ({r.x:.1f},{r.y:.1f} {r.w:.1f}x{r.h:.1f})")
 
-    # Text must stay inside its parent box.
     for t in texts:
         if not t.parent:
             continue
-        parent = next((r for r in scene.rects if r.name == t.parent and r.kind in {"node", "callout", "callout-box", "region"}), None)
+        parent = next(
+            (r for r in scene.rects if r.name == t.parent and r.kind in {"node", "callout", "callout-box", "region"}),
+            None,
+        )
         if parent is None:
-            # try callout-box specifically
             parent = next((r for r in scene.rects if r.name == f"{t.parent}:box"), None)
         if parent is None:
             continue
-        pad = 4 if parent.kind == "region" else 6
-        if t.x < parent.x + pad - 0.6 or t.r > parent.r - pad + 0.6 or t.y < parent.y + 2 - 0.6 or t.b > parent.b - 4 + 0.6:
-            # Region labels sit in the header padding; allow that.
-            if parent.kind == "region":
+        pad = 4 if parent.kind == "region" else 4
+        if parent.kind == "region":
+            continue
+        if t.x < parent.x + pad - 0.8 or t.r > parent.r - pad + 0.8 or t.y < parent.y + 1 or t.b > parent.b - 3:
+            if t.name.endswith(":num"):
                 continue
             errors.append(
                 f"text '{t.name}' outside {parent.name}: text=({t.x:.1f},{t.y:.1f},{t.r:.1f},{t.b:.1f}) "
                 f"box=({parent.x:.1f},{parent.y:.1f},{parent.r:.1f},{parent.b:.1f})"
             )
 
-    # Text–text gap of 16px unless they share a parent (title+subtitle in a card).
     for i, a in enumerate(texts):
         for b in texts[i + 1 :]:
             if a.parent and a.parent == b.parent:
@@ -796,58 +758,62 @@ def check(scene: Scene) -> list[str]:
             if a.name in {"title", "subtitle"} and b.name in {"title", "subtitle", "legend"}:
                 continue
             if {a.name, b.name} & {"title", "subtitle", "legend"}:
-                # Title/subtitle/legend vs other text still needs gap, but title is far from nodes.
                 if rects_overlap(a.inflate(4), b.inflate(4)):
                     errors.append(f"text overlap {a.name} vs {b.name}")
                 continue
             if rects_overlap(a, b, TEXT_GAP):
                 errors.append(f"text gap {a.name} vs {b.name} < {TEXT_GAP}px")
 
-    # Node cards must not overlap each other.
     for i, a in enumerate(nodes):
         for b in nodes[i + 1 :]:
             if rects_overlap(a, b, 8):
                 errors.append(f"node overlap {a.name} vs {b.name}")
 
-    # Callouts must not overlap nodes or other callouts.
     for c in callouts:
         for n in nodes:
             if rects_overlap(c, n, 8):
                 errors.append(f"callout {c.name} overlaps node {n.name}")
         for d in callouts:
-            if d is c:
-                continue
-            if d.name < c.name:
+            if d is c or d.name < c.name:
                 continue
             if rects_overlap(c, d, 8):
                 errors.append(f"callout overlap {c.name} vs {d.name}")
 
-    # Arrows must not hit icons or text (keep a clear gap). Junctions may share endpoints.
     skip_kinds = {"arrow", "region", "canvas", "shape"}
     for seg in scene.segs:
         for r in scene.rects:
             if r.kind in skip_kinds or r.kind == "arrow":
                 continue
             if r.kind == "node":
-                # Allowed to approach the node edge; not allowed to cross the interior
-                # beyond a 1px sliver. We already stopped ARROW_CLEAR outside.
                 inner = r.inflate(-1)
                 if seg_intersects_rect(seg, inner, 0):
                     errors.append(f"arrow {seg.name} intersects node {r.name}")
                 continue
-            if r.kind in {"text", "icon"}:
-                if seg_intersects_rect(seg, r, ARROW_CLEAR - 2):
-                    errors.append(f"arrow {seg.name} intersects {r.kind} {r.name}")
-            if r.kind in {"callout", "callout-box"}:
-                if seg_intersects_rect(seg, r, 4):
-                    errors.append(f"arrow {seg.name} intersects {r.name}")
+            if r.kind in {"text", "icon"} and r.parent and r.parent.startswith("lane-"):
+                continue
+            if r.kind in {"text", "icon"} and seg_intersects_rect(seg, r, ARROW_CLEAR - 2):
+                errors.append(f"arrow {seg.name} intersects {r.kind} {r.name}")
+            if r.kind in {"callout", "callout-box"} and seg_intersects_rect(seg, r, 4):
+                errors.append(f"arrow {seg.name} intersects {r.name}")
+
+    # Each callout must sit within 40px of its named arrow (nearest point on the chip).
+    segs_by_name: dict[str, list[Seg]] = {}
+    for seg in scene.segs:
+        segs_by_name.setdefault(seg.name, []).append(seg)
+    for c in callouts:
+        arrow = scene.callout_arrows.get(c.name)
+        if not arrow:
+            errors.append(f"callout {c.name} has no arrow mapping")
+            continue
+        segs = segs_by_name.get(arrow, [])
+        if not segs:
+            errors.append(f"callout {c.name} arrow '{arrow}' has no segments")
+            continue
+        dist = min(rect_seg_dist(c, seg) for seg in segs)
+        if dist > CALLOUT_ARROW_MAX:
+            errors.append(f"callout {c.name} is {dist:.1f}px from arrow {arrow} (max {CALLOUT_ARROW_MAX})")
 
     return errors
-
-
-# ---------------------------------------------------------------------------
-# Rasterize via CairoSVG
-# ---------------------------------------------------------------------------
 
 
 def rasterize(svg: str, png: Path, width: int, height: int) -> None:
@@ -868,20 +834,24 @@ def main() -> int:
     errors = check(scene)
     OUT_SVG.write_text(svg)
     print(f"wrote {OUT_SVG}", flush=True)
+    if "--dump" in sys.argv:
+        for r in scene.rects:
+            if r.kind in {"node", "callout"}:
+                print(f"{r.kind:8} {r.name:16} x={r.x:7.1f} y={r.y:7.1f} r={r.r:7.1f} b={r.b:7.1f}")
+        for seg in scene.segs:
+            print(f"seg {seg.name:14} ({seg.x1:.1f},{seg.y1:.1f})->({seg.x2:.1f},{seg.y2:.1f})")
 
     if errors:
         print(f"{len(errors)} layout check(s) failed:", file=sys.stderr)
-        for e in errors[:40]:
+        for e in errors[:50]:
             print(f"  - {e}", file=sys.stderr)
-        if len(errors) > 40:
-            print(f"  … {len(errors) - 40} more", file=sys.stderr)
+        if len(errors) > 50:
+            print(f"  … {len(errors) - 50} more", file=sys.stderr)
         return 1
 
     print("layout checks passed", flush=True)
-
     rasterize(svg, OUT_PNG, W * 2, H * 2)
     rasterize(svg, OUT_PNG_838, 838, round(838 * H / W))
-
     print(f"wrote {OUT_PNG} {Image.open(OUT_PNG).size}", flush=True)
     print(f"wrote {OUT_PNG_838} {Image.open(OUT_PNG_838).size}", flush=True)
     return 0

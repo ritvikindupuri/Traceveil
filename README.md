@@ -43,7 +43,7 @@ Traceveil bridges raw code repositories, live production web applications, conta
 </p>
 
 <p align="center">
-  <em>Figure 1. One signed-in investigation run, from the browser through the Node server and back to the canvas. Dashed nodes are optional or config-dependent. AI agents use a generic robot mark; official logos are only for real products. Icon credits: <a href="docs/architecture/ATTRIBUTION.md">ATTRIBUTION.md</a>. Regenerate with <code>python3 docs/architecture/generate.py</code>.</em>
+  <em>Figure 1. Three left-to-right lanes. Tags mark Browser vs Server vs Host. Dashed lanes are optional Console paths. AI agents use a generic robot mark; official logos are only for real products. Icon credits: <a href="docs/architecture/ATTRIBUTION.md">ATTRIBUTION.md</a>. Regenerate with <code>python3 docs/architecture/generate.py</code>.</em>
 </p>
 
 <details>
@@ -61,8 +61,7 @@ flowchart LR
   graph --> agents[Report agents]
   agents --> canvas[Results canvas]
   console -.-> isolation[Isolation agent]
-  isolation -.-> gemini[Google Gemini]
-  gemini -.-> console
+  isolation <-.-> gemini[Google Gemini]
   console -.-> mcpPage[MCP audits]
   mcpPage -.-> mcpScan["POST /api/scan"]
   mcpScan -.-> guard["POST /api/guard"]
