@@ -324,9 +324,6 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
             </span>
           )}
 
-          <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary border border-primary/20">
-            Gemini 1.5 Flash
-          </span>
 
           {latestDrift && (
             <span className="flex items-center gap-1.5 font-mono text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">

@@ -189,15 +189,14 @@ Traceveil supports two distinct target modes via the mode switcher above the sca
   3. Use the horizontal breadcrumb stepper at the top or click **Next Step** in the floating walkthrough card to step through each phase of the attack.
   4. Clicking any step auto-centers the canvas on the active node and opens the **Evidence Drawer** showing the exact HTTP headers, code lines, and remediation recommendations.
 
-### 4. Collaborating with the Tenant Isolation Copilot (Argon 4)
+### 4. Collaborating with the Tenant Isolation Copilot
 1. Select the **Tenant isolation** tab from the left sidebar.
-2. Review the prebuilt prompt pills at the top:
-   * *"Test cross-tenant data leakage"*
-   * *"Generate Row-Level Security policy"*
-   * *"Analyze tenant isolation"*
-   * *"Simulate noisy neighbor DOS"*
+2. Review the suggested prompt pills in the conversation:
+   * *"How do I isolate workspaces in Supabase / PostgreSQL?"*
+   * *"Prevent IDOR on our customer billing APIs"*
+   * *"Run live cross-tenant boundary verification probes"*
 3. Click any pill or type a natural language prompt in the input bar.
-4. The Argon 4 agent will respond with detailed analysis, generate executable probe verification widgets, and output copyable PostgreSQL RLS rules or Kubernetes zero-trust NetworkPolicy YAML manifests.
+4. The agent will respond with detailed analysis, generate executable probe verification widgets, and output copyable PostgreSQL RLS rules or Kubernetes zero-trust NetworkPolicy YAML manifests.
 
 ### 5. Running Red Team Simulations & Automated Remediation
 1. Navigate to the **Security agents** tab to inspect the autonomous Red Team report. Review real executed exploit commands, observed process behaviors, and escape assessment verdicts.

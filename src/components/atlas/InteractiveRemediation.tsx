@@ -297,9 +297,6 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
             <div className="flex items-center gap-2">
               <Wrench className="size-4 text-primary" />
               <h2 className="text-sm font-semibold">Autonomous Remediation Studio</h2>
-              <span className="rounded bg-primary/10 px-1.5 py-0.2 font-mono text-[9px] font-semibold text-primary border border-primary/20">
-                Gemini 1.5 Pro
-              </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Traceveil AI Agents inspect security exposures, apply code fixes, open Pull Requests, and auto-merge them.

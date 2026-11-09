@@ -34,33 +34,20 @@ interface ChatMessage {
   suggestedQuestions?: string[];
 }
 
-const PREBUILT_PROMPTS = [
-  {
-    icon: '🏢',
-    title: 'Workspaces & Teams',
-    prompt: 'How do I strictly isolate team and workspace data in PostgreSQL using Row-Level Security so Team A cannot access Team B?',
-  },
-  {
-    icon: '🛒',
-    title: 'Prevent BOLA & IDOR on Orders',
-    prompt: 'Eliminate IDOR / BOLA on our customer billing and order endpoints (/api/orders/{id}) and verify boundary isolation.',
-  },
-  {
-    icon: '📂',
-    title: 'Private Files & Storage',
-    prompt: 'Enforce tenant isolation on private documents and attachments before streaming files to users.',
-  },
-  {
-    icon: '🛡️',
-    title: 'JWT Boundary Middleware',
-    prompt: 'Generate Express / Next.js middleware that verifies the caller tenant_id claim in JWT against requested resource paths.',
-  },
-  {
-    icon: '🧪',
-    title: 'Run 4 Live Probes',
-    prompt: 'Execute automated cross-tenant boundary verification probes against our active target and verify zero data leakage.',
-  },
-];
+function formatCleanText(text: string) {
+  const clean = text.replace(/\bArgon\s*4\b/gi, 'Tenant Isolation Agent');
+  const parts = clean.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part.replace(/\*\*/g, '');
+  });
+}
 
 export function TenantIsolation({
   signedIn,
@@ -89,11 +76,11 @@ export function TenantIsolation({
         {
           id: 'welcome-1',
           role: 'assistant',
-          content: `Hello! I'm your **Argon 4 Tenant Isolation Agent**. 
+          content: `Hello! I'm your Tenant Isolation Agent.
 
-I analyze your application architecture for **${activeTarget}** to eliminate cross-tenant data leaks, BOLA (Broken Object Level Authorization), and IDOR exposures. 
+I analyze your application architecture for ${activeTarget} to eliminate cross-tenant data leaks, BOLA (Broken Object Level Authorization), and IDOR exposures.
 
-Ask me anything about your stack, or click any prebuilt prompt below to generate zero-trust RLS policies and live isolation test probes.`,
+Ask me anything about your stack, or click any prompt below to generate zero-trust RLS policies and live isolation test probes.`,
           timestamp: new Date().toLocaleTimeString(),
           suggestedQuestions: [
             'How do I isolate workspaces in Supabase / PostgreSQL?',
@@ -165,7 +152,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        content: `Reset session. Ready to assist with **${activeTarget}** tenant isolation, RLS rules, and live boundary verification.`,
+        content: `Reset session. Ready to assist with ${activeTarget} tenant isolation, RLS rules, and live boundary verification.`,
         timestamp: new Date().toLocaleTimeString(),
         suggestedQuestions: [
           'How do I isolate workspaces in Supabase / PostgreSQL?',
@@ -204,7 +191,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
             </span>
             <Bot className="size-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">
-              Argon 4 Tenant Isolation Copilot
+              Tenant Isolation Copilot
             </h2>
           </div>
 
@@ -212,10 +199,6 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
 
           <span className="font-mono text-xs text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/60">
             {activeTarget}
-          </span>
-
-          <span className="rounded bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary border border-primary/20">
-            Argon 4 Frontier Engine
           </span>
         </div>
 
@@ -233,25 +216,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
         </div>
       </div>
 
-      {/* 2. Prebuilt Quick Starter Pills (Always accessible at top) */}
-      <div className="flex items-center gap-2 border-b border-border/70 bg-muted/10 px-4 py-2.5 overflow-x-auto shrink-0 select-none">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
-          Starters:
-        </span>
-        {PREBUILT_PROMPTS.map((p, idx) => (
-          <button
-            key={idx}
-            onClick={() => void handleSendMessage(p.prompt)}
-            disabled={isThinking}
-            className="flex items-center gap-1.5 shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground hover:border-primary/60 hover:bg-primary/5 transition-all cursor-pointer shadow-xs"
-          >
-            <span>{p.icon}</span>
-            <span className="font-medium text-[11px]">{p.title}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* 3. Conversation Message Feed */}
+      {/* 2. Conversation Message Feed */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map(msg => {
           const isUser = msg.role === 'user';
@@ -281,7 +246,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
                       : 'bg-muted/30 border border-border/80 text-foreground'
                   )}
                 >
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  <div className="whitespace-pre-wrap">{formatCleanText(msg.content)}</div>
                 </div>
 
                 {/* Interactive Boundary Configuration Card (if attached to assistant message) */}
@@ -464,7 +429,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
             </div>
             <div className="rounded-lg border border-border/80 bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground flex items-center gap-2">
               <Loader2 className="size-3.5 animate-spin text-primary" />
-              <span>Argon 4 is analyzing tenant boundaries and synthesizing RLS rules...</span>
+              <span>Analyzing tenant boundaries and synthesizing RLS rules...</span>
             </div>
           </div>
         )}
@@ -485,7 +450,7 @@ Ask me anything about your stack, or click any prebuilt prompt below to generate
             type="text"
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
-            placeholder="Ask Argon 4 anything (e.g. 'How do I prevent IDOR on /api/projects/{id} in FastAPI?')..."
+            placeholder="Ask anything about tenant isolation, RLS rules, or BOLA prevention (e.g. 'How do I isolate workspaces?')..."
             disabled={isThinking}
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 outline-none"
           />

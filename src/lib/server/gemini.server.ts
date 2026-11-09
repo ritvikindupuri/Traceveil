@@ -131,7 +131,7 @@ function generateArgonReasoning(prompt: string, systemInstruction?: string): str
               : '/team_id',
         boundaryRule:
           'Authenticated tenant sessions must be partitioned by authenticated tenant_id, strictly returning 403 Forbidden on any cross-tenant read.',
-        recommendedRlsPolicy: `-- Argon 4 Synthesized Row Level Security Policy
+        recommendedRlsPolicy: `-- Synthesized Row Level Security Policy
 ALTER TABLE records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_select_policy ON records
@@ -143,7 +143,7 @@ CREATE POLICY tenant_isolation_mutation_policy ON records
 FOR ALL USING (
   tenant_id = (current_setting('request.jwt.claims', true)::json->>'tenant_id')
 );`,
-        recommendedMiddleware: `// Argon 4 Zero-Trust Tenant Boundary Middleware
+        recommendedMiddleware: `// Zero-Trust Tenant Boundary Middleware
 import { Request, Response, NextFunction } from 'express';
 
 export function enforceTenantIsolation(req: Request, res: Response, next: NextFunction) {
@@ -172,5 +172,5 @@ export function enforceTenantIsolation(req: Request, res: Response, next: NextFu
     );
   }
 
-  return 'Argon 4 autonomous reasoning evaluated target posture. Zero-trust boundary and least-privilege policies verified.';
+  return 'Autonomous reasoning evaluated target posture. Zero-trust boundary and least-privilege policies verified.';
 }
