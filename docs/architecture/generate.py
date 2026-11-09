@@ -33,10 +33,11 @@ OUT_SVG = ROOT / "traceveil-architecture.svg"
 OUT_PNG = ROOT / "traceveil-architecture.png"
 OUT_PNG_838 = ROOT / "traceveil-architecture-838.png"
 
-W, H = 1800, 900
-MARGIN = 14
+W, H = 1800, 980
+MARGIN = 16
+MARGIN_Y = 40
 TEXT_GAP = 14
-ARROW_CLEAR = 12
+ARROW_CLEAR = 8
 STROKE = 2.2
 STROKE_DASH = 1.6
 TITLE_SIZE = 18
@@ -312,7 +313,7 @@ class Scene:
         box_h = pad_y + th + pad_y
         # Badge sits on the left, vertically centered with the label box.
         group_h = max(badge_r * 2, box_h)
-        badge_cx = x + badge_r
+        badge_cx = x + badge_r + 4
         badge_cy = y + group_h / 2
         box_x = badge_cx + badge_r + gap
         box_y = y + (group_h - box_h) / 2
@@ -464,13 +465,13 @@ def build() -> Scene:
     )
     s.svg.append("<defs>")
     s.svg.append(
-        '<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
-        f'<path d="M0,0.6 L7.2,4 L0,7.4" fill="{LINE_STRONG}"/>'
+        '<marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">'
+        f'<path d="M0,0.4 L9.2,5 L0,9.6" fill="{LINE_STRONG}"/>'
         "</marker>"
     )
     s.svg.append(
-        '<marker id="arrow-dash" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
-        f'<path d="M0,0.6 L7.2,4 L0,7.4" fill="{LINE}"/>'
+        '<marker id="arrow-dash" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">'
+        f'<path d="M0,0.4 L9.2,5 L0,9.6" fill="{LINE}"/>'
         "</marker>"
     )
     s.svg.append(
@@ -483,10 +484,10 @@ def build() -> Scene:
     s.round_rect(0, 0, W, H, 0, "#FFFFFF", "#FFFFFF", 0, None, "canvas", "canvas")
     s.rects[-1].ignore_vs = frozenset({"*"})
 
-    s.text_box(W / 2, 30, "How a Traceveil investigation run works", 22, "bold", INK, "middle", "title")
+    s.text_box(W / 2, 62, "How a Traceveil investigation run works", 22, "bold", INK, "middle", "title")
     s.text_box(
         W / 2,
-        50,
+        84,
         "One signed-in scan: collect evidence, save an owner-scoped record, then inspect the graph.",
         13,
         "regular",
@@ -517,42 +518,43 @@ def build() -> Scene:
     ms_icon = [(MICROSOFT_PATH, "#0078D4", "")]
     wiki_icon = [(FILE_PATH, "#0F172A", "")]
 
-    # Regions fill the frame under the title. Right column splits browser canvas / MCP hosts.
-    s.region(16, 54, 292, 812, "Browser", "region-browser")
-    s.region(320, 54, 1056, 812, "Traceveil server  ·  Node process, no repository code executed", "region-server")
-    s.region(1388, 54, 396, 400, "Browser", "region-results")
-    s.region(1388, 640, 396, 226, "Allowlisted MCP hosts  ·  runtime tools/call", "region-mcp", dashed=True)
+    # Regions sit under the title with 40px canvas margin above/below the figure.
+    s.region(16, 104, 292, 836, "Browser", "region-browser")
+    s.region(320, 104, 1056, 836, "Traceveil server  ·  Node process, no repository code executed", "region-server")
+    s.region(1388, 104, 396, 400, "Browser", "region-results")
+    s.region(1388, 680, 396, 260, "Allowlisted MCP hosts  ·  runtime tools/call", "region-mcp", dashed=True)
 
-    you = s.node_card(80, 96, "You", "Signed-in investigator", user_icon, "#334155", "you")
-    console = s.node_card(62, 280, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console")
-    mcp_page = s.node_card(62, 700, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", True)
+    you = s.node_card(80, 178, "You", "Signed-in investigator", user_icon, "#334155", "you")
+    console = s.node_card(62, 340, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console")
+    mcp_page = s.node_card(62, 740, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", True)
 
-    scan = s.node_card(348, 280, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan")
-    github = s.node_card(628, 88, "GitHub collector", "Bounded public snapshot", github_icon, "#E2E8F0", "github")
+    scan = s.node_card(348, 340, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan")
+    github = s.node_card(628, 148, "GitHub collector", "Bounded public snapshot", github_icon, "#E2E8F0", "github")
     pat_title = "Encrypted GitHub PAT"
     pat_tw, _, _ = measure(pat_title, CHIP_SIZE, "semibold")
     pat_w = 10 + 24 + 8 + pat_tw + 10
     pat = s.host_chip(github.x + (github.w - pat_w) / 2, github.b + 20, pat_title, lock_icon, "#334155", "pat")
     dash_chip(s, pat)
-    live = s.node_card(628, 430, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live")
-    graph = s.node_card(880, 280, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph")
-    agents = s.node_card(1124, 280, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents")
-    store = s.node_card(880, 430, "Local JSON store", "Scan API writes the record", file_icon, "#D97706", "store")
-    isolation = s.node_card(1124, 430, "Isolation agent", "Drafts RLS on the server", robot_icon, "#5B21B6", "isolation", True)
+    live = s.node_card(628, 520, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live")
+    graph = s.node_card(880, 340, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph")
+    agents = s.node_card(1124, 340, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents")
+    store = s.node_card(880, 520, "Local JSON store", "Scan API writes the record", file_icon, "#D97706", "store")
+    isolation = s.node_card(1124, 520, "Isolation agent", "Drafts RLS on the server", robot_icon, "#5B21B6", "isolation", True)
     gemini = s.host_chip(isolation.x + 8, isolation.b + 18, "Google Gemini", gemini_icon, "#EDE9FE", "gemini")
     dash_chip(s, gemini)
 
-    mcp_scan = s.node_card(348, 700, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", True)
-    guard = s.node_card(640, 700, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", True)
+    mcp_scan = s.node_card(348, 740, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", True)
+    guard = s.node_card(640, 740, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", True)
 
-    canvas = s.node_card(1470, 280, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node")
+    canvas = s.node_card(1470, 340, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node")
 
-    cloudflare = s.host_chip(1460, guard.cy - 20, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare")
-    deepwiki = s.host_chip(1460, cloudflare.y - cloudflare.h - 14, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki")
-    microsoft = s.host_chip(1460, cloudflare.b + 14, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft")
+    deepwiki = s.host_chip(1460, 784, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki")
+    cloudflare = s.host_chip(1460, 840, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare")
+    microsoft = s.host_chip(1460, 896, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft")
 
     # Dominant solid path: You → Console → Scan → (GitHub | Live) → Graph → Agents → Canvas
-    s.arrow([node_anchor(you, "bottom"), node_anchor(console, "top")], "a1")
+    # Tip sits on the Console card so the head is visible (callout 1 is beside You, not on this stroke).
+    s.arrow([(you.cx, you.b + 3), (you.cx, console.y - 2)], "a1")
 
     rail = scan.x - 28
     s.arrow(
@@ -628,13 +630,37 @@ def build() -> Scene:
         "a-save",
     )
 
-    s.arrow([(github.cx, github.b + ARROW_CLEAR), (github.cx, pat.y - ARROW_CLEAR)], "d-pat", True)
+    s.arrow([(github.cx, github.b + 3), (github.cx, pat.y - 3)], "d-pat", True)
+
+    # Isolation round-trip: Console tab → server fn → Gemini → reply back in the Console UI.
+    stem_out = scan.x - 32
+    stem_ret = scan.x - 16
+    gutter_y = (scan.b + live.y) / 2
+    iso_in_x = isolation.x - ARROW_CLEAR
+    out_y = console.cy + 40
     s.arrow(
         [
-            (isolation.cx, isolation.b + ARROW_CLEAR),
-            (isolation.cx, gemini.y - ARROW_CLEAR),
+            (console.r + 3, out_y),
+            (stem_out, out_y),
+            (stem_out, gutter_y),
+            (iso_in_x, gutter_y),
+            (iso_in_x, isolation.cy),
         ],
-        "d-gemini",
+        "d-iso-out",
+        True,
+    )
+    s.arrow([(isolation.cx, isolation.b + 3), (isolation.cx, gemini.y - 3)], "d-gemini", True)
+    ret_y = gemini.b + 24
+    back_y = min(console.b - 12, out_y + 24)
+    s.arrow(
+        [
+            (gemini.cx, gemini.b + 3),
+            (gemini.cx, ret_y),
+            (stem_ret, ret_y),
+            (stem_ret, back_y),
+            (console.r + 3, back_y),
+        ],
+        "d-iso-back",
         True,
     )
 
@@ -650,28 +676,33 @@ def build() -> Scene:
         "d-mcp-3",
         True,
     )
+    host_rail = (guard.r + cloudflare.x) / 2
     s.arrow(
         [
             (guard.r + ARROW_CLEAR, guard.cy),
+            (host_rail, guard.cy),
+            (host_rail, cloudflare.cy),
             (cloudflare.x - ARROW_CLEAR, cloudflare.cy),
         ],
         "d-guard-hosts",
         True,
     )
 
-    s.callout(you.x, you.b + 10, 1, "Sign in; session stays here", "c1")
+    s.callout(you.x, you.y - 40, 1, "Sign in; session stays here", "c1")
     s.callout(console.x, console.b + 12, 2, "Pick repo or live app", "c2")
     s.callout(scan.x, scan.y - 42, 3, "Authenticated scan starts", "c3")
-    s.callout(live.x, live.y - 42, 4, "GitHub files or live HTTPS", "c4")
+    s.callout(scan.x, github.cy - 16, 4, "GitHub files or live HTTPS", "c4")
     s.callout(graph.x, graph.y - 42, 5, "Static rules bind evidence", "c5")
-    s.callout(live.x, live.b + 10, 6, "Record saved; agents report", "c6")
-    s.callout(canvas.x, canvas.y - 42, 7, "Canvas draws the graph", "c7")
-    s.callout(mcp_scan.x, mcp_scan.y - 42, 8, "Optional MCP audit and guard", "c8")
+    s.callout(live.x, live.b + 10, 6, "Scan API writes the record", "c6")
+    s.callout(agents.x, agents.y - 42, 7, "Agents stream template reports", "c7")
+    s.callout(canvas.x, canvas.y - 42, 8, "Canvas draws the graph", "c8")
+    s.callout(isolation.x, isolation.y - 42, 9, "Isolation tab calls Gemini", "c9")
+    s.callout(1400, 716, 10, "Optional MCP audit and guard", "c10")
 
     s.text_box(
         20,
-        886,
-        "Dashed = optional or config-dependent (GitHub PAT, Gemini API key, MCP audit, tool guard). Callouts 1–8 match the README. Isolation agent and Gemini run on the server.",
+        928,
+        "Dashed = optional or config-dependent (GitHub PAT, Gemini API key, isolation chat, MCP audit). Callouts 1–10 match the README.",
         12,
         "regular",
         MUTED,
@@ -724,14 +755,14 @@ def check(scene: Scene) -> list[str]:
     callouts = [r for r in scene.rects if r.kind == "callout"]
     arrows = [r for r in scene.rects if r.kind == "arrow"]
 
-    canvas = Rect(MARGIN, MARGIN, W - 2 * MARGIN, H - 2 * MARGIN, "canvas", "safe")
+    canvas = Rect(MARGIN, MARGIN_Y, W - 2 * MARGIN, H - 2 * MARGIN_Y, "canvas", "safe")
 
     def in_canvas(r: Rect) -> bool:
         return r.x >= canvas.x - 0.5 and r.y >= canvas.y - 0.5 and r.r <= canvas.r + 0.5 and r.b <= canvas.b + 0.5
 
     for r in texts + icons + nodes + callouts:
         if r.name in {"title", "subtitle", "legend"} or (r.parent in {None, "title", "subtitle", "legend"} and r.kind == "text"):
-            if not (r.x >= 8 and r.r <= W - 8 and r.y >= 8 and r.b <= H - 8):
+            if not (r.x >= 8 and r.r <= W - 8 and r.y >= MARGIN_Y - 0.5 and r.b <= H - MARGIN_Y + 0.5):
                 errors.append(f"clipped {r.name} ({r.x:.1f},{r.y:.1f} {r.w:.1f}x{r.h:.1f})")
             continue
         if not in_canvas(r):

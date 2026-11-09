@@ -62,6 +62,7 @@ flowchart LR
   agents --> canvas[Results canvas]
   console -.-> isolation[Isolation agent]
   isolation -.-> gemini[Google Gemini]
+  gemini -.-> console
   console -.-> mcpPage[MCP audits]
   mcpPage -.-> mcpScan["POST /api/scan"]
   mcpScan -.-> guard["POST /api/guard"]
@@ -84,11 +85,15 @@ Numbered steps match the callouts on the diagram.
 
 5. **Static rules bind evidence.** `buildRepositoryGraph` / `validateGraph` create nodes, edges, and findings only from inspected files or probe headers. Every entity carries evidence ids; the model is not allowed to invent graph facts. Coverage gaps are recorded on the graph object.
 
-6. **Record saved; agents report.** After collection returns, `POST /api/application-scan` itself inserts the `application_scans` row (status `analyzing`) into the local JSON store, then `analyzeGraph` streams four template reports — red team, remediation, defense planner, code proof verifier — with `redact()` applied. A later update sets status `complete` (or `partial` if agents fail). These reports are local templates, not live Gemini calls. The graph engine does not write the record.
+6. **Scan API writes the record.** After collection returns, `POST /api/application-scan` itself inserts the `application_scans` row (status `analyzing`) into the local JSON store, then later updates it to `complete` (or `partial` if agents fail). The graph engine does not write the record.
 
-7. **Canvas draws the graph.** The client renders the streamed graph with React Flow and Dagre (`rankdir: 'LR'`). Findings, the evidence drawer, and export JSON all read that same in-memory graph. Isolation chat is a Console tab only in the browser; `chatWithTenantIsolationAgent` / `runAutonomousTenantIsolationAgent` run on the server and may call Google Gemini when `GEMINI_API_KEY` / `ARGON_API_KEY` / `GOOGLE_API_KEY` is set, otherwise a local template.
+7. **Agents stream template reports.** `analyzeGraph` streams four template write-ups — red team, remediation, defense planner, code proof verifier — with `redact()` applied. These reports are local templates, not live Gemini calls.
 
-8. **Optional MCP audit and guard.** `/mcp-audits` posts to `/api/scan` (definitions, endpoint, or transcript). `runScan` ingests tools, scores regex signals, emits three template agent write-ups, and stores an owner-scoped `audit_records` row with a SHA-256 tool fingerprint. The MCP audits UI then posts to `/api/guard`, which re-checks approval, runtime policy, schema, and fingerprint, then **the same handler** forwards `tools/call` to the allowlisted host (`fetchEndpoint` + `rpc`). The optional audit relay is inventory-only (`initialize` / `tools/list`) and is not on this runtime path.
+8. **Canvas draws the graph.** The client renders the streamed graph with React Flow and Dagre (`rankdir: 'LR'`). Findings, the evidence drawer, and export JSON all read that same in-memory graph.
+
+9. **Isolation tab calls Gemini.** The Console’s Tenant isolation tab invokes `chatWithTenantIsolationAgent`, which runs on the server, may call Google Gemini via `callFrontierModel` when `GEMINI_API_KEY` / `ARGON_API_KEY` / `GOOGLE_API_KEY` is set (otherwise a local template), and returns the reply into the same Console chat UI.
+
+10. **Optional MCP audit and guard.** `/mcp-audits` posts to `/api/scan` (definitions, endpoint, or transcript). `runScan` ingests tools, scores regex signals, emits three template agent write-ups, and stores an owner-scoped `audit_records` row with a SHA-256 tool fingerprint. The MCP audits UI then posts to `/api/guard`, which re-checks approval, runtime policy, schema, and fingerprint, then **the same handler** forwards `tools/call` to the allowlisted host (`fetchEndpoint` + `rpc`). The optional audit relay is inventory-only (`initialize` / `tools/list`) and is not on this runtime path.
 
 ### What the diagram omits
 
