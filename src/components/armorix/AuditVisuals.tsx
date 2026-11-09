@@ -37,18 +37,29 @@ export function AuditVisuals({ inventory, signals, verdict }: { inventory: Inven
                 const y = 55 + i * 58;
                 const level = Math.max(0, ...tool.signals.map(s => severityLevel[s.severity]));
                 const dimmed = selected !== null && selected !== tool.name;
+                const vTool = verdict?.tools?.find(t => t.tool === tool.name);
+                const isBlocked = (vTool && vTool.risk >= 70) || level >= 4 || tool.signals.some(s => s.severity === 'critical');
+                const isReview = !isBlocked && ((vTool && vTool.risk >= 40) || level >= 2 || tool.signals.length > 0);
+                const status = isBlocked ? 'blocked' : isReview ? 'review' : 'allowed';
                 return <g key={tool.name} opacity={dimmed ? 0.22 : 1}>
-                  <path d={`M155 ${height / 2} C205 ${height / 2},205 ${y},250 ${y}`} className={cn('fill-none stroke-current', levelTone(level))} strokeWidth={selected === tool.name ? 2 : 1} opacity="0.5" />
+                  <path d={`M155 ${height / 2} C205 ${height / 2},205 ${y},250 ${y}`} className={cn('fill-none stroke-current', status === 'blocked' ? 'text-destructive' : status === 'review' ? 'text-warning' : 'text-success')} strokeWidth={selected === tool.name ? 2 : 1} opacity="0.6" />
                   {targets.map((target, ti) => {
                     const matching = tool.signals.filter(s => target.rules.includes(s.rule));
                     if (!matching.length) return null;
                     const ty = height / 2 + (ti - (targets.length - 1) / 2) * 65;
                     return <path key={target.name} d={`M415 ${y} C448 ${y},448 ${ty},480 ${ty}`} className={cn('fill-none stroke-current', levelTone(Math.max(...matching.map(s => severityLevel[s.severity]))))} strokeWidth="1.8" strokeDasharray="5 4"><title>{matching.map(s => `${s.label}: ${s.target}`).join('\n')}</title></path>;
                   })}
-                  <circle cx="246" cy={y} r="3" className={cn('fill-current', levelTone(level))} />
+                  <circle cx="246" cy={y} r="3" className={cn('fill-current', status === 'blocked' ? 'text-destructive' : status === 'review' ? 'text-warning' : 'text-success')} />
                   <foreignObject x="252" y={y-18} width="163" height="36">
                     <Button variant="ghost" size="sm" className={cn('h-9 w-full justify-start overflow-hidden rounded border border-border bg-card px-2 font-mono text-[11px]', selected === tool.name && 'border-primary bg-accent')} title={tool.name} aria-pressed={selected === tool.name} onClick={() => { setCategory(null); setSelected(selected === tool.name ? null : tool.name); }}>
-                      <span className="truncate">{tool.name}</span><span className={cn('ml-auto', levelTone(level))}>{tool.signals.length}</span>
+                      <span className="truncate">{tool.name}</span>
+                      <span className={cn('ml-auto rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border',
+                        status === 'blocked' ? 'bg-destructive/15 text-destructive border-destructive/30' :
+                        status === 'review' ? 'bg-warning/15 text-warning border-warning/30' :
+                        'bg-success/15 text-success border-success/30'
+                      )}>
+                        {status === 'blocked' ? 'Block' : status === 'review' ? 'Review' : 'Allow'}
+                      </span>
                     </Button>
                   </foreignObject>
                 </g>;
@@ -63,7 +74,11 @@ export function AuditVisuals({ inventory, signals, verdict }: { inventory: Inven
               {!targets.length && <text x="480" y={height/2} className="fill-muted-foreground font-mono text-[10px]">No target references</text>}
             </svg>
           </div>
-          <div className="flex gap-4 py-3 font-mono text-[10px] text-muted-foreground"><span className="flex items-center gap-1.5"><i className="h-px w-4 bg-muted-foreground" />Inventory</span><span className="flex items-center gap-1.5"><i className="h-px w-4 bg-warning" />High</span><span className="flex items-center gap-1.5"><i className="h-px w-4 bg-destructive" />Critical</span></div>
+          <div className="flex flex-wrap gap-4 py-3 font-mono text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-success" />Allowed (Safe)</span>
+            <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-warning" />Needs Review</span>
+            <span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-destructive" />Blocked (Denied)</span>
+          </div>
         </div>
         <div className="border-t border-border py-3 xl:border-t-0 xl:pl-4">
           <h2 className="mb-4 flex items-center justify-between text-xs font-medium"><span className="flex items-center gap-2"><Crosshair className="size-4 text-primary" />Threat dimensions</span><span className="font-mono text-[10px] text-muted-foreground">STATIC</span></h2>
@@ -118,7 +133,36 @@ export function AuditVisuals({ inventory, signals, verdict }: { inventory: Inven
         </div>
       </div>
       {(focused || activeCategory) && <div className="border-t border-border py-3">
-        <div className="mb-2 flex items-center justify-between"><h3 className="font-mono text-xs break-all">{category ?? selected}</h3><Button variant="ghost" size="icon" className="size-6" aria-label="Clear selection" onClick={() => {setSelected(null); setCategory(null);}}><X /></Button></div>
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="font-mono text-xs break-all font-semibold">{category ?? selected}</h3>
+            {focused && (
+              <span className={cn('rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border',
+                (verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 70 || focused.signals.some(s => s.severity === 'critical')
+                  ? 'bg-destructive/15 text-destructive border-destructive/30'
+                  : (verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 40 || focused.signals.length > 0
+                  ? 'bg-warning/15 text-warning border-warning/30'
+                  : 'bg-success/15 text-success border-success/30'
+              )}>
+                {(verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 70 || focused.signals.some(s => s.severity === 'critical')
+                  ? 'Blocked · Unsafe'
+                  : (verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 40 || focused.signals.length > 0
+                  ? 'Needs Review'
+                  : 'Allowed · Safe'}
+              </span>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" className="size-6" aria-label="Clear selection" onClick={() => {setSelected(null); setCategory(null);}}><X /></Button>
+        </div>
+        {focused && (
+          <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
+            {(verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 70 || focused.signals.some(s => s.severity === 'critical')
+              ? 'Blocked: Primitives expose high-severity command execution or secret exfiltration surfaces. Agent execution is denied.'
+              : (verdict?.tools?.find(t => t.tool === focused.name)?.risk ?? 0) >= 40 || focused.signals.length > 0
+              ? 'Review Required: Tool accesses sensitive network/filesystem resources or elevated parameter ranges. Operator approval needed.'
+              : 'Allowed: Verified clean tool with no dangerous execution primitives. Safe for autonomous agent invocation.'}
+          </p>
+        )}
         <ul className="max-h-44 space-y-2 overflow-auto">{evidence.map((s,i) => <li key={i} className="text-xs"><span className={cn('mr-2 font-mono text-[10px] uppercase', levelTone(severityLevel[s.severity]))}>{s.severity}</span>{s.label}<div className="mt-1 break-all font-mono text-[10px] text-muted-foreground">{s.target} · {s.excerpt}</div></li>)}</ul>
         {!evidence.length && <p className="text-xs text-muted-foreground">No static matches.</p>}
       </div>}

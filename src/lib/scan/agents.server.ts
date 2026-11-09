@@ -57,11 +57,18 @@ export async function runScan(mode: Mode, input: string, emit: Emit, signal: Abo
     summary: verdictDecision === 'allow'
       ? 'All analyzed tools conform to safety constraints and least-privilege standards.'
       : `${signals.length} security signal(s) require review before unconstrained invocation.`,
-    tools: inventory.tools.map(t => ({
-      tool: t.name,
-      risk: Math.min(100, (signals.find(s => s.target.includes(t.name)) ? 60 : 10)),
-      class: 'standard-capability'
-    })),
+    tools: inventory.tools.map(t => {
+      const toolSignals = signals.filter(s => s.target === t.name || s.target.startsWith(`${t.name}.`) || s.target.includes(t.name));
+      const hasCrit = toolSignals.some(s => s.severity === 'critical');
+      const hasHigh = toolSignals.some(s => s.severity === 'high');
+      const hasOther = toolSignals.length > 0;
+      const toolRisk = hasCrit ? 90 : hasHigh ? 55 : hasOther ? 40 : 10;
+      return {
+        tool: t.name,
+        risk: toolRisk,
+        class: hasCrit ? 'execution-critical' : hasHigh ? 'network-filesystem' : 'standard-capability'
+      };
+    }),
     findings: signals.slice(0, 6).map(s => ({
       severity: s.severity as any,
       title: s.label,

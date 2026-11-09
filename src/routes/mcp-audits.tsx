@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal, Info, ShieldAlert, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal, Info, ShieldAlert, ShieldCheck, AlertTriangle, Ban, CheckCircle2, AlertCircle } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
@@ -14,6 +14,7 @@ import { Logo } from "@/components/armorix/Logo";
 import { AuditVisuals } from "@/components/armorix/AuditVisuals";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { classifyAuditParts, type ClassifiedPart, type PartStatus } from "@/lib/scan/tool-classification";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 import { trustedDestination } from '@/lib/scan/destinations';
@@ -257,7 +258,7 @@ function Index() {
             </div>
           )}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
-          {verdict && <VerdictCard v={verdict} />}
+          {verdict && <VerdictCard v={verdict} inv={inv} signals={signals} />}
           {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={`${record.id}-${policyEpoch}`} id={record.id} endpoint={record.endpoint} token={token}/></div>}
           {started && (
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-3">
@@ -299,10 +300,14 @@ function Pipeline({ stage, inv }: { stage: Stage; inv: Inventory | null }) {
 
 const riskBar = (r: number) => (r >= 70 ? "bg-destructive" : r >= 40 ? "bg-warning" : "bg-success");
 
-function VerdictCard({ v }: { v: Verdict }) {
+function VerdictCard({ v, inv, signals }: { v: Verdict; inv?: Inventory | null; signals?: Signal[] }) {
+  const [activeTab, setActiveTab] = useState<'all' | 'blocked' | 'review' | 'allowed'>('all');
+  const classified = classifyAuditParts(inv, v, signals);
   const tone = v.verdict === "block" ? "text-destructive" : v.verdict === "review" ? "text-warning" : "text-success";
+
   return (
     <section className="min-w-0 border-y border-border">
+      {/* 1. Header with Verdict, Risk Score, and Findings */}
       <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -349,6 +354,7 @@ function VerdictCard({ v }: { v: Verdict }) {
               : "Tools conform to safety policies. Safe for autonomous agent invocation."}
           </p>
         </div>
+
         <TooltipProvider delayDuration={100}>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -381,39 +387,384 @@ function VerdictCard({ v }: { v: Verdict }) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <div className="ml-auto text-right"><div className="font-mono text-xl">{v.findings?.length ?? 0}</div><div className="text-[10px] text-muted-foreground">Findings</div></div>
-      </div>
-      <details className="group border-b border-border"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-xs text-muted-foreground">Assessment<ChevronDown className="size-3.5 transition-transform group-open:rotate-180"/></summary><p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground">{v.summary}</p></details>
-      <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="px-4 py-2">
-          <ul className="divide-y divide-border">
-            {(v.findings ?? []).map((f, i) => (
-              <li key={i}>
-                <details className="group/finding"><summary className="flex cursor-pointer list-none items-center gap-3 py-3"><span className={cn("shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] uppercase", sevClass[f.severity] ?? sevClass.low)}>{f.severity}</span><span className="min-w-0 flex-1 text-xs font-medium">{f.title}</span><ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/finding:rotate-180"/></summary><div className="pb-3 text-xs leading-relaxed text-muted-foreground">{f.detail}{f.evidence && <div className="mt-2 break-words font-mono text-[11px]">{f.evidence}</div>}</div></details>
-              </li>
-            ))}
-            {(v.findings ?? []).length === 0 && <li className="text-sm text-muted-foreground">No findings.</li>}
-          </ul>
+
+        <div className="ml-auto text-right">
+          <div className="font-mono text-xl">{v.findings?.length ?? 0}</div>
+          <div className="text-[10px] text-muted-foreground">Findings</div>
         </div>
-        <div className="space-y-4 border-t border-border p-4 xl:border-t-0 xl:border-l">
+      </div>
+
+      {/* 2. Color-Coded Classification Filter Pills */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Component Classification:</span>
+          
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              "h-7 px-3 text-xs rounded-full border transition",
+              activeTab === 'all'
+                ? "bg-accent border-foreground/30 font-semibold text-foreground shadow-sm"
+                : "border-border/60 text-muted-foreground hover:text-foreground"
+            )}
+          >
+            All Parts ({classified.counts.total})
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab('blocked')}
+            className={cn(
+              "h-7 px-3 text-xs rounded-full border transition flex items-center gap-1.5",
+              activeTab === 'blocked'
+                ? "bg-destructive/20 border-destructive text-destructive font-semibold shadow-sm"
+                : "border-destructive/30 bg-destructive/5 text-destructive/80 hover:bg-destructive/10"
+            )}
+          >
+            <ShieldAlert className="size-3.5 text-destructive" />
+            <span>Blocked ({classified.counts.blocked})</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab('review')}
+            className={cn(
+              "h-7 px-3 text-xs rounded-full border transition flex items-center gap-1.5",
+              activeTab === 'review'
+                ? "bg-warning/20 border-warning text-warning font-semibold shadow-sm"
+                : "border-warning/30 bg-warning/5 text-warning/80 hover:bg-warning/10"
+            )}
+          >
+            <AlertTriangle className="size-3.5 text-warning" />
+            <span>Needs Review ({classified.counts.review})</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setActiveTab('allowed')}
+            className={cn(
+              "h-7 px-3 text-xs rounded-full border transition flex items-center gap-1.5",
+              activeTab === 'allowed'
+                ? "bg-success/20 border-success text-success font-semibold shadow-sm"
+                : "border-success/30 bg-success/5 text-success/80 hover:bg-success/10"
+            )}
+          >
+            <ShieldCheck className="size-3.5 text-success" />
+            <span>Allowed ({classified.counts.allowed})</span>
+          </Button>
+        </div>
+
+        <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">
+          {classified.counts.blocked} blocked · {classified.counts.review} review · {classified.counts.allowed} allowed
+        </span>
+      </div>
+
+      {/* 3. Assessment summary */}
+      <details className="group border-b border-border">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-xs text-muted-foreground">
+          <span>Assessment Summary</span>
+          <ChevronDown className="size-3.5 transition-transform group-open:rotate-180"/>
+        </summary>
+        <p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground">{v.summary}</p>
+      </details>
+
+      {/* 4. Main Content: Color-Coded Breakdown Sections + Side Panel */}
+      <div className="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="p-4 space-y-5">
+          {/* A. BLOCKED SECTION */}
+          {(activeTab === 'all' || activeTab === 'blocked') && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/[0.03] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-destructive/20 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="size-4 text-destructive" />
+                  <span className="text-xs font-semibold text-destructive">Blocked Capabilities & Dangerous Primitives</span>
+                </div>
+                <span className="rounded bg-destructive/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-destructive border border-destructive/30">
+                  Blocked · Execution Denied ({classified.counts.blocked})
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Autonomous agent invocation to these capabilities is actively <strong>blocked</strong> by runtime guardrails. They contain execution primitives that could permit prompt injection to trigger Remote Code Execution (RCE) or secret leakage.
+              </p>
+
+              {classified.blocked.length === 0 ? (
+                <div className="flex items-center gap-2 rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground">
+                  <CheckCircle2 className="size-4 text-success" />
+                  <span>No blocked capabilities or critical threats detected in this server.</span>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {classified.blocked.map((item) => (
+                    <div key={item.name} className="rounded-md border border-destructive/30 bg-card p-3 shadow-sm border-l-4 border-l-destructive space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Ban className="size-3.5 text-destructive shrink-0" />
+                          <span className="font-mono text-xs font-bold text-foreground">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                          <span className="rounded bg-destructive/10 px-2 py-0.5 font-semibold text-destructive border border-destructive/20">
+                            Risk: {item.risk}/100
+                          </span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                            BLOCKED
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Color-Coded Explanation Box */}
+                      <div className="rounded bg-destructive/10 p-2.5 text-xs text-destructive border border-destructive/20 space-y-1">
+                        <div className="font-semibold text-[11px] flex items-center gap-1">
+                          <span>Why this part is blocked:</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-destructive/90">
+                          {item.explanation}
+                        </p>
+                      </div>
+
+                      {/* Signals & Findings */}
+                      {item.rules.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.rules.map((rule) => (
+                            <span key={rule} className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/40">
+                              rule: {rule}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {item.findings.length > 0 && (
+                        <details className="group/itemfind pt-1">
+                          <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                            <span>Technical Evidence ({item.findings.length})</span>
+                            <ChevronDown className="size-3 transition-transform group-open/itemfind:rotate-180" />
+                          </summary>
+                          <div className="mt-1.5 space-y-1.5 pl-2 border-l border-destructive/30">
+                            {item.findings.map((f, fi) => (
+                              <div key={fi} className="text-[11px]">
+                                <div className="font-medium text-foreground">{f.title}</div>
+                                <div className="text-muted-foreground">{f.detail}</div>
+                                {f.evidence && (
+                                  <pre className="mt-1 p-1.5 rounded bg-muted font-mono text-[10px] overflow-auto text-muted-foreground break-all">
+                                    {f.evidence}
+                                  </pre>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* B. REVIEW REQUIRED SECTION */}
+          {(activeTab === 'all' || activeTab === 'review') && (
+            <div className="rounded-lg border border-warning/30 bg-warning/[0.03] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-warning/20 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="size-4 text-warning" />
+                  <span className="text-xs font-semibold text-warning">Review Required & Sensitive Capabilities</span>
+                </div>
+                <span className="rounded bg-warning/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-warning border border-warning/30">
+                  Needs Review ({classified.counts.review})
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                These capabilities access sensitive resources like external networks, user files, or parameter expansions. They require <strong>human-in-the-loop authorization</strong> or parameter whitelisting before execution.
+              </p>
+
+              {classified.counts.review === 0 ? (
+                <div className="flex items-center gap-2 rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground">
+                  <CheckCircle2 className="size-4 text-success" />
+                  <span>No capabilities flagged for review.</span>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {classified.review.map((item) => (
+                    <div key={item.name} className="rounded-md border border-warning/30 bg-card p-3 shadow-sm border-l-4 border-l-warning space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="size-3.5 text-warning shrink-0" />
+                          <span className="font-mono text-xs font-bold text-foreground">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                          <span className="rounded bg-warning/10 px-2 py-0.5 font-semibold text-warning border border-warning/20">
+                            Risk: {item.risk}/100
+                          </span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                            REVIEW
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Color-Coded Explanation Box */}
+                      <div className="rounded bg-warning/10 p-2.5 text-xs text-warning border border-warning/20 space-y-1">
+                        <div className="font-semibold text-[11px] flex items-center gap-1">
+                          <span>Why review is required:</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-warning/90">
+                          {item.explanation}
+                        </p>
+                      </div>
+
+                      {/* Signals & Findings */}
+                      {item.rules.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.rules.map((rule) => (
+                            <span key={rule} className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/40">
+                              rule: {rule}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {item.findings.length > 0 && (
+                        <details className="group/itemfind pt-1">
+                          <summary className="flex cursor-pointer list-none items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                            <span>Technical Details ({item.findings.length})</span>
+                            <ChevronDown className="size-3 transition-transform group-open/itemfind:rotate-180" />
+                          </summary>
+                          <div className="mt-1.5 space-y-1.5 pl-2 border-l border-warning/30">
+                            {item.findings.map((f, fi) => (
+                              <div key={fi} className="text-[11px]">
+                                <div className="font-medium text-foreground">{f.title}</div>
+                                <div className="text-muted-foreground">{f.detail}</div>
+                                {f.evidence && (
+                                  <pre className="mt-1 p-1.5 rounded bg-muted font-mono text-[10px] overflow-auto text-muted-foreground break-all">
+                                    {f.evidence}
+                                  </pre>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* C. ALLOWED SECTION */}
+          {(activeTab === 'all' || activeTab === 'allowed') && (
+            <div className="rounded-lg border border-success/30 bg-success/[0.03] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-success/20 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-success" />
+                  <span className="text-xs font-semibold text-success">Allowed Capabilities & Safe Tools</span>
+                </div>
+                <span className="rounded bg-success/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase text-success border border-success/30">
+                  Allowed · Safe to Execute ({classified.counts.allowed})
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                These tools operate within least-privilege constraints (e.g. documentation lookups, schema queries). They contain no dangerous execution primitives and are <strong>approved for autonomous agent invocation</strong>.
+              </p>
+
+              {classified.counts.allowed === 0 ? (
+                <div className="flex items-center gap-2 rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground">
+                  <AlertCircle className="size-4 text-muted-foreground" />
+                  <span>No tools currently classified as allowed.</span>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {classified.allowed.map((item) => (
+                    <div key={item.name} className="rounded-md border border-success/30 bg-card p-3 shadow-sm border-l-4 border-l-success space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="size-3.5 text-success shrink-0" />
+                          <span className="font-mono text-xs font-bold text-foreground">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[10px]">
+                          <span className="rounded bg-success/10 px-2 py-0.5 font-semibold text-success border border-success/20">
+                            Risk: {item.risk}/100
+                          </span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                            ALLOWED
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Color-Coded Explanation Box */}
+                      <div className="rounded bg-success/10 p-2.5 text-xs text-success border border-success/20 space-y-1">
+                        <div className="font-semibold text-[11px] flex items-center gap-1">
+                          <span>Why this part is allowed:</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-success/90">
+                          {item.explanation}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 5. Right Sidebar with Tool Risk Scores and Recommendations */}
+        <div className="space-y-4 border-t border-border p-4 xl:border-t-0 xl:border-l bg-card/40">
           {(v.tools ?? []).length > 0 && (
             <div>
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Tool risk</div>
-              <ul className="space-y-1.5">
-                {v.tools.map((t) => (
-                  <li key={t.tool} className="grid grid-cols-[1fr_60px_24px] items-center gap-2 text-xs">
-                    <span className="truncate font-mono" title={t.class}>{t.tool}</span>
-                    <span className="h-1 rounded-full bg-muted"><span className={cn("block h-full rounded-full", riskBar(t.risk))} style={{ width: `${t.risk}%` }} /></span>
-                    <span className="text-right font-mono text-muted-foreground">{t.risk}</span>
-                  </li>
-                ))}
+              <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex justify-between items-center">
+                <span>Tool Risk Scores</span>
+                <span>{v.tools.length}</span>
+              </div>
+              <ul className="space-y-2">
+                {v.tools.map((t) => {
+                  const part = classified.all.find(p => p.name === t.tool);
+                  const status = part?.status ?? (t.risk >= 70 ? 'blocked' : t.risk >= 40 ? 'review' : 'allowed');
+                  return (
+                    <li key={t.tool} className="rounded border border-border/60 bg-card p-2 text-xs space-y-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="truncate font-mono font-medium" title={t.tool}>{t.tool}</span>
+                        <span className={cn(
+                          "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
+                          status === 'blocked' ? "bg-destructive/15 text-destructive border border-destructive/30" :
+                          status === 'review' ? "bg-warning/15 text-warning border border-warning/30" :
+                          "bg-success/15 text-success border border-success/30"
+                        )}>
+                          {status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 rounded-full bg-muted">
+                          <div className={cn("h-full rounded-full", riskBar(t.risk))} style={{ width: `${Math.min(100, Math.max(0, t.risk))}%` }} />
+                        </div>
+                        <span className="font-mono text-[10px] text-muted-foreground shrink-0">{t.risk}/100</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
-          <details className="group/guardrails">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-xs text-muted-foreground">Recommendations · {v.guardrails?.length ?? 0}<ChevronDown className="size-3.5 transition-transform group-open/guardrails:rotate-180"/></summary>
+
+          <details className="group/guardrails" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between text-xs text-muted-foreground font-medium">
+              <span>Guardrail Rules · {v.guardrails?.length ?? 0}</span>
+              <ChevronDown className="size-3.5 transition-transform group-open/guardrails:rotate-180"/>
+            </summary>
             <ol className="mt-3 space-y-2 text-xs">
-              {(v.guardrails ?? []).map((a, i) => <li key={i} className="flex gap-2"><span className="font-mono text-muted-foreground">{i + 1}</span>{a}</li>)}
+              {(v.guardrails ?? []).map((a, i) => (
+                <li key={i} className="flex gap-2 text-muted-foreground">
+                  <span className="font-mono text-foreground font-semibold">{i + 1}.</span>
+                  <span>{a}</span>
+                </li>
+              ))}
             </ol>
           </details>
         </div>
