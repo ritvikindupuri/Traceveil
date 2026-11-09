@@ -184,10 +184,24 @@ function Index() {
           </div>
           {mode === "endpoint" ? (
             <div className="space-y-2 p-3">
-              <input aria-label="MCP endpoint URL" value={input} onChange={(e) => {setInput(e.target.value);setToken('');setConnectionId(undefined);}} placeholder={ph} spellCheck={false}
+              <input aria-label="MCP endpoint URL" value={input} onChange={(e) => {setInput(e.target.value);if(connectionId)setConnectionId(undefined);}} placeholder={ph} spellCheck={false}
                 className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
               <input aria-label="Bearer token" disabled={Boolean(connectionId)} value={token} onChange={(e) => setToken(e.target.value)} placeholder={connectionId?'Saved connection · token held server-side':'Bearer token (optional, not stored)'} type="password"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring" />
+                className={cn("h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-2 focus:ring-ring", (error?.includes('401') || error?.toLowerCase().includes('bearer')) ? "border-warning/80 ring-1 ring-warning/60 bg-warning/5" : "")} />
+              <div className="pt-1.5">
+                <span className="block text-[10px] text-muted-foreground mb-1.5">Quick-test endpoints:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => { setInput('https://docs.mcp.cloudflare.com/mcp'); setError(null); }} className="rounded border border-border/70 bg-muted/30 px-2 py-1 text-[10px] text-muted-foreground transition hover:border-primary/50 hover:bg-accent/40 hover:text-foreground">
+                    Cloudflare Docs (Public)
+                  </button>
+                  <button type="button" onClick={() => { setInput('https://learn.microsoft.com/api/mcp'); setError(null); }} className="rounded border border-border/70 bg-muted/30 px-2 py-1 text-[10px] text-muted-foreground transition hover:border-primary/50 hover:bg-accent/40 hover:text-foreground">
+                    Microsoft Learn (Public)
+                  </button>
+                  <button type="button" onClick={() => { setInput('https://mcp.scrapewise.ai/mcp'); setError(null); }} className="rounded border border-border/70 bg-muted/30 px-2 py-1 text-[10px] text-muted-foreground transition hover:border-primary/50 hover:bg-accent/40 hover:text-foreground">
+                    Scrapewise AI (Auth Required)
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <textarea aria-label="Input" value={input} onChange={(e) => setInput(e.target.value)} placeholder={ph} spellCheck={false}
@@ -216,7 +230,31 @@ function Index() {
             </div>
           )}
           {started && <Pipeline stage={stage} inv={inv} />}
-          {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+          {error && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive space-y-2.5">
+              <div className="flex items-start gap-2">
+                <span className="font-semibold text-sm leading-snug">{error}</span>
+              </div>
+              {error.includes('401') && (
+                <div className="rounded border border-warning/40 bg-warning/10 p-2.5 text-[11px] text-warning flex flex-wrap items-center justify-between gap-2">
+                  <span>This server requires authentication. Enter your API key above, or test a public unauthenticated endpoint:</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    type="button"
+                    className="h-7 text-[11px] gap-1.5 border-warning/40 hover:bg-warning/20 hover:text-warning"
+                    onClick={() => {
+                      setInput('https://docs.mcp.cloudflare.com/mcp');
+                      setError(null);
+                      setStage('idle');
+                    }}
+                  >
+                    Test with Cloudflare Docs MCP (Public)
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {inv && <AuditVisuals key={`${inv.source}-${inv.mode}`} inventory={inv} signals={signals} verdict={verdict} />}
           {verdict && <VerdictCard v={verdict} />}
           {record && <div className="min-w-0 border-y border-border py-2"><div className="flex flex-wrap items-center justify-between gap-2"><span className={cn('text-xs',record.changed?'text-warning':'text-muted-foreground')} title={`SHA-256 · ${record.fingerprint}`}>{record.changed === null?'Baseline recorded':record.changed?'Tool definitions changed':'Baseline unchanged'} · Saved</span><Button variant="ghost" size="icon" aria-label="Download audit record" title="Download audit record" onClick={download}><Download className="size-4"/></Button></div><EnforcementPanel key={`${record.id}-${policyEpoch}`} id={record.id} endpoint={record.endpoint} token={token}/></div>}

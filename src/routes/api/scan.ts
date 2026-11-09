@@ -44,12 +44,23 @@ export const Route = createFileRoute("/api/scan")({
               emit({type:'done'});
             } catch (err: any) {
               const status = err?.statusCode ?? err?.status;
-              let message = 'Audit failed or timed out. Check the input and try again.';
-              if (status === 402) message = "AI credits exhausted. Add credits in Settings → Plans & credits.";
-              if (status === 429) message = "Rate limited. Try again shortly.";
+              let message = err?.message || 'Audit failed or timed out. Check the input and try again.';
+              if (status === 401 || err?.message?.includes('401') || err?.message?.toLowerCase().includes('authentication')) {
+                message = `Endpoint requires authentication (HTTP 401 Unauthorized). The MCP server at ${body.mode === 'endpoint' ? body.input : 'endpoint'} requires a Bearer token. Please provide your API key or Bearer token in the 'Bearer token' field.`;
+              } else if (status === 403 || err?.message?.includes('403')) {
+                message = 'Access forbidden (HTTP 403). The provided Bearer token does not have permission to inspect this MCP server.';
+              } else if (status === 404 || err?.message?.includes('404')) {
+                message = 'MCP endpoint not found (HTTP 404). Please verify the server URL and path (e.g. /mcp or /sse).';
+              } else if (status === 402) {
+                message = "AI credits exhausted. Add credits in Settings → Plans & credits.";
+              } else if (status === 429) {
+                message = "Rate limited. Try again shortly.";
+              } else if (err?.name === 'TimeoutError' || err?.message?.toLowerCase().includes('timed out') || err?.message?.toLowerCase().includes('timeout')) {
+                message = 'Audit timed out. The remote MCP server took longer than expected to respond.';
+              }
               const {RelayError}=await import('@/lib/scan/relay.server');
               if(err instanceof RelayError)message=err.message;
-              if (!request.signal.aborted) emit({ type: "error", message });
+              if (!request.signal.aborted) emit({ type: "error", message, status: status || (message.includes('401') ? 401 : undefined) });
             } finally {
               try { controller.close(); } catch {}
             }

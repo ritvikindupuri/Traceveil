@@ -33,8 +33,26 @@ export async function rpc(url: URL, body: object, session: string | null, signal
   if (session) headers["mcp-session-id"] = session;
   if (token) headers["authorization"] = `Bearer ${token}`;
   const res = await safeEndpointFetch(url, { method: "POST", headers, body: JSON.stringify(body), signal });
-  if (res.status === 401) throw new Error("Endpoint requires authentication (401)");
-  if (!res.ok && res.status !== 202) throw new Error(`Endpoint returned ${res.status}`);
+  if (res.status === 401) {
+    const err: any = new Error(`Endpoint requires authentication (HTTP 401 Unauthorized). The MCP server at ${url.host} rejected unauthenticated requests. Please enter a valid Bearer token in the 'Bearer token' field.`);
+    err.status = 401;
+    throw err;
+  }
+  if (res.status === 403) {
+    const err: any = new Error(`Access forbidden (HTTP 403 Forbidden). The provided Bearer token was rejected by ${url.host}.`);
+    err.status = 403;
+    throw err;
+  }
+  if (res.status === 404) {
+    const err: any = new Error(`MCP endpoint not found (HTTP 404 Not Found at ${url.pathname}). Check the endpoint URL path.`);
+    err.status = 404;
+    throw err;
+  }
+  if (!res.ok && res.status !== 202) {
+    const err: any = new Error(`MCP endpoint at ${url.host} returned HTTP ${res.status}: ${res.statusText || 'Error'}`);
+    err.status = res.status;
+    throw err;
+  }
   const sid = res.headers.get("mcp-session-id");
   const text = await readBounded(res.body);
   if (!text.trim()) return { sid, msg: null };
@@ -43,8 +61,13 @@ export async function rpc(url: URL, body: object, session: string | null, signal
     const datas = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
     payload = datas.find((d) => d.includes('"result"') || d.includes('"error"')) ?? datas[0] ?? "";
   }
-  const msg = JSON.parse(payload);
-  if (msg.error) throw new Error(`MCP error: ${msg.error.message ?? "unknown"}`);
+  let msg: any;
+  try {
+    msg = JSON.parse(payload);
+  } catch {
+    throw new Error(`MCP server at ${url.host} returned non-JSON response: ${payload.slice(0, 150)}`);
+  }
+  if (msg.error) throw new Error(`MCP error from ${url.host}: ${msg.error.message ?? JSON.stringify(msg.error)}`);
   return { sid, msg };
 }
 
@@ -94,7 +117,8 @@ export async function ingest(mode: Mode, input: string, signal: AbortSignal, tok
   }
   if (mode === "endpoint") {
     const r = await fetchEndpoint(raw, signal, token);
-    return { mode, source: new URL(raw).host, server: r.server, tools: r.tools, transcript: "" };
+    const parsed = parseMcpEndpoint(raw);
+    return { mode, source: parsed.host, server: r.server, tools: r.tools, transcript: "" };
   }
   let tools: McpTool[] = [];
   try { tools = normTools(parseDefs(raw)); } catch {}
