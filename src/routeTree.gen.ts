@@ -15,7 +15,9 @@ import { Route as McpAuditsRouteImport } from './routes/mcp-audits'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ApiApplicationScanRouteImport } from './routes/api/application-scan'
 import { Route as ApiAuthRouteImport } from './routes/api/auth'
+import { Route as ApiGithubCredentialsRouteImport } from './routes/api/github-credentials'
 import { Route as ApiGuardRouteImport } from './routes/api/guard'
+import { Route as ApiRemediationPrRouteImport } from './routes/api/remediation-pr'
 import { Route as ApiScanRouteImport } from './routes/api/scan'
 
 const IndexRoute = IndexRouteImport.update({
@@ -48,9 +50,19 @@ const ApiAuthRoute = ApiAuthRouteImport.update({
   path: '/api/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGithubCredentialsRoute = ApiGithubCredentialsRouteImport.update({
+  id: '/api/github-credentials',
+  path: '/api/github-credentials',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGuardRoute = ApiGuardRouteImport.update({
   id: '/api/guard',
   path: '/api/guard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRemediationPrRoute = ApiRemediationPrRouteImport.update({
+  id: '/api/remediation-pr',
+  path: '/api/remediation-pr',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiScanRoute = ApiScanRouteImport.update({
@@ -66,7 +78,9 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/github-credentials': typeof ApiGithubCredentialsRoute
   '/api/guard': typeof ApiGuardRoute
+  '/api/remediation-pr': typeof ApiRemediationPrRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesByTo {
@@ -76,7 +90,9 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/github-credentials': typeof ApiGithubCredentialsRoute
   '/api/guard': typeof ApiGuardRoute
+  '/api/remediation-pr': typeof ApiRemediationPrRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRoutesById {
@@ -87,7 +103,9 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/api/application-scan': typeof ApiApplicationScanRoute
   '/api/auth': typeof ApiAuthRoute
+  '/api/github-credentials': typeof ApiGithubCredentialsRoute
   '/api/guard': typeof ApiGuardRoute
+  '/api/remediation-pr': typeof ApiRemediationPrRoute
   '/api/scan': typeof ApiScanRoute
 }
 export interface FileRouteTypes {
@@ -99,7 +117,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/application-scan'
     | '/api/auth'
+    | '/api/github-credentials'
     | '/api/guard'
+    | '/api/remediation-pr'
     | '/api/scan'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -109,7 +129,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/application-scan'
     | '/api/auth'
+    | '/api/github-credentials'
     | '/api/guard'
+    | '/api/remediation-pr'
     | '/api/scan'
   id:
     | '__root__'
@@ -119,7 +141,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/application-scan'
     | '/api/auth'
+    | '/api/github-credentials'
     | '/api/guard'
+    | '/api/remediation-pr'
     | '/api/scan'
   fileRoutesById: FileRoutesById
 }
@@ -130,7 +154,9 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiApplicationScanRoute: typeof ApiApplicationScanRoute
   ApiAuthRoute: typeof ApiAuthRoute
+  ApiGithubCredentialsRoute: typeof ApiGithubCredentialsRoute
   ApiGuardRoute: typeof ApiGuardRoute
+  ApiRemediationPrRoute: typeof ApiRemediationPrRoute
   ApiScanRoute: typeof ApiScanRoute
 }
 
@@ -178,11 +204,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/github-credentials': {
+      id: '/api/github-credentials'
+      path: '/api/github-credentials'
+      fullPath: '/api/github-credentials'
+      preLoaderRoute: typeof ApiGithubCredentialsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/guard': {
       id: '/api/guard'
       path: '/api/guard'
       fullPath: '/api/guard'
       preLoaderRoute: typeof ApiGuardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/remediation-pr': {
+      id: '/api/remediation-pr'
+      path: '/api/remediation-pr'
+      fullPath: '/api/remediation-pr'
+      preLoaderRoute: typeof ApiRemediationPrRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/scan': {
@@ -202,7 +242,9 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiApplicationScanRoute: ApiApplicationScanRoute,
   ApiAuthRoute: ApiAuthRoute,
+  ApiGithubCredentialsRoute: ApiGithubCredentialsRoute,
   ApiGuardRoute: ApiGuardRoute,
+  ApiRemediationPrRoute: ApiRemediationPrRoute,
   ApiScanRoute: ApiScanRoute,
 }
 export const routeTree = rootRouteImport

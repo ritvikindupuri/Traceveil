@@ -23,7 +23,8 @@ import {
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/agent-operations';
-import { executeLiveRemediationPR } from '@/lib/atlas/remediation.functions';
+import { executeLiveRemediationPR, type LiveRemediationResult } from '@/lib/atlas/remediation.functions';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 export type AgentStepLog = {
@@ -181,17 +182,50 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
     }));
 
     try {
-      const result = await executeLiveRemediationPR({
-        data: {
-          repoUrl: targetRepo,
-          patchId: patch.id,
-          title: patch.title,
-          filePath: patch.filePath,
-          line: patch.line,
-          diff: patch.diff,
-          remediatedCode: patch.remediatedCode,
-        },
-      });
+      // 1. Fetch Supabase session token if available
+      const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      const authToken = sessionData?.session?.access_token;
+
+      // 2. Execute via direct /api/remediation-pr REST route
+      let result: LiveRemediationResult;
+      try {
+        const response = await fetch('/api/remediation-pr', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            repoUrl: targetRepo,
+            patchId: patch.id,
+            title: patch.title,
+            filePath: patch.filePath,
+            line: patch.line,
+            diff: patch.diff,
+            remediatedCode: patch.remediatedCode,
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}: Failed to reach remediation agent` }));
+          throw new Error(errData.error || `HTTP ${response.status}: Failed to reach remediation agent`);
+        }
+
+        result = await response.json();
+      } catch (fetchErr: unknown) {
+        // Fallback to server function if API endpoint fails
+        result = await executeLiveRemediationPR({
+          data: {
+            repoUrl: targetRepo,
+            patchId: patch.id,
+            title: patch.title,
+            filePath: patch.filePath,
+            line: patch.line,
+            diff: patch.diff,
+            remediatedCode: patch.remediatedCode,
+          },
+        });
+      }
 
       // Stream the real execution logs into the terminal
       let step = 0;
@@ -235,8 +269,9 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
           });
           setAppliedState(prev => ({ ...prev, [patch.id]: true }));
         }
-      }, 250);
+      }, 200);
     } catch (err: unknown) {
+      setTerminalsOpen(prev => ({ ...prev, [patch.id]: true }));
       setAgentRuns(prev => {
         const current = prev[patch.id];
         return {
@@ -250,6 +285,7 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
                 type: 'error',
                 output: [
                   `[EXECUTION ERROR] ${err instanceof Error ? err.message : 'Failed to reach GitHub API.'}`,
+                  `Please verify the repository URL format (e.g. https://github.com/owner/repository) and ensure your GitHub token has write access.`,
                 ],
               },
             ],
@@ -354,7 +390,7 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-72">
+              <div className="relative flex-1 sm:w-80 md:w-96">
                 <input
                   type="url"
                   placeholder="https://github.com/owner/repository"
