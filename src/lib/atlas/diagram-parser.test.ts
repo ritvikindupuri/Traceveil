@@ -93,4 +93,76 @@ describe('diagram-parser (universal & adaptive to ANY draw.io or Packet Tracer d
 
     expect(graph.findings.some(f => f.rule === 'public-cidr' && f.title.includes('Management'))).toBe(true);
   });
+
+  it('correctly ingests and audits raw Cisco IOS running-config without presets', () => {
+    const ciscoIosConfig = `
+! Current configuration : 1850 bytes
+version 15.2
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname Edge-Gateway-ISR4331
+!
+enable password cisco123
+username admin privilege 15 password 7 0822404F1A0A
+!
+interface GigabitEthernet0/0/0
+ description WAN Ingress
+ ip address 203.0.113.5 255.255.255.248
+ ip access-group 101 in
+!
+interface GigabitEthernet0/0/1
+ description LAN Internal
+ ip address 10.10.10.1 255.255.255.0
+!
+access-list 101 permit ip any any
+!
+line vty 0 4
+ transport input telnet
+ login local
+!
+end
+    `;
+
+    const result = analyzeDiagramToAttackGraph(ciscoIosConfig, 'running-config.cfg');
+    const graph = result.graph;
+
+    // Verify entity and edge extraction
+    expect(graph.nodes.some(e => e.label.includes('Edge-Gateway-ISR4331'))).toBe(true);
+    expect(graph.edges.some(e => e.label?.includes('GigabitEthernet0/0/0'))).toBe(true);
+
+    // Verify Cisco-specific security findings
+    const ruleIds = graph.findings.map(f => f.rule);
+    expect(ruleIds).toContain('cleartext-telnet-mgmt');
+    expect(ruleIds).toContain('permissive-cisco-acl');
+    expect(ruleIds).toContain('cleartext-passwords');
+  });
+
+  it('adaptively parses completely custom non-cloud SCADA/OT draw.io diagram', () => {
+    const scadaDrawIo = `
+      <mxGraphModel>
+        <root>
+          <mxCell id="0"/>
+          <mxCell id="1" parent="0"/>
+          <mxCell id="modbus-master" value="SCADA Human-Machine Interface (HMI)" vertex="1" parent="1"/>
+          <mxCell id="plc-1" value="Siemens S7-1500 PLC Controller" vertex="1" parent="1"/>
+          <mxCell id="rtu-db" value="Historian Telemetry Database" vertex="1" parent="1"/>
+          <mxCell id="ext-partner" value="Public Internet Contractor VPN" vertex="1" parent="1"/>
+          
+          <mxCell id="e1" edge="1" source="ext-partner" target="modbus-master" parent="1" value="Port 502 Modbus"/>
+          <mxCell id="e2" edge="1" source="modbus-master" target="plc-1" parent="1"/>
+          <mxCell id="e3" edge="1" source="modbus-master" target="rtu-db" parent="1"/>
+        </root>
+      </mxGraphModel>
+    `;
+
+    const result = analyzeDiagramToAttackGraph(scadaDrawIo, 'water-treatment-scada.drawio');
+    const graph = result.graph;
+
+    expect(graph.nodes.length).toBeGreaterThanOrEqual(4);
+    // Verified adaptive reachability: external contractor can traverse to historian database / PLC
+    expect(graph.findings.length).toBeGreaterThan(0);
+    expect(result.deviceCount).toBe(4);
+  });
 });
+

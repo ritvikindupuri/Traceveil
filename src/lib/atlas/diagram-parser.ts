@@ -449,6 +449,211 @@ export function parsePacketTracerTopology(rawContent: string): { cells: RawCell[
   return { cells, diagramName };
 }
 
+function isPublicIp(ip: string): boolean {
+  if (!ip) return false;
+  if (ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('127.') || ip.startsWith('0.')) return false;
+  if (ip.startsWith('172.')) {
+    const second = parseInt(ip.split('.')[1], 10);
+    if (!isNaN(second) && second >= 16 && second <= 31) return false;
+  }
+  return true;
+}
+
+function getSubnetPrefix(ip: string, mask: string): string {
+  const ipParts = ip.split('.').map(Number);
+  const maskParts = mask.split('.').map(Number);
+  if (ipParts.length !== 4 || maskParts.length !== 4) return ip;
+  const netParts = ipParts.map((p, i) => p & maskParts[i]);
+  const cidr = maskParts.reduce((acc, m) => acc + (m.toString(2).match(/1/g) || []).length, 0);
+  return `${netParts.join('.')}/${cidr}`;
+}
+
+/**
+ * Universal Cisco IOS / Packet Tracer running-config and startup-config parser
+ */
+export function parseCiscoIosConfig(rawText: string, filename: string): {
+  cells: RawCell[];
+  diagramName: string;
+  ciscoFindings: Finding[];
+} {
+  const text = rawText.replace(/[^\x20-\x7E\r\n\t]/g, ' ');
+  const lines = text.split('\n').map(l => l.trim());
+
+  const cells: RawCell[] = [];
+  const ciscoFindings: Finding[] = [];
+  let diagramName = 'Cisco Network Architecture';
+
+  const hostnames: string[] = [];
+  lines.forEach(l => {
+    const match = l.match(/^hostname\s+([A-Za-z0-9_.-]+)/i);
+    if (match && !hostnames.includes(match[1])) {
+      hostnames.push(match[1]);
+    }
+  });
+
+  if (hostnames.length === 0) {
+    hostnames.push('Cisco-Device-1');
+  } else {
+    diagramName = `Cisco Network (${hostnames.join(', ')})`;
+  }
+
+  let currentHost = hostnames[0];
+  let currentInterface: { name: string; ip?: string; mask?: string; isPublic: boolean; accessGroupIn?: string } | null = null;
+  const deviceInterfaces = new Map<string, typeof currentInterface[]>();
+  hostnames.forEach(h => deviceInterfaces.set(h, []));
+
+  let inVty = false;
+
+  lines.forEach((line, lineNum) => {
+    const hostMatch = line.match(/^hostname\s+([A-Za-z0-9_.-]+)/i);
+    if (hostMatch) {
+      currentHost = hostMatch[1];
+      inVty = false;
+      return;
+    }
+
+    const ifMatch = line.match(/^interface\s+([A-Za-z0-9_./-]+)/i);
+    if (ifMatch) {
+      inVty = false;
+      currentInterface = { name: ifMatch[1], isPublic: false };
+      deviceInterfaces.get(currentHost)?.push(currentInterface);
+      return;
+    }
+
+    if (currentInterface) {
+      const ipMatch = line.match(/^ip\s+address\s+([0-9.]+)\s+([0-9.]+)/i);
+      if (ipMatch) {
+        currentInterface.ip = ipMatch[1];
+        currentInterface.mask = ipMatch[2];
+        currentInterface.isPublic = isPublicIp(ipMatch[1]);
+      }
+      const aclMatch = line.match(/^ip\s+access-group\s+([A-Za-z0-9_-]+)\s+in/i);
+      if (aclMatch) {
+        currentInterface.accessGroupIn = aclMatch[1];
+      }
+    }
+
+    if (line.match(/^line\s+vty/i)) {
+      inVty = true;
+      currentInterface = null;
+      return;
+    }
+
+    if (inVty && line.match(/transport\s+input\s+(?:all|telnet)/i)) {
+      ciscoFindings.push({
+        id: `finding-telnet-${currentHost}`,
+        rule: 'cleartext-telnet-mgmt',
+        severity: 'high',
+        title: `Cleartext Telnet Remote Management Enabled on ${currentHost}`,
+        fix: "Disable Telnet and enforce SSHv2: 'line vty 0 4' -> 'transport input ssh' with 2048-bit RSA key.",
+        evidenceIds: [`ev-line-${lineNum + 1}`],
+      });
+    }
+
+    if (line.match(/access-list\s+\d+\s+permit\s+ip\s+any\s+any/i) || line.match(/permit\s+ip\s+any\s+any/i)) {
+      ciscoFindings.push({
+        id: `finding-acl-permissive-${currentHost}-${lineNum}`,
+        rule: 'permissive-cisco-acl',
+        severity: 'high',
+        title: `Overly Permissive Access Control List (permit ip any any) on ${currentHost}`,
+        fix: "Replace wildcard 'permit ip any any' with least-privilege destination port filtering.",
+        evidenceIds: [`ev-line-${lineNum + 1}`],
+      });
+    }
+
+    if (line.match(/^no\s+service\s+password-encryption/i) || line.match(/^password\s+[A-Za-z0-9]+/i)) {
+      if (!ciscoFindings.some(f => f.rule === 'cleartext-passwords' && f.title.includes(currentHost))) {
+        ciscoFindings.push({
+          id: `finding-pwd-${currentHost}`,
+          rule: 'cleartext-passwords',
+          severity: 'medium',
+          title: `Plaintext Passwords in Running Configuration on ${currentHost}`,
+          fix: "Enable 'service password-encryption' and configure secret hashes with 'enable secret'.",
+          evidenceIds: [`ev-line-${lineNum + 1}`],
+        });
+      }
+    }
+  });
+
+  hostnames.forEach(h => {
+    const isSwitch = h.toLowerCase().includes('switch') || h.toLowerCase().includes('sw');
+    cells.push({
+      id: `dev-${h}`,
+      value: `${h} [${isSwitch ? 'Switch' : 'Router'}]`,
+      style: isSwitch ? 'shape=cisco.switch' : 'shape=cisco.router',
+      vertex: true,
+    });
+  });
+
+  const subnetMap = new Map<string, { host: string; ifName: string; ip: string }[]>();
+  deviceInterfaces.forEach((ifs, host) => {
+    ifs.forEach(iface => {
+      if (iface.ip && iface.mask) {
+        const subnet = getSubnetPrefix(iface.ip, iface.mask);
+        if (!subnetMap.has(subnet)) subnetMap.set(subnet, []);
+        subnetMap.get(subnet)?.push({ host, ifName: iface.name, ip: iface.ip });
+      }
+    });
+  });
+
+  let linkCount = 1;
+  subnetMap.forEach((endpoints, subnet) => {
+    if (endpoints.length >= 2) {
+      for (let i = 0; i < endpoints.length - 1; i++) {
+        const ep1 = endpoints[i];
+        const ep2 = endpoints[i + 1];
+        if (ep1.host !== ep2.host) {
+          cells.push({
+            id: `link-${linkCount++}`,
+            value: `${ep1.ifName} <-> ${ep2.ifName} (${subnet})`,
+            style: 'edge',
+            edge: true,
+            source: `dev-${ep1.host}`,
+            target: `dev-${ep2.host}`,
+          });
+        }
+      }
+    } else if (endpoints.length === 1) {
+      const ep = endpoints[0];
+      const isPublic = isPublicIp(ep.ip);
+      const peerId = isPublic ? 'public-wan' : `net-${subnet.replace(/[^a-z0-9]/gi, '-')}`;
+      const peerName = isPublic ? 'Public Internet / WAN' : `Internal Subnet (${subnet})`;
+
+      if (!cells.some(c => c.id === peerId)) {
+        cells.push({
+          id: peerId,
+          value: peerName,
+          style: isPublic ? 'shape=mxgraph.aws4.internet' : 'shape=network.subnet',
+          vertex: true,
+        });
+      }
+
+      cells.push({
+        id: `link-${linkCount++}`,
+        value: `${ep.ifName} · ${ep.ip}`,
+        style: 'edge',
+        edge: true,
+        source: isPublic ? peerId : `dev-${ep.host}`,
+        target: isPublic ? `dev-${ep.host}` : peerId,
+      });
+
+      const ifaceObj = deviceInterfaces.get(ep.host)?.find(item => item.name === ep.ifName);
+      if (isPublic && !ifaceObj?.accessGroupIn) {
+        ciscoFindings.push({
+          id: `finding-missing-acl-${ep.host}-${ep.ifName}`,
+          rule: 'missing-ingress-acl',
+          severity: 'high',
+          title: `Unfiltered Public Ingress Interface (${ep.ifName} · ${ep.ip}) on ${ep.host}`,
+          fix: `Apply inbound access-list: 'interface ${ep.ifName}' -> 'ip access-group SEC_INBOUND in'.`,
+          evidenceIds: [`ev-dev-${ep.host}`],
+        });
+      }
+    }
+  });
+
+  return { cells, diagramName, ciscoFindings };
+}
+
 /**
  * Universal graph-theoretic engine that analyzes ANY draw.io or Packet Tracer diagram.
  * Evaluates real topological edges, choke-points, path reachability, and isolation boundaries.
@@ -458,15 +663,42 @@ export function analyzeDiagramToAttackGraph(
   rawContent: string,
   filename: string = 'architecture-diagram.drawio'
 ): ParsedDiagramResult {
-  const isPacketTracer =
-    filename.endsWith('.pkt') ||
-    filename.endsWith('.pka') ||
-    rawContent.toLowerCase().includes('packet tracer') ||
-    rawContent.toLowerCase().includes('<topology');
+  const isCiscoConfig =
+    filename.endsWith('.cfg') ||
+    filename.endsWith('.ios') ||
+    filename.endsWith('.conf') ||
+    rawContent.includes('hostname ') ||
+    rawContent.includes('interface GigabitEthernet') ||
+    rawContent.includes('interface FastEthernet') ||
+    rawContent.includes('interface Vlan') ||
+    rawContent.includes('access-list ') ||
+    rawContent.includes('line vty');
 
-  const { cells, diagramName } = isPacketTracer
-    ? parsePacketTracerTopology(rawContent)
-    : parseDrawIoXml(rawContent);
+  const isPacketTracer =
+    !isCiscoConfig &&
+    (filename.endsWith('.pkt') ||
+      filename.endsWith('.pka') ||
+      rawContent.toLowerCase().includes('packet tracer') ||
+      rawContent.toLowerCase().includes('<topology'));
+
+  let cells: RawCell[] = [];
+  let diagramName = 'Architecture Diagram';
+  const findings: Finding[] = [];
+
+  if (isCiscoConfig) {
+    const cisco = parseCiscoIosConfig(rawContent, filename);
+    cells = cisco.cells;
+    diagramName = cisco.diagramName;
+    cisco.ciscoFindings.forEach(f => findings.push(f));
+  } else if (isPacketTracer) {
+    const pt = parsePacketTracerTopology(rawContent);
+    cells = pt.cells;
+    diagramName = pt.diagramName;
+  } else {
+    const drawio = parseDrawIoXml(rawContent);
+    cells = drawio.cells;
+    diagramName = drawio.diagramName;
+  }
 
   let activeCells = cells;
   if (activeCells.length === 0) {
@@ -476,7 +708,6 @@ export function analyzeDiagramToAttackGraph(
   const nodes: GraphEntity[] = [];
   const edges: GraphRelation[] = [];
   const evidence: Evidence[] = [];
-  const findings: Finding[] = [];
   const now = new Date().toISOString();
 
   const fileEvidenceId = 'ev-diagram-file';
