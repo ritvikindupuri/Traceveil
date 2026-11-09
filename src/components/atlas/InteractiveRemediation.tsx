@@ -23,12 +23,13 @@ import {
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/agent-operations';
+import { executeLiveRemediationPR } from '@/lib/atlas/remediation.functions';
 import { cn } from '@/lib/utils';
 
 export type AgentStepLog = {
   command?: string;
   output: string[];
-  type?: 'cmd' | 'info' | 'success' | 'warn';
+  type?: 'cmd' | 'info' | 'success' | 'warn' | 'error';
 };
 
 export type AgentRun = {
@@ -40,6 +41,7 @@ export type AgentRun = {
   prNumber?: number;
   prUrl?: string;
   commitSha?: string;
+  isRealPR?: boolean;
 };
 
 export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
@@ -135,8 +137,8 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
     URL.revokeObjectURL(url);
   }
 
-  // Autonomous Agent Workflow: Clone, Branch, Apply, Test, Commit, Push, PR, Auto-Merge
-  function startAgentRemediation(patch: RemediationPatch, overrideRepo?: string) {
+  // Autonomous Agent Workflow: Real Live GitHub Branch, AST Patch, Commit & PR
+  async function startAgentRemediation(patch: RemediationPatch, overrideRepo?: string) {
     const targetRepo = (overrideRepo || repoUrl).trim();
     if (!targetRepo) {
       setPromptRepoForPatch(patch.id);
@@ -149,145 +151,6 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
     // Extract owner and repo
     const clean = targetRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
     const [owner, repoName] = clean.includes('/') ? clean.split('/') : ['org', clean || 'web-app'];
-    const shortHash = Math.random().toString(36).substring(2, 6);
-    const branchName = `traceveil/fix-${patch.id.replace('patch-', '')}-${shortHash}`;
-    const commitSha = Math.random().toString(16).substring(2, 9);
-    const prNumber = Math.floor(Math.random() * 85) + 14;
-    const prUrl = `https://github.com/${owner}/${repoName}/pull/${prNumber}`;
-
-    const sequence: {
-      command?: string;
-      output: string[];
-      delay: number;
-      type?: 'cmd' | 'info' | 'success' | 'warn';
-    }[] = [
-      {
-        output: [
-          `[TRACEVEIL REMEDIATION AGENT] Initializing autonomous container worktree...`,
-          `Target Web Application: ${graph.target}`,
-          `Target GitHub Codebase: https://github.com/${owner}/${repoName}`,
-          `Allocating ephemeral scratch runner (PID ${Math.floor(Math.random() * 60000 + 10000)})...`,
-        ],
-        delay: 300,
-        type: 'info',
-      },
-      {
-        command: `git clone https://github.com/${owner}/${repoName}.git /workspace/${repoName}`,
-        output: [
-          `Cloning into '/workspace/${repoName}'...`,
-          `remote: Enumerating objects: 242, done.`,
-          `remote: Compressing objects: 100% (148/148), done.`,
-          `Receiving objects: 100% (242/242), 1.25 MiB | 11.20 MiB/s, done.`,
-        ],
-        delay: 500,
-        type: 'cmd',
-      },
-      {
-        command: `cd /workspace/${repoName} && git checkout -b ${branchName}`,
-        output: [
-          `Switched to a new branch '${branchName}'`,
-          `[ANALYSIS] Vulnerability finding: ${patch.title}`,
-          `[ANALYSIS] Resolving file boundary: ${patch.filePath}:${patch.line}`,
-        ],
-        delay: 450,
-        type: 'cmd',
-      },
-      {
-        command: `git apply --check traceveil-${patch.id}.patch`,
-        output: [
-          `Validating AST diff against ${patch.filePath}...`,
-          `Patch dry-run succeeded without conflicts (0 hunks rejected).`,
-        ],
-        delay: 400,
-        type: 'cmd',
-      },
-      {
-        command: `git apply traceveil-${patch.id}.patch`,
-        output: [
-          `patching file ${patch.filePath}`,
-          `[TRANSFORMATION] Security directives successfully applied to ${patch.filePath}.`,
-        ],
-        delay: 400,
-        type: 'cmd',
-      },
-      {
-        command: `git diff --stat`,
-        output: [
-          ` ${patch.filePath} | ${patch.diff.split('\n').filter(l => l.startsWith('+')).length} ++++, ${patch.diff.split('\n').filter(l => l.startsWith('-')).length} ----`,
-          ` 1 file changed, ${patch.diff.split('\n').filter(l => l.startsWith('+')).length} insertions(+)`,
-        ],
-        delay: 350,
-        type: 'cmd',
-      },
-      {
-        command: `npm test -- --runInBand`,
-        output: [
-          `> test`,
-          `> vitest run`,
-          ` ✓ test/security/headers.spec.ts (5 tests passed)`,
-          ` ✓ test/routing/security-boundary.spec.ts (8 tests passed)`,
-          `[REGRESSION CHECK] Security assertions satisfied. Zero vulnerabilities reported.`,
-        ],
-        delay: 650,
-        type: 'cmd',
-      },
-      {
-        command: `git commit -am "security(${patch.filePath.split('/').pop()}): ${patch.title}"`,
-        output: [
-          `[${branchName} ${commitSha}] security(${patch.filePath.split('/').pop()}): ${patch.title}`,
-          ` 1 file changed, ${patch.diff.split('\n').filter(l => l.startsWith('+')).length} insertions(+)`,
-        ],
-        delay: 450,
-        type: 'cmd',
-      },
-      {
-        command: `git push origin ${branchName}`,
-        output: [
-          `Enumerating objects: 6, done.`,
-          `Writing objects: 100% (6/6), 840 bytes | 840.00 KiB/s, done.`,
-          `To https://github.com/${owner}/${repoName}.git`,
-          ` * [new branch]      ${branchName} -> ${branchName}`,
-        ],
-        delay: 550,
-        type: 'cmd',
-      },
-      {
-        command: `gh pr create --title "Security: ${patch.title}" --body "Automated remediation patch generated by Traceveil AI Agent for ${graph.target}."`,
-        output: [
-          `Creating pull request for ${branchName} into main in ${owner}/${repoName}...`,
-          `Pull request #${prNumber} opened: ${prUrl}`,
-          `[PR CREATED] Branch review status: Clean, zero conflicts detected.`,
-        ],
-        delay: 550,
-        type: 'cmd',
-      },
-      {
-        command: `gh pr merge ${prNumber} --auto --squash --delete-branch`,
-        output: [
-          `Merging pull request #${prNumber} (${branchName})...`,
-          `✓ Pull request #${prNumber} squashed and merged into main.`,
-          `✓ Remote branch ${branchName} deleted.`,
-          `[SUCCESS] Fix successfully deployed and merged into ${owner}/${repoName}:main.`,
-          `[REMEDIATION COMPLETE] Production endpoint attack path neutralized.`,
-        ],
-        delay: 700,
-        type: 'success',
-      },
-    ];
-
-    setAgentRuns(prev => ({
-      ...prev,
-      [patch.id]: {
-        status: 'running',
-        logs: [],
-        currentStep: 0,
-        totalSteps: sequence.length,
-        branchName,
-        prNumber,
-        prUrl,
-        commitSha,
-      },
-    }));
 
     // Cancel any previous timers for this patch
     if (activeTimers.current[patch.id]) {
@@ -295,43 +158,105 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
     }
     activeTimers.current[patch.id] = [];
 
-    let elapsed = 50;
-    sequence.forEach((item, sIdx) => {
-      const t = setTimeout(() => {
-        setAgentRuns(prev => {
-          const current = prev[patch.id];
-          if (!current) return prev;
-          const nextLogs = [
-            ...current.logs,
-            { command: item.command, output: item.output, type: item.type },
-          ];
-          const isDone = sIdx === sequence.length - 1;
-          return {
-            ...prev,
-            [patch.id]: {
-              ...current,
-              logs: nextLogs,
-              currentStep: sIdx + 1,
-              status: isDone ? 'completed' : 'running',
-            },
-          };
-        });
+    // Initialize with live starting logs
+    setAgentRuns(prev => ({
+      ...prev,
+      [patch.id]: {
+        status: 'running',
+        logs: [
+          {
+            type: 'info',
+            output: [
+              `[TRACEVEIL REMEDIATION AGENT] Initializing autonomous container worktree...`,
+              `Target GitHub Codebase: https://github.com/${owner}/${repoName}`,
+              `Target Security Finding: ${patch.title} in ${patch.filePath}`,
+              `Connecting to GitHub REST API...`,
+            ],
+          },
+        ],
+        currentStep: 1,
+        totalSteps: 6,
+        branchName: `traceveil/fix-${patch.id.replace('patch-', '')}`,
+      },
+    }));
 
-        // Auto-scroll terminal
-        const el = terminalScrollRefs.current[patch.id];
-        if (el) {
-          el.scrollTop = el.scrollHeight;
-        }
+    try {
+      const result = await executeLiveRemediationPR({
+        data: {
+          repoUrl: targetRepo,
+          patchId: patch.id,
+          title: patch.title,
+          filePath: patch.filePath,
+          line: patch.line,
+          diff: patch.diff,
+          remediatedCode: patch.remediatedCode,
+        },
+      });
 
-        // When complete, mark patch as applied/resolved in session
-        if (sIdx === sequence.length - 1) {
+      // Stream the real execution logs into the terminal
+      let step = 0;
+      const interval = setInterval(() => {
+        if (step < result.logs.length) {
+          const item = result.logs[step];
+          setAgentRuns(prev => {
+            const current = prev[patch.id];
+            if (!current) return prev;
+            return {
+              ...prev,
+              [patch.id]: {
+                ...current,
+                logs: [...current.logs, item],
+                currentStep: step + 2,
+                totalSteps: result.logs.length + 1,
+              },
+            };
+          });
+
+          const el = terminalScrollRefs.current[patch.id];
+          if (el) el.scrollTop = el.scrollHeight;
+          step++;
+        } else {
+          clearInterval(interval);
+          setAgentRuns(prev => {
+            const current = prev[patch.id];
+            if (!current) return prev;
+            return {
+              ...prev,
+              [patch.id]: {
+                ...current,
+                status: result.status === 'failed' ? 'error' : 'completed',
+                prNumber: result.prNumber,
+                prUrl: result.prUrl,
+                isRealPR: result.isRealPR,
+                branchName: result.branchName,
+                commitSha: result.commitSha,
+              },
+            };
+          });
           setAppliedState(prev => ({ ...prev, [patch.id]: true }));
         }
-      }, elapsed);
-
-      activeTimers.current[patch.id].push(t);
-      elapsed += item.delay;
-    });
+      }, 250);
+    } catch (err: unknown) {
+      setAgentRuns(prev => {
+        const current = prev[patch.id];
+        return {
+          ...prev,
+          [patch.id]: {
+            ...current,
+            status: 'error',
+            logs: [
+              ...(current?.logs || []),
+              {
+                type: 'error',
+                output: [
+                  `[EXECUTION ERROR] ${err instanceof Error ? err.message : 'Failed to reach GitHub API.'}`,
+                ],
+              },
+            ],
+          },
+        };
+      });
+    }
   }
 
   // Remediate all patches sequentially
@@ -709,12 +634,16 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
                       )}
                     </div>
 
-                    {/* Console Footer: Celebratory PR link */}
+                    {/* Console Footer: Real PR or Local Patch Status */}
                     {isCompleted && run.prUrl && (
                       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs">
                         <div className="flex items-center gap-2 text-emerald-800 font-medium">
                           <GitMerge className="size-4 text-emerald-600" />
-                          <span>Pull Request <strong>#{run.prNumber}</strong> automatically merged into main. Vulnerability resolved at source.</span>
+                          {run.isRealPR && run.prNumber ? (
+                            <span>Live Pull Request <strong>#{run.prNumber}</strong> created on GitHub. Vulnerability resolved at source.</span>
+                          ) : (
+                            <span>AST security patch verified. Click 'Download .patch' to apply locally, or save a GitHub PAT to create remote PRs.</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <a
@@ -723,9 +652,18 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 font-mono text-[11px] text-emerald-700 hover:text-emerald-900 underline font-semibold"
                           >
-                            <span>View on GitHub</span>
+                            <span>{run.isRealPR ? 'View on GitHub' : 'View Repo on GitHub'}</span>
                             <ExternalLink className="size-3" />
                           </a>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadPatch(patch)}
+                            className="h-6 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                          >
+                            <Download className="size-3" />
+                            <span>Download .patch</span>
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
