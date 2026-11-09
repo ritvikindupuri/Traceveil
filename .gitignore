@@ -1,3 +1,7 @@
+# Python bytecode from docs/architecture/generate.py
+__pycache__/
+*.pyc
+
 # Logs
 logs
 *.log
