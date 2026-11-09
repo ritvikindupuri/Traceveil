@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Network, Crosshair, X } from 'lucide-react';
+import { Network, Crosshair, X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { categoryEvidence, toolEvidence, referenceTargets, severityLevel } from '@/lib/scan/visual-evidence';
 import type { Inventory, Signal, Verdict } from '@/lib/scan/types';
@@ -73,13 +74,47 @@ export function AuditVisuals({ inventory, signals, verdict }: { inventory: Inven
               <span className="mt-1 block font-mono text-[9px] text-muted-foreground">{c.matches.length} rule matches</span>
             </Button>)}
           </div>
-          {verdict && <div className="mt-5 flex items-center gap-3 border-t border-border pt-3">
-            <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-label={`Model risk assessment ${verdict.risk} out of 100`}>
-              <circle cx="32" cy="32" r="27" className="fill-none stroke-secondary" strokeWidth="4" />
-              <circle cx="32" cy="32" r="27" pathLength="100" strokeDasharray={`${Math.max(0, Math.min(100,verdict.risk))} 100`} transform="rotate(-90 32 32)" className={cn('fill-none stroke-current', verdict.risk >= 70 ? 'text-destructive' : verdict.risk >= 40 ? 'text-warning' : 'text-primary')} strokeWidth="4" />
-              <text x="32" y="37" textAnchor="middle" className="fill-foreground font-mono text-[16px]">{verdict.risk}</text>
-            </svg><div><div className="text-[11px]">Model risk assessment</div><div className="mt-1 font-mono text-[10px] text-muted-foreground">{verdict.verdict.toUpperCase()} · /100</div></div>
-          </div>}
+          {verdict && (
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="mt-5 flex cursor-help items-center gap-3 border-t border-border pt-3 rounded-md p-1.5 hover:bg-muted/40 transition">
+                    <svg viewBox="0 0 64 64" className="size-14 shrink-0" aria-label={`Model risk assessment ${verdict.risk} out of 100`}>
+                      <circle cx="32" cy="32" r="27" className="fill-none stroke-secondary" strokeWidth="4" />
+                      <circle cx="32" cy="32" r="27" pathLength="100" strokeDasharray={`${Math.max(0, Math.min(100,verdict.risk))} 100`} transform="rotate(-90 32 32)" className={cn('fill-none stroke-current', verdict.risk >= 70 ? 'text-destructive' : verdict.risk >= 40 ? 'text-warning' : 'text-primary')} strokeWidth="4" />
+                      <text x="32" y="37" textAnchor="middle" className="fill-foreground font-mono text-[16px]">{verdict.risk}</text>
+                    </svg>
+                    <div>
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                        <span>Model risk assessment</span>
+                        <Info className="size-3 text-muted-foreground" />
+                      </div>
+                      <div className="mt-1 font-mono text-[10px] text-muted-foreground">{verdict.verdict.toUpperCase()} · {verdict.risk}/100</div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs space-y-2 p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl">
+                  <div className="font-semibold text-foreground flex items-center justify-between border-b border-border pb-1">
+                    <span>How This Score is Calculated</span>
+                    <span className={cn('font-mono text-[10px] uppercase font-bold', verdict.verdict === 'block' ? 'text-destructive' : verdict.verdict === 'review' ? 'text-warning' : 'text-primary')}>{verdict.verdict} ({verdict.risk}/100)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    The 0–100 risk score evaluates the probability and blast radius of prompt injection, parameter escalation, or data exfiltration:
+                  </p>
+                  <div className="space-y-1 text-[10px] font-mono bg-muted/30 p-2 rounded border border-border/50">
+                    <div>• <strong className="text-destructive">+40 pts:</strong> Critical threats (credential exfiltration, arbitrary command execution)</div>
+                    <div>• <strong className="text-warning">+20 pts:</strong> High risk findings (unscoped SSRF, path traversal)</div>
+                    <div>• <strong className="text-foreground">+10 pts:</strong> Base exposure for static pattern triggers</div>
+                  </div>
+                  <div className="pt-1 text-[10px] border-t border-border/60 text-muted-foreground flex justify-between">
+                    <span><strong>0–39:</strong> Allow</span>
+                    <span><strong>40–69:</strong> Review</span>
+                    <span><strong>70–100:</strong> Block</span>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
       {(focused || activeCategory) && <div className="border-t border-border py-3">

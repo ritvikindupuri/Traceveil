@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Square, Check, Circle, History, LogOut, Download, X,Server, ChevronDown, SlidersHorizontal, Info, ShieldAlert, ShieldCheck, AlertTriangle } from "lucide-react";
 import {useServerFn} from '@tanstack/react-start';
 import {useQueryClient} from '@tanstack/react-query';
 import {supabase} from '@/integrations/supabase/client';
@@ -13,6 +13,7 @@ import {listAudits} from '@/lib/scan/records.functions';
 import { Logo } from "@/components/armorix/Logo";
 import { AuditVisuals } from "@/components/armorix/AuditVisuals";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import type { Inventory, Mode, Sev, Signal, Verdict } from "@/lib/scan/types";
 import { cn } from "@/lib/utils";
 import { trustedDestination } from '@/lib/scan/destinations';
@@ -304,13 +305,82 @@ function VerdictCard({ v }: { v: Verdict }) {
     <section className="min-w-0 border-y border-border">
       <div className="flex flex-wrap items-center gap-6 border-b border-border p-4">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Verdict</div>
-          <div className={cn("text-2xl font-semibold uppercase tracking-tight", tone)}>{v.verdict}</div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <span>Agent Guardrail Verdict</span>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help text-muted-foreground hover:text-foreground">
+                    <Info className="size-3" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl">
+                  <div className="font-semibold text-foreground border-b border-border pb-1">What does this verdict mean?</div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                    Traceveil acts as an AI agent security guardrail. The verdict advises your agent runtime or proxy whether to permit or block tool invocations before the agent executes them.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={cn("text-2xl font-semibold uppercase tracking-tight", tone)}>{v.verdict}</span>
+            <span className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-medium border flex items-center gap-1",
+              v.verdict === "block" ? "bg-destructive/10 text-destructive border-destructive/30" :
+              v.verdict === "review" ? "bg-warning/10 text-warning border-warning/30" :
+              "bg-success/10 text-success border-success/30"
+            )}>
+              {v.verdict === "block" && <ShieldAlert className="size-3" />}
+              {v.verdict === "review" && <AlertTriangle className="size-3" />}
+              {v.verdict === "allow" && <ShieldCheck className="size-3" />}
+              <span>
+                {v.verdict === "block" ? "Agent Execution Blocked" :
+                 v.verdict === "review" ? "Approval Required" :
+                 "Safe to Execute"}
+              </span>
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground max-w-sm leading-relaxed">
+            {v.verdict === "block"
+              ? "Critical risks detected. Guardrails recommend blocking agent tool calls to this server to prevent unauthorized actions or credential leakage."
+              : v.verdict === "review"
+              ? "Sensitive capabilities detected. Requires human approval or parameter scoping before execution."
+              : "Tools conform to safety policies. Safe for autonomous agent invocation."}
+          </p>
         </div>
-        <div className="w-36">
-          <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><span>Risk</span><span>{v.risk}</span></div>
-          <div className="mt-2 h-1.5 rounded-full bg-muted"><div className={cn("h-full rounded-full", riskBar(v.risk))} style={{ width: `${Math.min(100, Math.max(0, v.risk))}%` }} /></div>
-        </div>
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-44 cursor-help rounded-md p-2 hover:bg-muted/40 transition">
+                <div className="flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <span className="flex items-center gap-1">Risk Score <Info className="size-2.5" /></span>
+                  <span className="font-bold text-foreground">{v.risk}/100</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-muted">
+                  <div className={cn("h-full rounded-full", riskBar(v.risk))} style={{ width: `${Math.min(100, Math.max(0, v.risk))}%` }} />
+                </div>
+                <div className="mt-1 text-[9px] text-muted-foreground text-right">
+                  {v.risk >= 70 ? 'High Risk · Blocked' : v.risk >= 40 ? 'Moderate · Review' : 'Low Risk · Allowed'}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl">
+              <div className="font-semibold text-foreground border-b border-border pb-1">Risk Score: {v.risk} / 100</div>
+              <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                Evaluated dynamically from discovered security signals and static rule violations:
+              </p>
+              <div className="mt-2 space-y-1 font-mono text-[10px] text-muted-foreground bg-muted/30 p-2 rounded border border-border/50">
+                <div>• <span className="text-destructive font-bold">+40 pts:</span> Critical findings (RCE, token exfiltration)</div>
+                <div>• <span className="text-warning font-bold">+20 pts:</span> High severity (SSRF, arbitrary filesystem)</div>
+                <div>• <span className="text-foreground font-bold">+10 pts:</span> Base exposure for static triggers</div>
+              </div>
+              <div className="mt-2 pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
+                Score &ge; 70 triggers an <strong>Agent Execution BLOCK</strong> recommendation.
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <div className="ml-auto text-right"><div className="font-mono text-xl">{v.findings?.length ?? 0}</div><div className="text-[10px] text-muted-foreground">Findings</div></div>
       </div>
       <details className="group border-b border-border"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2.5 text-xs text-muted-foreground">Assessment<ChevronDown className="size-3.5 transition-transform group-open:rotate-180"/></summary><p className="px-4 pb-4 text-sm leading-relaxed text-muted-foreground">{v.summary}</p></details>
