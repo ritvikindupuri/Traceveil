@@ -34,10 +34,16 @@ OUT_PNG = ROOT / "traceveil-architecture.png"
 OUT_PNG_838 = ROOT / "traceveil-architecture-838.png"
 
 W, H = 1800, 900
-MARGIN = 16
-TEXT_GAP = 16
-ARROW_CLEAR = 10
-STROKE = 1.75
+MARGIN = 14
+TEXT_GAP = 14
+ARROW_CLEAR = 12
+STROKE = 2.2
+STROKE_DASH = 1.6
+TITLE_SIZE = 18
+SUB_SIZE = 14
+CHIP_SIZE = 12
+CALLOUT_SIZE = 13
+REGION_SIZE = 12
 
 FONT_REG_PATH = "/usr/share/fonts/truetype/macos/Inter-Regular.ttf"
 FONT_MED_PATH = "/usr/share/fonts/truetype/macos/Inter-Medium.ttf"
@@ -48,7 +54,7 @@ FONT_BOLD_PATH = "/usr/share/fonts/truetype/macos/Inter-Bold.ttf"
 INK = "#0F172A"
 MUTED = "#64748B"
 LINE = "#94A3B8"
-LINE_STRONG = "#64748B"
+LINE_STRONG = "#475569"
 CARD = "#FFFFFF"
 CARD_BORDER = "#E2E8F0"
 REGION = "#F8FAFC"
@@ -272,14 +278,12 @@ class Scene:
         dashed: bool = False,
         min_w: float = 168,
     ) -> Rect:
-        title_w, title_h, title_ascent = measure(title, 16, "bold")
-        sub_w, sub_h, sub_ascent = measure(subtitle, 12, "regular")
-        pad_x, pad_y = 14, 12
-        icon_r = 19
-        gap = 10
+        title_w, title_h, title_ascent = measure(title, TITLE_SIZE, "bold")
+        sub_w, sub_h, sub_ascent = measure(subtitle, SUB_SIZE, "regular")
+        pad_x, pad_y = 14, 11
+        icon_r = 20
         inner_w = max(min_w - 2 * pad_x, title_w, sub_w, icon_r * 2)
         w = inner_w + 2 * pad_x
-        # icon, 8px, title, 4px, subtitle
         h = pad_y + icon_r * 2 + 8 + title_h + 4 + sub_h + pad_y
         dash = DASH if dashed else None
         fill = "#FCFCFD" if dashed else CARD
@@ -289,9 +293,9 @@ class Scene:
         icon_cy = y + pad_y + icon_r
         self.icon_badge(cx, icon_cy, icon_r, icon_bg, icon, f"{name}:icon", name)
         title_y = icon_cy + icon_r + 8 + title_ascent
-        self.text_box(cx, title_y, title, 16, "bold", INK, "middle", f"{name}:title", name)
+        self.text_box(cx, title_y, title, TITLE_SIZE, "bold", INK, "middle", f"{name}:title", name)
         sub_y = title_y + (title_h - title_ascent) + 4 + sub_ascent
-        self.text_box(cx, sub_y, subtitle, 12, "regular", MUTED, "middle", f"{name}:sub", name)
+        self.text_box(cx, sub_y, subtitle, SUB_SIZE, "regular", MUTED, "middle", f"{name}:sub", name)
         # Ensure computed height really contains text (defensive).
         last = [r for r in self.rects if r.parent == name and r.kind == "text"][-1]
         if last.b + pad_y - y > h + 0.5:
@@ -300,8 +304,8 @@ class Scene:
 
     def callout(self, x: float, y: float, number: int, text: str, name: str) -> Rect:
         """Badge + label. (x,y) is the top-left of the combined group."""
-        tw, th, ascent = measure(text, 12, "medium")
-        badge_r = 9
+        tw, th, ascent = measure(text, CALLOUT_SIZE, "medium")
+        badge_r = 10
         pad_x, pad_y = 10, 6
         gap = 8
         box_w = pad_x + tw + pad_x
@@ -331,7 +335,7 @@ class Scene:
             box_x + pad_x,
             box_y + pad_y + ascent,
             text,
-            12,
+            CALLOUT_SIZE,
             "medium",
             "#9A3412",
             "start",
@@ -354,7 +358,7 @@ class Scene:
         fill = "#F8FAFC" if not dashed else "#FAFBFC"
         stroke = "#94A3B8" if dashed else REGION_BORDER
         self.round_rect(x, y, w, h, 18, fill, stroke, 1.4, dash, name, "region")
-        self.text_box(x + 16, y + 22, label, 11, "semibold", MUTED, "start", f"{name}:label", name)
+        self.text_box(x + 16, y + 20, label, REGION_SIZE, "semibold", MUTED, "start", f"{name}:label", name)
         return self.rects[-2]
 
     def arrow(self, points: list[tuple[float, float]], name: str, dashed: bool = False) -> None:
@@ -365,8 +369,10 @@ class Scene:
             d += f" L {x:.2f} {y:.2f}"
         dash_attr = f'stroke-dasharray="{DASH}"' if dashed else ""
         marker = "url(#arrow-dash)" if dashed else "url(#arrow)"
+        stroke = LINE if dashed else LINE_STRONG
+        width = STROKE_DASH if dashed else STROKE
         self.svg.append(
-            f'<path d="{d}" fill="none" stroke="{LINE_STRONG}" stroke-width="{STROKE}" '
+            f'<path d="{d}" fill="none" stroke="{stroke}" stroke-width="{width}" '
             f'stroke-linejoin="round" stroke-linecap="round" marker-end="{marker}" {dash_attr}/>'
         )
         for i in range(len(points) - 1):
@@ -395,7 +401,7 @@ class Scene:
         icon_bg: str,
         name: str,
     ) -> Rect:
-        tw, th, ascent = measure(title, 11, "semibold")
+        tw, th, ascent = measure(title, CHIP_SIZE, "semibold")
         pad_x, pad_y = 10, 8
         icon_r = 12
         w = pad_x + icon_r * 2 + 8 + tw + pad_x
@@ -406,7 +412,7 @@ class Scene:
             x + pad_x + icon_r * 2 + 8,
             y + (h - th) / 2 + ascent,
             title,
-            11,
+            CHIP_SIZE,
             "semibold",
             INK,
             "start",
@@ -443,6 +449,13 @@ def hline(a: Rect, b: Rect, y: float | None = None) -> list[tuple[float, float]]
 # ---------------------------------------------------------------------------
 
 
+def dash_chip(scene: Scene, chip: Rect) -> None:
+    scene.svg.append(
+        f'<rect x="{chip.x:.2f}" y="{chip.y:.2f}" width="{chip.w:.2f}" height="{chip.h:.2f}" '
+        f'rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="{DASH}"/>'
+    )
+
+
 def build() -> Scene:
     s = Scene()
     s.svg.append(
@@ -457,7 +470,7 @@ def build() -> Scene:
     )
     s.svg.append(
         '<marker id="arrow-dash" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">'
-        f'<path d="M0,0.6 L7.2,4 L0,7.4" fill="{LINE_STRONG}"/>'
+        f'<path d="M0,0.6 L7.2,4 L0,7.4" fill="{LINE}"/>'
         "</marker>"
     )
     s.svg.append(
@@ -470,12 +483,12 @@ def build() -> Scene:
     s.round_rect(0, 0, W, H, 0, "#FFFFFF", "#FFFFFF", 0, None, "canvas", "canvas")
     s.rects[-1].ignore_vs = frozenset({"*"})
 
-    s.text_box(W / 2, 32, "How a Traceveil investigation run works", 22, "bold", INK, "middle", "title")
+    s.text_box(W / 2, 30, "How a Traceveil investigation run works", 22, "bold", INK, "middle", "title")
     s.text_box(
         W / 2,
-        54,
+        50,
         "One signed-in scan: collect evidence, save an owner-scoped record, then inspect the graph.",
-        12,
+        13,
         "regular",
         MUTED,
         "middle",
@@ -504,50 +517,44 @@ def build() -> Scene:
     ms_icon = [(MICROSOFT_PATH, "#0078D4", "")]
     wiki_icon = [(FILE_PATH, "#0F172A", "")]
 
-    # Regions first (under nodes). Top padding leaves a strip for in-region callouts.
-    s.region(20, 118, 318, 652, "Browser", "region-browser")
-    s.region(352, 118, 1012, 652, "Traceveil server  ·  Node process, no repository code executed", "region-server")
-    s.region(1378, 118, 400, 420, "Browser", "region-results")
-    s.region(1378, 548, 400, 222, "Allowlisted MCP hosts  ·  runtime only", "region-mcp", dashed=True)
+    # Regions fill the frame under the title. Right column splits browser canvas / MCP hosts.
+    s.region(16, 54, 292, 812, "Browser", "region-browser")
+    s.region(320, 54, 1056, 812, "Traceveil server  ·  Node process, no repository code executed", "region-server")
+    s.region(1388, 54, 396, 400, "Browser", "region-results")
+    s.region(1388, 640, 396, 226, "Allowlisted MCP hosts  ·  runtime tools/call", "region-mcp", dashed=True)
 
-    you = s.node_card(90, 205, "You", "Signed-in investigator", user_icon, "#334155", "you")
-    console = s.node_card(74, 360, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console")
-    mcp_page = s.node_card(74, 640, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", True)
+    you = s.node_card(80, 96, "You", "Signed-in investigator", user_icon, "#334155", "you")
+    console = s.node_card(62, 280, "Console", "Workspace after sign-in", window_icon, "#4F46E5", "console")
+    mcp_page = s.node_card(62, 700, "MCP audits", "/mcp-audits page", window_icon, "#9A3412", "mcp-page", True)
 
-    scan = s.node_card(376, 236, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan")
-    github = s.node_card(628, 160, "GitHub collector", "Bounded public snapshot", github_icon, "#E2E8F0", "github")
+    scan = s.node_card(348, 280, "Scan API", "POST /api/application-scan", scan_icon, "#0284C7", "scan")
+    github = s.node_card(628, 88, "GitHub collector", "Bounded public snapshot", github_icon, "#E2E8F0", "github")
     pat_title = "Encrypted GitHub PAT"
-    pat_tw, _, _ = measure(pat_title, 11, "semibold")
+    pat_tw, _, _ = measure(pat_title, CHIP_SIZE, "semibold")
     pat_w = 10 + 24 + 8 + pat_tw + 10
-    pat = s.host_chip(github.x + (github.w - pat_w) / 2, github.b + 24, pat_title, lock_icon, "#334155", "pat")
-    s.svg.append(
-        f'<rect x="{pat.x:.2f}" y="{pat.y:.2f}" width="{pat.w:.2f}" height="{pat.h:.2f}" '
-        f'rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="{DASH}"/>'
-    )
-    live = s.node_card(628, 360, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live")
-    graph = s.node_card(900, 236, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph")
-    agents = s.node_card(1148, 236, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents")
-    store = s.node_card(900, 500, "Local JSON store", "Owner-readable scan record", file_icon, "#D97706", "store")
-    guard = s.node_card(1148, 500, "Tool guard", "POST /api/guard checks", lock_icon, "#BE123C", "guard", True)
-    mcp_scan = s.node_card(376, 640, "MCP ingest", "POST /api/scan NDJSON", scan_icon, "#C2410C", "mcp-scan", True)
+    pat = s.host_chip(github.x + (github.w - pat_w) / 2, github.b + 20, pat_title, lock_icon, "#334155", "pat")
+    dash_chip(s, pat)
+    live = s.node_card(628, 430, "Live HTTPS probes", "Four GETs on port 443", globe_icon, "#0F766E", "live")
+    graph = s.node_card(880, 280, "Graph engine", "Static rules, evidence IDs", scan_icon, "#7C3AED", "graph")
+    agents = s.node_card(1124, 280, "Report agents", "Four template write-ups", robot_icon, "#0F766E", "agents")
+    store = s.node_card(880, 430, "Local JSON store", "Scan API writes the record", file_icon, "#D97706", "store")
+    isolation = s.node_card(1124, 430, "Isolation agent", "Drafts RLS on the server", robot_icon, "#5B21B6", "isolation", True)
+    gemini = s.host_chip(isolation.x + 8, isolation.b + 18, "Google Gemini", gemini_icon, "#EDE9FE", "gemini")
+    dash_chip(s, gemini)
 
-    canvas = s.node_card(1488, 205, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node")
-    isolation = s.node_card(1472, 360, "Isolation agent", "Chat drafts RLS text", robot_icon, "#5B21B6", "isolation", True)
-    gemini = s.host_chip(1488, 486, "Google Gemini", gemini_icon, "#EDE9FE", "gemini")
-    s.svg.append(
-        f'<rect x="{gemini.x:.2f}" y="{gemini.y:.2f}" width="{gemini.w:.2f}" height="{gemini.h:.2f}" '
-        f'rx="10" fill="none" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="{DASH}"/>'
-    )
+    mcp_scan = s.node_card(348, 700, "MCP ingest", "POST /api/scan; saves audit", scan_icon, "#C2410C", "mcp-scan", True)
+    guard = s.node_card(640, 700, "Tool guard", "Checks, then tools/call", lock_icon, "#BE123C", "guard", True)
 
-    deepwiki = s.host_chip(1410, 586, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki")
-    cloudflare = s.host_chip(1410, 638, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare")
-    microsoft = s.host_chip(1410, 690, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft")
+    canvas = s.node_card(1470, 280, "Results canvas", "React Flow + Dagre layout", window_icon, "#4338CA", "canvas-node")
 
-    # --- Solid path: You → Console → Scan → (GitHub | Live) → Graph → Agents → Canvas
-    #                                      ↘ Store
+    cloudflare = s.host_chip(1460, guard.cy - 20, "Cloudflare Docs", cf_icon, "#FFF7ED", "cloudflare")
+    deepwiki = s.host_chip(1460, cloudflare.y - cloudflare.h - 14, "DeepWiki", wiki_icon, "#E2E8F0", "deepwiki")
+    microsoft = s.host_chip(1460, cloudflare.b + 14, "Microsoft Learn", ms_icon, "#EFF6FF", "microsoft")
+
+    # Dominant solid path: You → Console → Scan → (GitHub | Live) → Graph → Agents → Canvas
     s.arrow([node_anchor(you, "bottom"), node_anchor(console, "top")], "a1")
 
-    rail = scan.x - 36
+    rail = scan.x - 28
     s.arrow(
         [
             (console.r + ARROW_CLEAR, console.cy),
@@ -596,10 +603,9 @@ def build() -> Scene:
         "a4-live",
     )
 
-    s.arrow([node_anchor(graph, "bottom"), node_anchor(store, "top")], "a5")
     s.arrow([(graph.r + ARROW_CLEAR, graph.cy), (agents.x - ARROW_CLEAR, agents.cy)], "a6")
 
-    out_x = agents.r + 28
+    out_x = (agents.r + canvas.x) / 2
     s.arrow(
         [
             (agents.r + ARROW_CLEAR, agents.cy),
@@ -610,84 +616,63 @@ def build() -> Scene:
         "a7",
     )
 
-    # Dashed PAT hangs off the GitHub collector (loaded at collect time).
+    # Save is application-scan.ts insert — Scan API writes the JSON store, not Graph engine.
+    save_y = max(scan.b, live.b, store.b) + 56
     s.arrow(
         [
-            (github.cx, github.b + ARROW_CLEAR),
-            (github.cx, pat.y - ARROW_CLEAR),
+            (scan.cx, scan.b + ARROW_CLEAR),
+            (scan.cx, save_y),
+            (store.cx, save_y),
+            (store.cx, store.b + ARROW_CLEAR),
         ],
-        "d-pat",
+        "a-save",
+    )
+
+    s.arrow([(github.cx, github.b + ARROW_CLEAR), (github.cx, pat.y - ARROW_CLEAR)], "d-pat", True)
+    s.arrow(
+        [
+            (isolation.cx, isolation.b + ARROW_CLEAR),
+            (isolation.cx, gemini.y - ARROW_CLEAR),
+        ],
+        "d-gemini",
         True,
     )
 
-    # Dashed MCP: Console → audits → ingest → Store (rejoin) and Guard → hosts.
+    # One dashed MCP lane: Console → audits → ingest → guard → hosts (guard itself forwards tools/call).
     s.arrow([node_anchor(console, "bottom"), node_anchor(mcp_page, "top")], "d-mcp-1", True)
     s.arrow(
         [(mcp_page.r + ARROW_CLEAR, mcp_page.cy), (mcp_scan.x - ARROW_CLEAR, mcp_scan.cy)],
         "d-mcp-2",
         True,
     )
-    stem = mcp_scan.r + 40
     s.arrow(
-        [
-            (mcp_scan.r + ARROW_CLEAR, mcp_scan.cy),
-            (stem, mcp_scan.cy),
-            (stem, store.cy),
-            (store.x - ARROW_CLEAR, store.cy),
-        ],
-        "d-mcp-store",
-        True,
-    )
-    s.arrow(
-        [
-            (stem, mcp_scan.cy),
-            (guard.cx, mcp_scan.cy),
-            (guard.cx, guard.b + ARROW_CLEAR),
-        ],
-        "d-mcp-guard",
+        [(mcp_scan.r + ARROW_CLEAR, mcp_scan.cy), (guard.x - ARROW_CLEAR, guard.cy)],
+        "d-mcp-3",
         True,
     )
     s.arrow(
         [
             (guard.r + ARROW_CLEAR, guard.cy),
-            (1370, guard.cy),
-            (1370, deepwiki.cy),
-            (deepwiki.x - ARROW_CLEAR, deepwiki.cy),
+            (cloudflare.x - ARROW_CLEAR, cloudflare.cy),
         ],
         "d-guard-hosts",
         True,
     )
 
-    s.arrow(
-        [
-            (agents.cx, agents.b + ARROW_CLEAR),
-            (agents.cx, isolation.cy),
-            (isolation.x - ARROW_CLEAR, isolation.cy),
-        ],
-        "d-iso",
-        True,
-    )
-    s.arrow(
-        [node_anchor(isolation, "bottom"), node_anchor(gemini, "top")],
-        "d-gemini",
-        True,
-    )
-
-    # Callouts sit beside the arrows they explain — never on the stroke.
-    s.callout(90, 159, 1, "Sign in; session stays here", "c1")
-    s.callout(258, 428, 2, "Pick repo or live app", "c2")
-    s.callout(376, 190, 3, "Authenticated scan starts", "c3")
-    s.callout(628, 486, 4, "GitHub files or live HTTPS", "c4")
-    s.callout(900, 190, 5, "Static rules bind evidence", "c5")
-    s.callout(1148, 190, 6, "Record saved; agents report", "c6")
-    s.callout(1488, 159, 7, "Canvas draws the graph", "c7")
-    s.callout(610, 612, 8, "Optional MCP audit and guard", "c8")
+    s.callout(you.x, you.b + 10, 1, "Sign in; session stays here", "c1")
+    s.callout(console.x, console.b + 12, 2, "Pick repo or live app", "c2")
+    s.callout(scan.x, scan.y - 42, 3, "Authenticated scan starts", "c3")
+    s.callout(live.x, live.y - 42, 4, "GitHub files or live HTTPS", "c4")
+    s.callout(graph.x, graph.y - 42, 5, "Static rules bind evidence", "c5")
+    s.callout(live.x, live.b + 10, 6, "Record saved; agents report", "c6")
+    s.callout(canvas.x, canvas.y - 42, 7, "Canvas draws the graph", "c7")
+    s.callout(mcp_scan.x, mcp_scan.y - 42, 8, "Optional MCP audit and guard", "c8")
 
     s.text_box(
-        24,
-        884,
-        "Dashed = optional or config-dependent (GitHub PAT, Gemini API key, MCP audit, tool guard). Numbered callouts 1–8 match the README steps.",
-        11,
+        20,
+        886,
+        "Dashed = optional or config-dependent (GitHub PAT, Gemini API key, MCP audit, tool guard). Callouts 1–8 match the README. Isolation agent and Gemini run on the server.",
+        12,
         "regular",
         MUTED,
         "start",

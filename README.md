@@ -57,12 +57,13 @@ flowchart LR
   scan --> live[Live HTTPS probes]
   github --> graph[Graph engine]
   live --> graph
-  graph --> store[Local JSON store]
+  scan --> store[Local JSON store]
   graph --> agents[Report agents]
   agents --> canvas[Results canvas]
+  console -.-> isolation[Isolation agent]
+  isolation -.-> gemini[Google Gemini]
   console -.-> mcpPage[MCP audits]
   mcpPage -.-> mcpScan["POST /api/scan"]
-  mcpScan -.-> store
   mcpScan -.-> guard["POST /api/guard"]
   guard -.-> hosts[Allowlisted MCP hosts]
 ```
@@ -83,11 +84,11 @@ Numbered steps match the callouts on the diagram.
 
 5. **Static rules bind evidence.** `buildRepositoryGraph` / `validateGraph` create nodes, edges, and findings only from inspected files or probe headers. Every entity carries evidence ids; the model is not allowed to invent graph facts. Coverage gaps are recorded on the graph object.
 
-6. **Record saved; agents report.** The server inserts `application_scans` (status `analyzing`), then `analyzeGraph` streams four template reports — red team, remediation, defense planner, code proof verifier — with `redact()` applied. A later update sets status `complete` (or `partial` if agents fail). These reports are local templates, not live Gemini calls.
+6. **Record saved; agents report.** After collection returns, `POST /api/application-scan` itself inserts the `application_scans` row (status `analyzing`) into the local JSON store, then `analyzeGraph` streams four template reports — red team, remediation, defense planner, code proof verifier — with `redact()` applied. A later update sets status `complete` (or `partial` if agents fail). These reports are local templates, not live Gemini calls. The graph engine does not write the record.
 
-7. **Canvas draws the graph.** The client renders the streamed graph with React Flow and Dagre (`rankdir: 'LR'`). Findings, the evidence drawer, and export JSON all read that same in-memory graph. Isolation chat is a dashed follow-on: it may call Google Gemini when `GEMINI_API_KEY` / `ARGON_API_KEY` / `GOOGLE_API_KEY` is set, otherwise a local template.
+7. **Canvas draws the graph.** The client renders the streamed graph with React Flow and Dagre (`rankdir: 'LR'`). Findings, the evidence drawer, and export JSON all read that same in-memory graph. Isolation chat is a Console tab only in the browser; `chatWithTenantIsolationAgent` / `runAutonomousTenantIsolationAgent` run on the server and may call Google Gemini when `GEMINI_API_KEY` / `ARGON_API_KEY` / `GOOGLE_API_KEY` is set, otherwise a local template.
 
-8. **Optional MCP audit and guard.** `/mcp-audits` posts to `/api/scan` (definitions, endpoint, or transcript). `runScan` ingests tools, scores regex signals, emits three template agent write-ups, and stores an owner-scoped `audit_records` row with a SHA-256 tool fingerprint. `/api/guard` re-checks approval, runtime policy, schema, and fingerprint, then forwards `tools/call` only to the three allowlisted MCP hosts (DeepWiki, Cloudflare Docs, Microsoft Learn).
+8. **Optional MCP audit and guard.** `/mcp-audits` posts to `/api/scan` (definitions, endpoint, or transcript). `runScan` ingests tools, scores regex signals, emits three template agent write-ups, and stores an owner-scoped `audit_records` row with a SHA-256 tool fingerprint. The MCP audits UI then posts to `/api/guard`, which re-checks approval, runtime policy, schema, and fingerprint, then **the same handler** forwards `tools/call` to the allowlisted host (`fetchEndpoint` + `rpc`). The optional audit relay is inventory-only (`initialize` / `tools/list`) and is not on this runtime path.
 
 ### What the diagram omits
 
@@ -98,7 +99,7 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 - **Remediation “open a PR” is a client-side scripted terminal**, not `gh pr create` (`InteractiveRemediation.tsx`). Diffs can be copied or downloaded.
 - **`enforcePolicyLive` only appends logs** to an in-memory map. It does not apply Kubernetes NetworkPolicies or Falco rules. YAML in the defense tab is generated text for copy/download.
 - **`createIsolationPlan` / `importIsolationResult` / the exported CI runner are not wired to the UI.** Tenant isolation in the console is the chat agent. That agent’s four “live probes” are hardcoded pass results, not HTTP.
-- **MCP audit relay is fail-closed** unless `MCP_AUDIT_RELAY_VERIFIED=true` and the URL/secret are set. The Node relay in `services/mcp-audit-proxy/` is a separately deployed service, not started by this web process.
+- **MCP audit relay is fail-closed** unless `MCP_AUDIT_RELAY_VERIFIED=true` and the URL/secret are set. It may proxy inventory collection for allowlisted hosts; it refuses `tools/call`. The Node relay in `services/mcp-audit-proxy/` is a separately deployed service, not started by this web process. Runtime execution is `/api/guard` talking to the allowlisted host directly.
 - **Endpoint *collection* is not limited to the allowlist**; `/api/scan` may fetch the typed URL. *Runtime* `/api/guard` is allowlist-only. Saving a connection cannot add hosts.
 - **`src/integrations/supabase/cron-auth.ts` is unused.** Password reset (`action: 'reset-password'`) returns a stub message and does not send mail.
 - **GitHub PAT encryption needs `MCP_TOKEN_ENCRYPTION_SECRET`.** Without it, save/load throws “Credential storage unavailable.” Collection can still use `GITHUB_TOKEN` / `GH_TOKEN` on the server.
