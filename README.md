@@ -39,26 +39,69 @@ Traceveil bridges raw code repositories, live production web applications, conta
 ## System Architecture
 
 <p align="center">
-  <img src="docs/images/traceveil-architecture.svg" alt="Traceveil End-to-End System Architecture" width="100%" />
+  <img src="docs/architecture/traceveil-architecture.png" alt="How a Traceveil investigation run works" width="838" />
 </p>
 
 <p align="center">
-  <em>Figure 1: Traceveil End-to-End System Architecture and Evidence Pipeline</em>
+  <em>Figure 1. One signed-in investigation run, from the browser through the Node server and back to the canvas. Dashed nodes are optional or config-dependent. AI agents use a generic robot mark; official logos are only for real products. Icon credits: <a href="docs/architecture/ATTRIBUTION.md">ATTRIBUTION.md</a>. Regenerate with <code>python3 docs/architecture/generate.py</code>.</em>
 </p>
 
-### Step-by-Step Architecture Flow
+<details>
+<summary>Mermaid fallback</summary>
 
-1. **Target Ingestion & Ingress Preflight**: Users supply a GitHub repository URL, a live web endpoint domain, or an MCP server tool manifest. The ingestion layer initiates preflight checks, verifying network accessibility and decrypting user-stored GitHub PATs using server-side AES-256-GCM.
-2. **Deterministic Evidence Extraction & Hash Binding**: 
-   * For repositories: The engine traverses file trees, parses package lockfiles, evaluates Dockerfile/Kubernetes manifests, and pins every finding to immutable Git commit SHAs and source line intervals.
-   * For live web applications: The engine executes direct HTTP/TLS network requests, inspecting server banners, transport ciphers, CSP directives, HSTS headers, and testing for exposed environment files.
-3. **Toxic Combination & Graph Layout Synthesis**: The Graph Synthesizer processes validated evidence facts into a directed acyclic graph (DAG) modeled after the Wiz toxic combination formula (`Ingress` ➔ `Workload` ➔ `Vulnerability` ➔ `Privilege Escape` ➔ `Crown Jewel`). Dagre computes horizontal coordinates, and React Flow renders an interactive canvas with animated risk edges.
-4. **Multi-Agent Intelligence Matrix**:
-   * **Tenant Isolation Copilot** (*Argon 4*): Engages in structured conversational triage, evaluating cross-tenant boundary integrity and generating defensible boundary isolation policies.
-   * **Red Team Adversary** (*Argon 4*): Formulates realistic adversary playbooks and executes command suites against workload boundaries with live terminal logging.
-   * **Remediation Engine** (*Gemini 1.5 Pro*): Synthesizes precise code patches addressing root causes, creates GitHub pull request branches, and provides one-click merge automation.
-   * **Perimeter Watchdog** (*Gemini 1.5 Flash*): Operates a continuous 60-second polling cycle against monitored targets to detect configuration drift and perimeter regressions.
-5. **Autonomous Action & Zero-Trust Mitigation**: Operators review evidence in the sliding Evidence Drawer, approve automated GitHub PR submissions, copy generated RLS and NetworkPolicy rules, or export signed compliance audit artifacts.
+```mermaid
+flowchart LR
+  you[You] --> console[Console]
+  console --> scan["POST /api/application-scan"]
+  scan --> github[GitHub collector]
+  scan --> live[Live HTTPS probes]
+  github --> graph[Graph engine]
+  live --> graph
+  graph --> store[Local JSON store]
+  graph --> agents[Report agents]
+  agents --> canvas[Results canvas]
+  console -.-> mcpPage[MCP audits]
+  mcpPage -.-> mcpScan["POST /api/scan"]
+  mcpScan -.-> store
+  mcpScan -.-> guard["POST /api/guard"]
+  guard -.-> hosts[Allowlisted MCP hosts]
+```
+
+</details>
+
+### How it works, step by step
+
+Numbered steps match the callouts on the diagram.
+
+1. **Sign in; session stays here.** The public `/` landing page opens the account dialog. `POST /api/auth` creates or checks a user with scrypt password hashes and a 30-day session token stored in `data/traceveil-store.json`. The browser keeps that token in `localStorage` (`traceveil_auth_session`) and, once signed in, routes into `/console`.
+
+2. **Pick repo or live app.** The workspace scan bar takes a URL plus the consent checkbox (`aiConsent: true`). Repository vs live-application is a UI mode, but the server decides the collector with `url.toLowerCase().includes('github.com')`.
+
+3. **Authenticated scan starts.** `POST /api/application-scan` requires a bearer session, bounds the body to 2,500 bytes, and calls `consume_audit_quota` (always granted by the local store). Progress, the graph, the saved record id, and agent deltas stream back as NDJSON.
+
+4. **GitHub files or live HTTPS.** GitHub collection talks only to `https://api.github.com` for repo metadata, the commit SHA, a recursive tree, and up to 24 blobs (100 KB each). An optional PAT is AES-GCM encrypted, bound to `traceveil:github-pat:v1:{userId}:https://api.github.com`, and never returned to the browser. Live collection validates a public HTTPS host, then GETs `/`, `/.env`, `/robots.txt`, and `/.git/HEAD`.
+
+5. **Static rules bind evidence.** `buildRepositoryGraph` / `validateGraph` create nodes, edges, and findings only from inspected files or probe headers. Every entity carries evidence ids; the model is not allowed to invent graph facts. Coverage gaps are recorded on the graph object.
+
+6. **Record saved; agents report.** The server inserts `application_scans` (status `analyzing`), then `analyzeGraph` streams four template reports — red team, remediation, defense planner, code proof verifier — with `redact()` applied. A later update sets status `complete` (or `partial` if agents fail). These reports are local templates, not live Gemini calls.
+
+7. **Canvas draws the graph.** The client renders the streamed graph with React Flow and Dagre (`rankdir: 'LR'`). Findings, the evidence drawer, and export JSON all read that same in-memory graph. Isolation chat is a dashed follow-on: it may call Google Gemini when `GEMINI_API_KEY` / `ARGON_API_KEY` / `GOOGLE_API_KEY` is set, otherwise a local template.
+
+8. **Optional MCP audit and guard.** `/mcp-audits` posts to `/api/scan` (definitions, endpoint, or transcript). `runScan` ingests tools, scores regex signals, emits three template agent write-ups, and stores an owner-scoped `audit_records` row with a SHA-256 tool fingerprint. `/api/guard` re-checks approval, runtime policy, schema, and fingerprint, then forwards `tools/call` only to the three allowlisted MCP hosts (DeepWiki, Cloudflare Docs, Microsoft Learn).
+
+### What the diagram omits
+
+These modules exist in the tree but are unused, simulated, fail-closed, or not on the investigation path above:
+
+- **Not SQLite / not hosted Supabase.** `drizzle/schema.ts` is blank. Runtime persistence is the JSON file behind a Supabase-shaped client (`src/lib/server/db.server.ts`). `.env` still lists unused `SUPABASE_*` keys.
+- **Application-scan “agents” do not call Gemini.** `src/lib/atlas/agents.server.ts` only formats templates. Gemini is used by tenant-isolation chat (`callFrontierModel`), which maps the `argon-4` label to `gemini-1.5-pro`.
+- **Remediation “open a PR” is a client-side scripted terminal**, not `gh pr create` (`InteractiveRemediation.tsx`). Diffs can be copied or downloaded.
+- **`enforcePolicyLive` only appends logs** to an in-memory map. It does not apply Kubernetes NetworkPolicies or Falco rules. YAML in the defense tab is generated text for copy/download.
+- **`createIsolationPlan` / `importIsolationResult` / the exported CI runner are not wired to the UI.** Tenant isolation in the console is the chat agent. That agent’s four “live probes” are hardcoded pass results, not HTTP.
+- **MCP audit relay is fail-closed** unless `MCP_AUDIT_RELAY_VERIFIED=true` and the URL/secret are set. The Node relay in `services/mcp-audit-proxy/` is a separately deployed service, not started by this web process.
+- **Endpoint *collection* is not limited to the allowlist**; `/api/scan` may fetch the typed URL. *Runtime* `/api/guard` is allowlist-only. Saving a connection cannot add hosts.
+- **`src/integrations/supabase/cron-auth.ts` is unused.** Password reset (`action: 'reset-password'`) returns a stub message and does not send mail.
+- **GitHub PAT encryption needs `MCP_TOKEN_ENCRYPTION_SECRET`.** Without it, save/load throws “Credential storage unavailable.” Collection can still use `GITHUB_TOKEN` / `GH_TOKEN` on the server.
 
 ---
 
