@@ -141,8 +141,8 @@ export async function collectLiveApplication(
   // 1. Public Internet
   const internetNode: GraphEntity = {
     id: 'public-internet',
-    label: 'Public Internet 🌐',
-    kind: 'public-internet',
+    label: 'Public Internet',
+    kind: 'internet',
     category: 'actor',
     subtitle: 'External Attack Surface',
     badge: 'Public Ingress',

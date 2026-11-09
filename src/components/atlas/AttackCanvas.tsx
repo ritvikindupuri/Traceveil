@@ -48,12 +48,19 @@ type CustomNodeData = {
 
 type EntityNode = Node<CustomNodeData, 'wizNode'>;
 
-const stageIcons = {
+const stageIcons: Record<string, typeof Globe> = {
   internet: Globe,
+  'public-internet': Globe,
+  external: Globe,
+  ingress: Globe,
   server: Server,
+  compute: Server,
   vulnerability: ShieldAlert,
   privilege: KeyRound,
+  identity: KeyRound,
+  credential: KeyRound,
   target: Database,
+  database: Database,
   workflow: Workflow,
   repository: GitBranch,
   file: FileCode,
@@ -63,7 +70,7 @@ const stageIcons = {
 };
 
 function getCategoryColor(kind: string, severity?: string) {
-  if (kind === 'internet') {
+  if (kind === 'internet' || kind === 'public-internet' || kind === 'external' || kind === 'ingress') {
     return {
       border: 'border-sky-500/60 hover:border-sky-400',
       glow: 'shadow-sky-500/15',
@@ -120,9 +127,15 @@ function getCategoryColor(kind: string, severity?: string) {
 
 function WizNodeComponent({ data, selected }: NodeProps<EntityNode>) {
   const n = data.entity;
-  const kind = n.kind || 'file';
-  const Icon = stageIcons[kind as keyof typeof stageIcons] || FileCode;
-  const theme = getCategoryColor(kind, n.severity);
+  const rawKind = n.kind || 'file';
+  const isInternet =
+    rawKind === 'internet' ||
+    rawKind === 'public-internet' ||
+    rawKind === 'external' ||
+    n.id === 'public-internet' ||
+    /internet|ingress/i.test(n.label);
+  const Icon = isInternet ? Globe : (stageIcons[rawKind] || FileCode);
+  const theme = getCategoryColor(isInternet ? 'internet' : rawKind, n.severity);
   const isActive = data.isActiveStep || selected;
   const isAttackPath = data.isAttackPathMode;
 
@@ -142,9 +155,9 @@ function WizNodeComponent({ data, selected }: NodeProps<EntityNode>) {
       {/* Top Header Pill */}
       <div className="flex items-center justify-between gap-1 pb-1">
         <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider border', theme.badge)}>
-          {kind === 'internet' && <Globe className="size-2.5 animate-pulse" />}
-          {kind === 'finding' && <Zap className="size-2.5" />}
-          {isAttackPath && kind === 'target' && <Database className="size-2.5 text-rose-400" />}
+          {isInternet && <Globe className="size-2.5 animate-pulse" />}
+          {rawKind === 'finding' && <Zap className="size-2.5" />}
+          {isAttackPath && (rawKind === 'target' || rawKind === 'database') && <Database className="size-2.5 text-rose-400" />}
           {theme.tag}
         </span>
         {isAttackPath && data.stepNumber && (
