@@ -21,6 +21,203 @@ import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/a
 import { generateCorrectedDrawIoXml, getArchitecturalRemediationGuide } from '@/lib/atlas/corrected-diagram';
 import { cn } from '@/lib/utils';
 
+function DiagramRemediationStudio({
+  graph,
+  patches,
+}: {
+  graph: AttackGraph;
+  patches: RemediationPatch[];
+}) {
+  const findings = graph.findings || [];
+  const [selectedPatchId, setSelectedPatchId] = useState<string>(patches[0]?.id || '');
+
+  function downloadCorrectedDrawIoDiagram() {
+    const xml = generateCorrectedDrawIoXml(graph);
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const baseName = graph.target.replace('diagram://', '').replace(/\.(drawio|xml|pkt)$/, '') || 'architecture';
+    a.download = `traceveil-hardened-${baseName}.drawio`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const activePatch = patches.find(p => p.id === selectedPatchId) || patches[0];
+  const activeFinding = findings.find(f => f.id === activePatch?.findingId);
+  const guide = activeFinding
+    ? getArchitecturalRemediationGuide(activeFinding.rule || 'database-exposure', activePatch?.title || '')
+    : null;
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* 1. Single Clean Header with ONE prominent Download Button */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground">
+                Hardened Architecture Diagram Ready
+              </h2>
+              <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-600 uppercase">
+                {findings.length} Fixes Applied
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              All architectural faults have been resolved with Zero-Trust boundaries (private subnets, WAF, public access blocks).
+            </p>
+          </div>
+        </div>
+
+        <Button
+          size="default"
+          onClick={downloadCorrectedDrawIoDiagram}
+          className="gap-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md h-10 px-5"
+        >
+          <Download className="size-4" />
+          <span>Download Corrected draw.io (.drawio)</span>
+        </Button>
+      </div>
+
+      {/* 2. Clean Fix Selector Pills (One-click toggle between fixes) */}
+      {patches.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Architectural Fixes Applied in Download
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {patches.map((p, idx) => {
+              const isSelected = p.id === (activePatch?.id || '');
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedPatchId(p.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs transition border font-medium",
+                    isSelected
+                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/30 shadow-xs"
+                      : "border-border bg-card hover:bg-muted/40 text-muted-foreground"
+                  )}
+                >
+                  <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[10px] font-mono">
+                    {idx + 1}
+                  </span>
+                  <span>{p.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Selected Fix: Clean Before vs After Topology Comparison */}
+      {guide && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/80 pb-3">
+            <div>
+              <h3 className="text-sm font-bold text-foreground">
+                {activePatch?.title}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {activePatch?.suggestion}
+              </p>
+            </div>
+            <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-600 uppercase">
+              Corrected in Export
+            </span>
+          </div>
+
+          {/* Side by side Before / After flow */}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Before */}
+            <div className="rounded-lg border border-destructive/25 bg-destructive/[0.03] p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-destructive flex items-center gap-1.5">
+                  <ShieldAlert className="size-3.5" />
+                  Before (Original Diagram)
+                </span>
+                <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive uppercase">
+                  Vulnerable
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 py-1 font-mono text-[11px]">
+                {guide.beforeTopology.nodes.map((node, nIdx) => (
+                  <div key={nIdx} className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded border text-[11px]",
+                      nIdx === guide.beforeTopology.nodes.length - 1
+                        ? "bg-destructive/20 text-destructive border-destructive/40 font-bold"
+                        : "bg-background border-border text-foreground"
+                    )}>
+                      {node}
+                    </span>
+                    {nIdx < guide.beforeTopology.nodes.length - 1 && (
+                      <ArrowRight className="size-3 text-destructive shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {guide.beforeTopology.riskCallout}
+              </p>
+            </div>
+
+            {/* After */}
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.03] p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <ShieldCheck className="size-3.5" />
+                  After (Zero-Trust Remediated)
+                </span>
+                <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600 uppercase">
+                  Secured
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 py-1 font-mono text-[11px]">
+                {guide.afterTopology.nodes.map((node, nIdx) => (
+                  <div key={nIdx} className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "px-2 py-0.5 rounded border text-[11px]",
+                      nIdx === guide.afterTopology.nodes.length - 1
+                        ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40 font-bold"
+                        : "bg-background border-border text-foreground"
+                    )}>
+                      {node}
+                    </span>
+                    {nIdx < guide.afterTopology.nodes.length - 1 && (
+                      <ArrowRight className="size-3 text-emerald-600 shrink-0" />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {guide.afterTopology.benefitCallout}
+              </p>
+            </div>
+          </div>
+
+          {/* Manual steps in collapsed details */}
+          <details className="group rounded-lg border border-border/80 bg-muted/20 p-3 text-xs">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-muted-foreground hover:text-foreground font-medium">
+              <span>How to make this change manually in diagrams.net / draw.io (Optional)</span>
+              <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <ol className="mt-3 space-y-1.5 pl-4 list-decimal text-muted-foreground text-[11px]">
+              {guide.drawIoSteps.map((step, sIdx) => (
+                <li key={sIdx}>{step}</li>
+              ))}
+            </ol>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
   const [patches, setPatches] = useState<RemediationPatch[]>([]);
   const [appliedState, setAppliedState] = useState<Record<string, boolean>>({});
@@ -157,6 +354,10 @@ export function InteractiveRemediation({ graph }: { graph: AttackGraph }) {
         </p>
       </div>
     );
+  }
+
+  if (isDiagram) {
+    return <DiagramRemediationStudio graph={graph} patches={patches} />;
   }
 
   return (

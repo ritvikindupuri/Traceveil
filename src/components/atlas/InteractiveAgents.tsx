@@ -216,152 +216,124 @@ function DiagramRedTeamStudio({
   const currentStep = steps[activeStepIdx] || steps[0];
 
   return (
-    <div className="space-y-6">
-      {/* Top Attacker Control Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive ring-1 ring-destructive/30">
-            <Swords className="size-5" />
-          </div>
-          <div>
+    <div className="space-y-4">
+      {/* 1. Main Architecture Diagram Canvas (Full Width) */}
+      <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
+        {/* Sleek Top Bar on Canvas */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-md bg-destructive/15 text-destructive ring-1 ring-destructive/30">
+              <Swords className="size-4" />
+            </div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                Autonomous Red Team · Diagram Assessment
-              </h3>
+              <span className="text-xs font-semibold text-foreground">
+                Adversary Walking Diagram Faults
+              </span>
               <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-destructive">
                 <Radio className="size-2 animate-pulse text-destructive" />
-                Adversary Walking Faults
+                Targeting: {currentStep.componentName}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Target: <strong className="font-mono text-foreground">{graph.target.replace('diagram://', '')}</strong> · The agent conducts an attacker walkthrough across your architecture diagram to pinpoint security faults.
-            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Stepper Controls */}
+            <div className="flex items-center rounded-md border border-border bg-background p-0.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={activeStepIdx === 0}
+                onClick={() => {
+                  setIsPlaying(false);
+                  setActiveStepIdx(prev => Math.max(0, prev - 1));
+                }}
+                className="h-6 px-2 text-[11px]"
+                title="Previous Fault"
+              >
+                <ChevronLeft className="size-3 mr-0.5" />
+                Prev
+              </Button>
+              <span className="px-2 font-mono text-[11px] text-muted-foreground font-medium">
+                Step {activeStepIdx + 1} of {steps.length}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={activeStepIdx === steps.length - 1}
+                onClick={() => {
+                  setIsPlaying(false);
+                  setActiveStepIdx(prev => Math.min(steps.length - 1, prev + 1));
+                }}
+                className="h-6 px-2 text-[11px]"
+                title="Next Fault"
+              >
+                Next
+                <ChevronRight className="size-3 ml-0.5" />
+              </Button>
+            </div>
+
+            <Button
+              size="sm"
+              variant={isPlaying ? 'secondary' : 'destructive'}
+              onClick={() => setIsPlaying(prev => !prev)}
+              className="h-7 gap-1 text-[11px] px-2.5 shadow-xs"
+            >
+              {isPlaying ? (
+                <>
+                  <Pause className="size-3" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="size-3" />
+                  <span>Auto-Walk</span>
+                </>
+              )}
+            </Button>
+
+            {onNavigateToRemediation && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onNavigateToRemediation}
+                className="h-7 gap-1 text-[11px] px-2.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-500 font-medium"
+              >
+                <Wrench className="size-3" />
+                <span>Fix in Remediation</span>
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Stepper Controls */}
-          <div className="flex items-center rounded-md border border-border bg-muted/40 p-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={activeStepIdx === 0}
-              onClick={() => {
-                setIsPlaying(false);
-                setActiveStepIdx(prev => Math.max(0, prev - 1));
-              }}
-              className="h-7 px-2 text-xs"
-              title="Previous Step"
-            >
-              <ChevronLeft className="size-3.5 mr-0.5" />
-              Prev
-            </Button>
-            <span className="px-2 font-mono text-xs text-muted-foreground font-medium">
-              Step {activeStepIdx + 1} of {steps.length}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={activeStepIdx === steps.length - 1}
-              onClick={() => {
-                setIsPlaying(false);
-                setActiveStepIdx(prev => Math.min(steps.length - 1, prev + 1));
-              }}
-              className="h-7 px-2 text-xs"
-              title="Next Step"
-            >
-              Next
-              <ChevronRight className="size-3.5 ml-0.5" />
-            </Button>
-          </div>
-
-          <Button
-            size="sm"
-            variant={isPlaying ? 'secondary' : 'destructive'}
-            onClick={() => setIsPlaying(prev => !prev)}
-            className="gap-1.5 text-xs shadow-xs"
-          >
-            {isPlaying ? (
-              <>
-                <Pause className="size-3.5" />
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="size-3.5" />
-                <span>Auto-Walkthrough</span>
-              </>
-            )}
-          </Button>
-
-          {onNavigateToRemediation && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onNavigateToRemediation}
-              className="gap-1.5 text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-500 font-medium"
-            >
-              <Wrench className="size-3.5" />
-              <span>Fix in Remediation Studio</span>
-            </Button>
-          )}
+        {/* Canvas Area */}
+        <div className="h-[520px] w-full relative bg-muted/5">
+          <ClientOnly fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+            <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+              <AttackCanvas
+                graph={graph}
+                search=""
+                riskOnly={true}
+                hideFloatingCard={true}
+                controlledStepIdx={activeStepIdx}
+                onSelect={() => {}}
+              />
+            </Suspense>
+          </ClientOnly>
         </div>
       </div>
 
-      {/* Main 2-Column Split: Diagram Canvas (Left) + Attacker Walkthrough Panel (Right) */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Exact Architecture Canvas */}
-        <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col lg:col-span-7">
-          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-4 py-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold">
-              <Layers className="size-4 text-primary" />
-              <span>Architecture Diagram Canvas</span>
-              <span className="font-mono text-[10px] text-muted-foreground font-normal">
-                ({graph.nodes.length} nodes · {graph.edges.length} edges)
-              </span>
-            </div>
+      {/* 2. Unified Adversary Briefing Bar (Directly Underneath) */}
+      <div className="rounded-xl border border-destructive/30 bg-card p-4 space-y-3 shadow-xs">
+        {/* Attacker Action & Analysis */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="space-y-1 max-w-3xl">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-0.5 text-[10px] font-semibold text-destructive">
-                <Flame className="size-3 animate-pulse" />
-                <span>Targeting: {currentStep.componentName}</span>
+              <span className="size-2 rounded-full bg-destructive animate-pulse" />
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-destructive">
+                Attacker Action · Step {activeStepIdx + 1}: {currentStep.componentName}
               </span>
-            </div>
-          </div>
-
-          <div className="h-[560px] w-full relative">
-            <ClientOnly fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-              <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
-                <AttackCanvas
-                  graph={graph}
-                  search=""
-                  riskOnly={true}
-                  hideFloatingCard={true}
-                  controlledStepIdx={activeStepIdx}
-                  onSelect={() => {}}
-                />
-              </Suspense>
-            </ClientOnly>
-          </div>
-        </div>
-
-        {/* Right Column: Attacker Perspective Walkthrough Panel */}
-        <div className="space-y-4 lg:col-span-5">
-          {/* Active Attacker Card */}
-          <div className="rounded-xl border border-destructive/40 bg-card p-4 space-y-3.5 shadow-sm ring-1 ring-destructive/20">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-destructive animate-pulse" />
-                <span className="font-mono text-[10px] font-bold text-destructive uppercase tracking-wider">
-                  Step {activeStepIdx + 1} of {steps.length}
-                </span>
-                <span className="text-muted-foreground">·</span>
-                <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
-                  {currentStep.componentName}
-                </span>
-              </div>
               <span className={cn(
-                "rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase",
+                "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
                 currentStep.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
                 currentStep.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
                 'bg-amber-500/15 text-amber-500'
@@ -369,94 +341,55 @@ function DiagramRedTeamStudio({
                 {currentStep.severity}
               </span>
             </div>
+            <p className="text-xs text-foreground/90 font-medium leading-relaxed">
+              {currentStep.attackerAnalysis}
+            </p>
+          </div>
 
-            {/* Attacker Perspective */}
-            <div className="rounded-lg border border-destructive/25 bg-destructive/[0.04] p-3 space-y-1.5">
-              <div className="flex items-center gap-1.5 font-mono text-[10px] font-semibold text-destructive">
-                <Terminal className="size-3" />
-                <span>Adversary Exploit</span>
-              </div>
-              <p className="text-xs leading-relaxed text-foreground/90">
-                {currentStep.attackerAnalysis}
-              </p>
+          <div className="flex sm:flex-col gap-2 shrink-0 sm:items-end">
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
+              <span className="font-semibold text-amber-500">Flaw:</span>
+              <span className="text-muted-foreground truncate max-w-[260px]">{currentStep.architecturalFault}</span>
             </div>
-
-            {/* Architectural Flaw & Fix */}
-            <div className="grid gap-2 sm:grid-cols-2 text-xs">
-              <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5 space-y-1">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-amber-500">
-                  <AlertTriangle className="size-3" />
-                  <span>Diagram Flaw</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  {currentStep.architecturalFault}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2.5 space-y-1">
-                <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                  <ShieldCheck className="size-3" />
-                  <span>Diagram Fix</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  {currentStep.remediationAction}
-                </p>
-              </div>
+            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-1.5 text-[11px]">
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Fix:</span>
+              <span className="text-muted-foreground truncate max-w-[260px]">{currentStep.remediationAction}</span>
             </div>
+          </div>
+        </div>
 
-            {onNavigateToRemediation && (
-              <Button
-                size="sm"
-                onClick={onNavigateToRemediation}
-                className="w-full h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+        {/* Step Navigation Breadcrumb / Pills */}
+        <div className="border-t border-border/60 pt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
+            Attack Vector:
+          </span>
+          {steps.map((st, idx) => {
+            const isCurrent = idx === activeStepIdx;
+            return (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => {
+                  setIsPlaying(false);
+                  setActiveStepIdx(idx);
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer",
+                  isCurrent
+                    ? "bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs"
+                    : "bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                )}
               >
-                <Wrench className="size-3.5" />
-                <span>Fix in Remediation Studio</span>
-              </Button>
-            )}
-          </div>
-
-          {/* Sequential Attacker Timeline (Click to Step Through) */}
-          <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5 shadow-xs">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-foreground">Attacker Breach Progression</span>
-              <span className="text-[10px] text-muted-foreground">Click step to walk through</span>
-            </div>
-            <div className="space-y-1.5">
-              {steps.map((st, idx) => {
-                const isCurrent = idx === activeStepIdx;
-                return (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => {
-                      setIsPlaying(false);
-                      setActiveStepIdx(idx);
-                    }}
-                    className={cn(
-                      "w-full text-left rounded-lg p-2.5 transition flex items-center justify-between text-xs border",
-                      isCurrent
-                        ? "border-destructive bg-destructive/10 ring-1 ring-destructive/40 font-semibold"
-                        : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={cn(
-                        "size-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold shrink-0",
-                        isCurrent ? "bg-destructive text-white" : "bg-muted text-muted-foreground"
-                      )}>
-                        {idx + 1}
-                      </span>
-                      <span className="truncate text-foreground">{st.title}</span>
-                    </div>
-                    <span className="font-mono text-[9px] uppercase text-muted-foreground shrink-0 pl-2">
-                      {st.componentName}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                <span className={cn(
+                  "size-4 rounded-full flex items-center justify-center font-mono text-[9px]",
+                  isCurrent ? "bg-destructive text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                )}>
+                  {idx + 1}
+                </span>
+                <span className="truncate max-w-[140px]">{st.componentName}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
