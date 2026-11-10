@@ -17,10 +17,13 @@ import {
   CheckCheck,
   Globe,
   Terminal,
+  Layers,
+  FileCode,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateDefensePlans, type DefensePlan } from '@/lib/atlas/agent-operations';
+import { generateCorrectedDrawIoXml } from '@/lib/atlas/corrected-diagram';
 import {
   enforcePolicyLive,
   removePolicyEnforcementLive,
@@ -76,6 +79,202 @@ const layerMeta: Record<
   },
 };
 
+/**
+ * Clean, visual, zero-clutter defense view for Architecture Diagrams.
+ * Shows high-level architectural boundaries and guardrails without walls of YAML code.
+ */
+function DiagramDefensePlanner({
+  graph,
+  plans,
+}: {
+  graph: AttackGraph;
+  plans: DefensePlan[];
+}) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function copyText(text: string, id: string) {
+    void navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function downloadCorrectedDrawIoDiagram() {
+    const xml = generateCorrectedDrawIoXml(graph);
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const baseName = graph.target.replace('diagram://', '').replace(/\.(drawio|xml|pkt)$/, '') || 'architecture';
+    a.download = `traceveil-hardened-${baseName}.drawio`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Clean Header (No fake HTTP 200, no drift timers, no audit buttons) */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30">
+            <Shield className="size-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">
+                Architectural Firewalls &amp; Boundaries
+              </h2>
+              <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-600 uppercase">
+                Zero-Trust Boundaries
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Target: <strong className="font-mono text-foreground">{graph.target.replace('diagram://', '')}</strong> · Defense rules applied to isolate your architecture diagram.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="default"
+          size="sm"
+          onClick={downloadCorrectedDrawIoDiagram}
+          className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-medium"
+        >
+          <Download className="size-3.5" />
+          <span>Download Hardened draw.io (.drawio)</span>
+        </Button>
+      </div>
+
+      {/* 2. Visual Defense Layers (3 Clean Graphic Cards - NO Wall of Text!) */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Layer 1: Perimeter WAF */}
+        <div className="rounded-xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧱</span>
+              <div>
+                <span className="font-mono text-[9px] text-muted-foreground uppercase font-bold">Layer 1</span>
+                <h3 className="text-xs font-bold text-foreground">Perimeter WAF Filter</h3>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-emerald-600 border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+
+          {/* Visual Diagram Flow */}
+          <div className="flex items-center justify-between gap-1 rounded-lg border border-border/60 bg-muted/40 p-2 text-[10px] font-mono">
+            <span className="text-muted-foreground">Internet</span>
+            <span className="text-muted-foreground">➔</span>
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 font-bold text-primary border border-primary/25">AWS WAF</span>
+            <span className="text-muted-foreground">➔</span>
+            <span className="text-foreground">ALB</span>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Blocks SQL injection, XSS, and automated bots at the perimeter before traffic reaches backend compute.
+          </p>
+        </div>
+
+        {/* Layer 2: Subnet Isolation */}
+        <div className="rounded-xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🛡️</span>
+              <div>
+                <span className="font-mono text-[9px] text-muted-foreground uppercase font-bold">Layer 2</span>
+                <h3 className="text-xs font-bold text-foreground">Private Subnet Isolation</h3>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-emerald-600 border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+
+          {/* Visual Diagram Flow */}
+          <div className="flex items-center justify-between gap-1 rounded-lg border border-border/60 bg-muted/40 p-2 text-[10px] font-mono">
+            <span className="text-foreground">Compute</span>
+            <span className="text-muted-foreground">➔</span>
+            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-bold text-emerald-600 border border-emerald-500/25">
+              [Private Subnet: RDS]
+            </span>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Eliminates direct public internet ingress; restricts database port 5432 to internal compute instances.
+          </p>
+        </div>
+
+        {/* Layer 3: Storage Access Policy */}
+        <div className="rounded-xl border border-border/80 bg-card p-4 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔒</span>
+              <div>
+                <span className="font-mono text-[9px] text-muted-foreground uppercase font-bold">Layer 3</span>
+                <h3 className="text-xs font-bold text-foreground">Storage Guardrail</h3>
+              </div>
+            </div>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[9px] font-semibold text-emerald-600 border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+
+          {/* Visual Diagram Flow */}
+          <div className="flex items-center justify-between gap-1 rounded-lg border border-border/60 bg-muted/40 p-2 text-[10px] font-mono">
+            <span className="text-foreground">VPC Gateway</span>
+            <span className="text-muted-foreground">➔</span>
+            <span className="rounded bg-sky-500/15 px-1.5 py-0.5 font-bold text-sky-600 border border-sky-500/25">
+              S3 (Public Blocked)
+            </span>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Enforces S3 Public Access Block and requires requests to traverse private VPC endpoints with IAM authentication.
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Optional Technical Code Dropdown (100% COLLAPSED BY DEFAULT - ZERO SCREEN CLUTTER) */}
+      <details className="group rounded-xl border border-border/80 bg-card shadow-xs overflow-hidden transition">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-xs font-medium text-muted-foreground hover:text-foreground">
+          <div className="flex items-center gap-2">
+            <Terminal className="size-4 text-primary" />
+            <span className="font-semibold text-foreground">Optional: View Raw Infrastructure-as-Code &amp; Kubernetes NetworkPolicies</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+              {plans.length} Rules
+            </span>
+          </div>
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="border-t border-border/60 p-4 space-y-4 bg-muted/10">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {plans.map(p => (
+              <div key={p.id} className="rounded-lg border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-semibold truncate">{p.filename}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyText(p.content, p.id)}
+                    className="h-6 px-2 text-[10px]"
+                  >
+                    {copiedId === p.id ? <Check className="size-3 text-primary" /> : <Copy className="size-3" />}
+                    <span>{copiedId === p.id ? 'Copied' : 'Copy'}</span>
+                  </Button>
+                </div>
+                <div className="max-h-36 overflow-auto rounded bg-muted/40 p-2 font-mono text-[10px] text-foreground">
+                  <pre className="whitespace-pre">{p.content.slice(0, 400)}...</pre>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </details>
+    </div>
+  );
+}
+
 export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
   const [plans, setPlans] = useState<DefensePlan[]>([]);
   const [activePlanId, setActivePlanId] = useState<string>('');
@@ -90,13 +289,22 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
   const [showTimeline, setShowTimeline] = useState(false);
   const [latestDrift, setLatestDrift] = useState<DriftCheckResult | null>(null);
 
-  // Target type detection
+  // Diagram vs Live Web Target detection
+  const isDiagram = Boolean(
+    graph?.target &&
+      (graph.target.startsWith('diagram://') ||
+        graph.target.includes('.drawio') ||
+        graph.target.includes('.pkt') ||
+        graph.target.includes('.cfg') ||
+        graph.target.includes('architecture'))
+  );
+
   const isLiveTarget =
-    graph.target.startsWith('http://') ||
-    graph.target.startsWith('https://') ||
-    graph.target.includes('production') ||
-    graph.target.includes('live') ||
-    (!graph.target.includes('/') && !graph.target.includes('\\'));
+    !isDiagram &&
+    (graph.target.startsWith('http://') ||
+      graph.target.startsWith('https://') ||
+      graph.target.includes('production') ||
+      graph.target.includes('live'));
 
   // Linked GitHub repository state for live web apps
   const [linkedRepo, setLinkedRepo] = useState('');
@@ -131,12 +339,16 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
           ...prev,
         }));
       }
-      void runLiveDriftCheck();
+      if (!isDiagram) {
+        void runLiveDriftCheck();
+      }
     }
-  }, [graph]);
+  }, [graph, isDiagram]);
 
-  // Real continuous monitoring timer (60s loop)
+  // Real continuous monitoring timer (60s loop) - ONLY for live web targets, NOT diagrams
   useEffect(() => {
+    if (isDiagram) return;
+
     const timer = setInterval(() => {
       setSecondsUntilNextCheck(prev => {
         if (prev <= 1) {
@@ -148,7 +360,7 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [graph.target]);
+  }, [graph.target, isDiagram]);
 
   // Real Live Drift Check execution
   async function runLiveDriftCheck() {
@@ -288,6 +500,11 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
 
   if (plans.length === 0) return null;
 
+  // If Target is a diagram, render the clean visual Diagram Defense Planner
+  if (isDiagram) {
+    return <DiagramDefensePlanner graph={graph} plans={plans} />;
+  }
+
   const activePlan = plans.find(p => p.id === activePlanId) || plans[0];
   const activeMeta = layerMeta[activePlan.id] || {
     layerNumber: 'Layer',
@@ -309,7 +526,7 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
             </span>
-            <h2 className="text-sm font-semibold text-foreground">Firewalls & Rules</h2>
+            <h2 className="text-sm font-semibold text-foreground">Firewalls &amp; Rules</h2>
           </div>
 
           <span className="text-muted-foreground/30">|</span>
@@ -323,7 +540,6 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
               Live Web Target
             </span>
           )}
-
 
           {latestDrift && (
             <span className="flex items-center gap-1.5 font-mono text-xs text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
@@ -374,44 +590,55 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
               key={plan.id}
               onClick={() => setActivePlanId(plan.id)}
               className={cn(
-                'group cursor-pointer rounded-lg border p-3.5 transition-all shadow-xs text-left select-none relative',
+                'group relative cursor-pointer rounded-lg border p-3.5 transition-all shadow-xs',
                 isSelected
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
-                  : 'border-border bg-card hover:border-border/80 hover:bg-muted/10'
+                  ? 'border-primary/80 bg-primary/[0.04] ring-1 ring-primary/40'
+                  : 'border-border bg-card/60 hover:border-border/80 hover:bg-card'
               )}
             >
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
                   <span className="text-lg">{meta.icon}</span>
                   <div>
-                    <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+                    <span className="font-mono text-[9px] uppercase font-bold text-muted-foreground">
                       {meta.layerNumber}
                     </span>
-                    <h3 className="text-xs font-semibold text-foreground leading-none mt-0.5">
-                      {meta.layerName}
-                    </h3>
+                    <h3 className="text-xs font-bold text-foreground">{meta.layerName}</h3>
                   </div>
                 </div>
 
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold flex items-center gap-1',
-                    isEnforced
-                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                      : 'bg-muted text-muted-foreground border border-border/60'
-                  )}
-                >
-                  {isEnforced ? <CheckCircle2 className="size-2.5" /> : <Lock className="size-2.5" />}
-                  {isEnforced ? 'Enforced' : 'Standby'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      'flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold border',
+                      isEnforced
+                        ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                        : 'bg-muted text-muted-foreground border-border'
+                    )}
+                  >
+                    {isEnforced ? (
+                      <>
+                        <CheckCheck className="size-2.5 text-emerald-600" />
+                        <span>Enforced</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="size-2.5" />
+                        <span>Standby</span>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
 
-              <p className="mt-2 text-[11px] text-muted-foreground line-clamp-1">
+              <p className="mt-2 text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
                 {meta.impactSummary}
               </p>
 
-              <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-border/60 font-mono text-[10px] text-muted-foreground">
-                <span className="truncate">{plan.filename}</span>
+              <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 text-[10px]">
+                <span className="font-mono text-muted-foreground truncate max-w-[170px]">
+                  {plan.filename}
+                </span>
                 <span className="text-primary font-medium group-hover:underline">View Rule →</span>
               </div>
             </div>
@@ -533,91 +760,71 @@ export function InteractiveDefensePlanner({ graph }: { graph: AttackGraph }) {
           {isLiveTarget ? (
             <>
               <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ CSP & Headers
+                ✓ CSP &amp; Headers
               </span>
               <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
                 ✓ DNS Drift
-              </span>
-              <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ Debug Routes
-              </span>
-              <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ TLS & Latency
               </span>
             </>
           ) : (
             <>
               <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ Ingress Filter
+                ✓ Supply-Chain Gate
               </span>
               <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ Zero-Trust Egress
-              </span>
-              <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ CI Gate
-              </span>
-              <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground">
-                ✓ Falco Kernel
+                ✓ Network Egress
               </span>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {isLiveTarget && (
-            <div className="flex items-center gap-1.5">
-              {isRepoConnected ? (
-                <span className="rounded bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] text-indigo-600 border border-indigo-500/20">
-                  Repo: {linkedRepo}
-                </span>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="Link repo (e.g. org/repo)"
-                  value={linkedRepo}
-                  onChange={e => setLinkedRepo(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && linkedRepo.trim()) setIsRepoConnected(true);
-                  }}
-                  className="h-6 rounded border border-border bg-background px-2 font-mono text-[10px] w-44"
-                />
-              )}
-            </div>
-          )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowTimeline(!showTimeline)}
-            className="h-6 px-2 text-[11px] text-muted-foreground gap-1"
-          >
-            <Activity className="size-3" />
-            <span>Activity ({activityFeed.length})</span>
-            {showTimeline ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowTimeline(prev => !prev)}
+          className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          <span>Live Audit History ({activityFeed.length})</span>
+          {showTimeline ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />}
+        </Button>
       </div>
 
-      {/* Expanded Activity Timeline (if toggled) */}
+      {/* 5. Collapsible Around-the-Clock History Timeline */}
       {showTimeline && (
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
-          <div className="text-xs font-semibold text-foreground mb-2">Audit & Drift Event History</div>
-          <div className="space-y-2 max-h-56 overflow-auto">
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3 shadow-xs animate-in fade-in duration-150">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <div className="flex items-center gap-2">
+              <Activity className="size-4 text-primary" />
+              <h4 className="text-xs font-semibold text-foreground">Live Telemetry &amp; Verification Feed</h4>
+            </div>
+            <span className="font-mono text-[10px] text-muted-foreground">Rolling audit stream</span>
+          </div>
+
+          <div className="space-y-2">
             {activityFeed.map(item => (
               <div
                 key={item.id}
-                className="flex items-start gap-3 rounded-md border border-border/60 bg-muted/20 p-2.5 text-xs"
+                className="flex items-start justify-between gap-3 rounded border border-border/40 bg-muted/20 p-2.5 text-xs"
               >
-                <div className="mt-0.5">
-                  <span className="size-2 rounded-full bg-emerald-500 inline-block" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-foreground">{item.title}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{item.timestamp}</span>
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'size-1.5 rounded-full',
+                        item.type === 'verified'
+                          ? 'bg-emerald-500'
+                          : item.type === 'drift_detected'
+                            ? 'bg-amber-500 animate-pulse'
+                            : 'bg-primary'
+                      )}
+                    />
+                    <h5 className="font-medium text-foreground truncate">{item.title}</h5>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{item.description}</p>
+                  <p className="text-[11px] text-muted-foreground pl-3.5 leading-relaxed">
+                    {item.description}
+                  </p>
                 </div>
+                <span className="font-mono text-[10px] text-muted-foreground shrink-0">{item.timestamp}</span>
               </div>
             ))}
           </div>

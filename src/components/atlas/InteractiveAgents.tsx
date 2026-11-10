@@ -347,19 +347,18 @@ function DiagramRedTeamStudio({
         {/* Right Column: Attacker Perspective Walkthrough Panel */}
         <div className="space-y-4 lg:col-span-5">
           {/* Active Attacker Card */}
-          <div className="rounded-xl border border-destructive/40 bg-card p-4 space-y-4 shadow-sm ring-1 ring-destructive/20">
+          <div className="rounded-xl border border-destructive/40 bg-card p-4 space-y-3.5 shadow-sm ring-1 ring-destructive/20">
             {/* Header */}
-            <div className="flex items-start justify-between gap-2 border-b border-border/80 pb-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-destructive animate-pulse" />
-                  <span className="font-mono text-[10px] font-bold text-destructive uppercase tracking-wider">
-                    Adversary Step {activeStepIdx + 1} of {steps.length}
-                  </span>
-                </div>
-                <h4 className="text-sm font-bold text-foreground">
-                  {currentStep.title}
-                </h4>
+            <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                <span className="font-mono text-[10px] font-bold text-destructive uppercase tracking-wider">
+                  Step {activeStepIdx + 1} of {steps.length}
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="font-semibold text-xs text-foreground truncate max-w-[200px]">
+                  {currentStep.componentName}
+                </span>
               </div>
               <span className={cn(
                 "rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase",
@@ -371,61 +370,50 @@ function DiagramRedTeamStudio({
               </span>
             </div>
 
-            {/* Target Component */}
-            <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs">
-              <span className="text-muted-foreground">Target Component:</span>
-              <span className="font-mono font-semibold text-foreground flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-destructive" />
-                {currentStep.componentName}
-              </span>
-            </div>
-
-            {/* Attacker Perspective & Walkthrough Voice */}
-            <div className="rounded-lg border border-destructive/25 bg-destructive/[0.04] p-3.5 space-y-2">
-              <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-destructive">
-                <Terminal className="size-3.5" />
-                <span>Attacker Assessment &amp; Exploit Walkthrough</span>
+            {/* Attacker Perspective */}
+            <div className="rounded-lg border border-destructive/25 bg-destructive/[0.04] p-3 space-y-1.5">
+              <div className="flex items-center gap-1.5 font-mono text-[10px] font-semibold text-destructive">
+                <Terminal className="size-3" />
+                <span>Adversary Exploit</span>
               </div>
-              <p className="text-xs leading-relaxed text-foreground/90 italic">
-                "{currentStep.attackerAnalysis}"
-              </p>
-              <div className="pt-1 flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground border-t border-destructive/15">
-                <span className="font-semibold text-foreground">Exploit Method:</span>
-                <span>{currentStep.exploitMethod}</span>
-              </div>
-            </div>
-
-            {/* Architectural Fault */}
-            <div className="space-y-1.5 rounded-lg border border-border/80 bg-muted/20 p-3 text-xs">
-              <div className="flex items-center gap-1.5 font-semibold text-foreground text-[11px]">
-                <AlertTriangle className="size-3.5 text-amber-500" />
-                <span>Fault Identified in Architecture</span>
-              </div>
-              <p className="text-muted-foreground leading-relaxed pl-5">
-                {currentStep.architecturalFault}
+              <p className="text-xs leading-relaxed text-foreground/90">
+                {currentStep.attackerAnalysis}
               </p>
             </div>
 
-            {/* Recommended Fix */}
-            <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-xs">
-              <div className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400 text-[11px]">
-                <ShieldCheck className="size-3.5" />
-                <span>Recommended Architecture Fix</span>
+            {/* Architectural Flaw & Fix */}
+            <div className="grid gap-2 sm:grid-cols-2 text-xs">
+              <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5 space-y-1">
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-amber-500">
+                  <AlertTriangle className="size-3" />
+                  <span>Diagram Flaw</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {currentStep.architecturalFault}
+                </p>
               </div>
-              <p className="text-muted-foreground leading-relaxed pl-5">
-                {currentStep.remediationAction}
-              </p>
-              {onNavigateToRemediation && (
-                <Button
-                  size="sm"
-                  onClick={onNavigateToRemediation}
-                  className="w-full mt-2 h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                >
-                  <Wrench className="size-3.5" />
-                  <span>Download Corrected draw.io in Remediation Studio</span>
-                </Button>
-              )}
+
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2.5 space-y-1">
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="size-3" />
+                  <span>Diagram Fix</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {currentStep.remediationAction}
+                </p>
+              </div>
             </div>
+
+            {onNavigateToRemediation && (
+              <Button
+                size="sm"
+                onClick={onNavigateToRemediation}
+                className="w-full h-8 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+              >
+                <Wrench className="size-3.5" />
+                <span>Fix in Remediation Studio</span>
+              </Button>
+            )}
           </div>
 
           {/* Sequential Attacker Timeline (Click to Step Through) */}
