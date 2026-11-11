@@ -470,7 +470,10 @@ export function InteractiveAgents({
     );
   }
 
-  const activeProbe = probes.find(p => p.id === selectedProbeId) || probes[0];
+  const activeProbeIdx = Math.max(0, probes.findIndex(p => p.id === (selectedProbeId || probes[0]?.id)));
+  const activeProbe = probes[activeProbeIdx] || probes[0];
+  const execResult = activeProbe ? executedProbes[activeProbe.id] : undefined;
+  const hasRun = Boolean(execResult);
 
   async function runLiveProbe(probe: RedTeamProbe) {
     setIsExecuting(true);
@@ -559,177 +562,255 @@ export function InteractiveAgents({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Tab Switcher for Code Repositories */}
-      <div className="flex items-center gap-2 border-b border-border pb-3">
-        <Button
-          variant={activeTab === 'redteam' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('redteam')}
-          className="gap-2 text-xs"
-        >
-          <Swords className="size-3.5 text-destructive" />
-          Autonomous Red Team
-          <span className="rounded-full bg-destructive/15 px-2 py-0.5 font-mono text-[10px] text-destructive">
-            {probes.length} Live Probes
-          </span>
-        </Button>
-        <Button
-          variant={activeTab === 'verifier' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveTab('verifier')}
-          className="gap-2 text-xs"
-        >
-          <ShieldCheck className="size-3.5 text-primary" />
-          Source Code Proofs
-          <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] text-primary">
-            {graph.evidence.length} Evidence
-          </span>
-        </Button>
-      </div>
-
-      {/* RED TEAM VIEW */}
-      {activeTab === 'redteam' && (
-        <div className="grid gap-6 lg:grid-cols-12">
-          {/* Probes List */}
-          <div className="space-y-3 lg:col-span-5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Active Attack Surface Probes</span>
-              <span>{Object.keys(executedProbes).length} / {probes.length} Executed Live</span>
+    <div className="space-y-4">
+      {/* 1. Main Attack Graph Canvas (Full Width) */}
+      <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
+        {/* Sleek Top Bar on Canvas */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-md bg-destructive/15 text-destructive ring-1 ring-destructive/30">
+              <Swords className="size-4" />
             </div>
-
-            <div className="space-y-2">
-              {probes.map(probe => {
-                const isSelected = probe.id === (activeProbe?.id || '');
-                const execResult = executedProbes[probe.id];
-                const hasRun = Boolean(execResult);
-
-                return (
-                  <div
-                    key={probe.id}
-                    onClick={() => {
-                      setSelectedProbeId(probe.id);
-                      if (!hasRun) setTerminalLogs(probe.liveTrace || []);
-                    }}
-                    className={cn(
-                      'cursor-pointer rounded-lg border p-3 transition-all',
-                      isSelected
-                        ? 'border-destructive/60 bg-destructive/5 ring-1 ring-destructive/40'
-                        : 'border-border bg-card/60 hover:border-border/80 hover:bg-card'
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              'size-2 rounded-full',
-                              probe.severity === 'critical' ? 'bg-destructive animate-pulse' : 'bg-warning'
-                            )}
-                          />
-                          <h4 className="text-xs font-semibold">{probe.name}</h4>
-                        </div>
-                        <p className="mt-1 font-mono text-[10px] text-muted-foreground">{probe.vector}</p>
-                      </div>
-                      <span
-                        className={cn(
-                          'rounded px-1.5 py-0.5 font-mono text-[9px] uppercase',
-                          hasRun && execResult.status === 'exploitable'
-                            ? 'bg-destructive/20 text-destructive font-bold'
-                            : hasRun && execResult.status === 'defended'
-                              ? 'bg-emerald-500/20 text-emerald-500 font-bold'
-                              : 'bg-muted text-muted-foreground'
-                        )}
-                      >
-                        {hasRun ? (execResult.status === 'exploitable' ? 'EXPLOITED (LIVE)' : 'DEFENDED (LIVE)') : 'READY'}
-                      </span>
-                    </div>
-
-                    <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="truncate">Target: {probe.target}</span>
-                      <span className="font-mono uppercase text-destructive">{probe.severity}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-foreground">
+                Autonomous Red Team · Exploitation Path
+              </span>
+              {activeProbe && (
+                <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-destructive">
+                  <Radio className="size-2 animate-pulse text-destructive" />
+                  Target: {activeProbe.name}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Live Execution Console (Real Socket / HTTP Trace) */}
-          <div className="space-y-4 lg:col-span-7">
-            {activeProbe ? (
-              <div className="rounded-lg border border-border bg-card p-4 space-y-4 shadow-xs">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Terminal className="size-4 text-destructive" />
-                      <h3 className="text-sm font-semibold">{activeProbe.name}</h3>
-                      <span className="inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-destructive">
-                        <Radio className="size-2.5 animate-pulse text-destructive" />
-                        LIVE EXECUTION
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{activeProbe.impact}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={executedProbes[activeProbe.id] ? 'outline' : 'destructive'}
-                    disabled={isExecuting}
-                    onClick={() => runLiveProbe(activeProbe)}
-                    className="gap-2 text-xs"
-                  >
-                    {isExecuting ? (
-                      <>
-                        <RefreshCw className="size-3 animate-spin" />
-                        Executing Live...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="size-3" />
-                        {executedProbes[activeProbe.id] ? 'Re-execute Live Probe' : 'Execute Live Probe'}
-                      </>
-                    )}
-                  </Button>
-                </div>
+          <div className="flex items-center gap-2">
+            {/* Stepper Controls */}
+            {probes.length > 0 && (
+              <div className="flex items-center rounded-md border border-border bg-background p-0.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={activeProbeIdx === 0}
+                  onClick={() => {
+                    const prevProbe = probes[Math.max(0, activeProbeIdx - 1)];
+                    if (prevProbe) {
+                      setSelectedProbeId(prevProbe.id);
+                      if (!executedProbes[prevProbe.id]) setTerminalLogs(prevProbe.liveTrace || []);
+                    }
+                  }}
+                  className="h-6 px-2 text-[11px]"
+                  title="Previous Probe"
+                >
+                  <ChevronLeft className="size-3 mr-0.5" />
+                  Prev
+                </Button>
+                <span className="px-2 font-mono text-[11px] text-muted-foreground font-medium">
+                  Probe {activeProbeIdx + 1} of {probes.length}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={activeProbeIdx === probes.length - 1}
+                  onClick={() => {
+                    const nextProbe = probes[Math.min(probes.length - 1, activeProbeIdx + 1)];
+                    if (nextProbe) {
+                      setSelectedProbeId(nextProbe.id);
+                      if (!executedProbes[nextProbe.id]) setTerminalLogs(nextProbe.liveTrace || []);
+                    }
+                  }}
+                  className="h-6 px-2 text-[11px]"
+                  title="Next Probe"
+                >
+                  Next
+                  <ChevronRight className="size-3 ml-0.5" />
+                </Button>
+              </div>
+            )}
 
-                {/* Agent Suggestion Callout */}
-                {activeProbe.suggestion && (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-foreground">
-                      <Sparkles className="size-3.5 text-destructive" />
-                      <span>Red Team Vector &amp; Reproduction Suggestion</span>
-                    </div>
-                    <p className="text-muted-foreground leading-relaxed pl-5">
-                      {activeProbe.suggestion}
-                    </p>
-                  </div>
+            {/* Probe Status Badge */}
+            {hasRun && (
+              <span
+                className={cn(
+                  'rounded px-2 py-1 font-mono text-[10px] font-bold uppercase',
+                  execResult?.status === 'exploitable'
+                    ? 'bg-destructive/20 text-destructive'
+                    : 'bg-emerald-500/20 text-emerald-500'
                 )}
+              >
+                {execResult?.status === 'exploitable' ? 'EXPLOITED (LIVE)' : 'DEFENDED (LIVE)'}
+                {execResult?.latencyMs ? ` · ${execResult.latencyMs}ms` : ''}
+              </span>
+            )}
 
+            {/* Execute Probe Button */}
+            {activeProbe && (
+              <Button
+                size="sm"
+                variant={hasRun ? 'outline' : 'destructive'}
+                disabled={isExecuting}
+                onClick={() => runLiveProbe(activeProbe)}
+                className="h-7 gap-1.5 text-[11px] px-3 shadow-xs"
+              >
+                {isExecuting ? (
+                  <>
+                    <RefreshCw className="size-3 animate-spin" />
+                    <span>Executing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="size-3" />
+                    <span>{hasRun ? 'Re-execute Live Probe' : 'Execute Live Probe'}</span>
+                  </>
+                )}
+              </Button>
+            )}
+
+            {onNavigateToRemediation && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onNavigateToRemediation}
+                className="h-7 gap-1 text-[11px] px-2.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-500 font-medium"
+              >
+                <Wrench className="size-3" />
+                <span>Fix in Remediation</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Attack Canvas Area */}
+        <div className="h-[460px] w-full relative bg-muted/5">
+          <ClientOnly fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+            <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
+              <AttackCanvas
+                graph={graph}
+                search=""
+                riskOnly={true}
+                hideFloatingCard={true}
+                controlledStepIdx={activeProbeIdx}
+                onSelect={() => {}}
+              />
+            </Suspense>
+          </ClientOnly>
+        </div>
+      </div>
+
+      {/* 2. Unified Adversary Briefing Bar (Directly Underneath) */}
+      {activeProbe && (
+        <div className="rounded-xl border border-destructive/30 bg-card p-4 space-y-3.5 shadow-xs">
+          {/* Top row: Exploit Objective & Vector */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="space-y-1 max-w-3xl">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-destructive animate-pulse" />
+                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-destructive">
+                  Attacker Action · Probe {activeProbeIdx + 1}: {activeProbe.name}
+                </span>
+                <span className={cn(
+                  'rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
+                  activeProbe.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
+                  activeProbe.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
+                  'bg-amber-500/15 text-amber-500'
+                )}>
+                  {activeProbe.severity}
+                </span>
+              </div>
+              <p className="text-xs text-foreground/90 font-medium leading-relaxed">
+                {activeProbe.impact}
+              </p>
+              {activeProbe.suggestion && (
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  {activeProbe.suggestion}
+                </p>
+              )}
+            </div>
+
+            <div className="flex sm:flex-col gap-2 shrink-0 sm:items-end">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
+                <span className="font-semibold text-amber-500">Vector:</span>
+                <span className="text-muted-foreground truncate max-w-[260px] font-mono">{activeProbe.vector}</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
+                <span className="font-semibold text-primary">Target:</span>
+                <span className="text-muted-foreground truncate max-w-[260px] font-mono">{activeProbe.target}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Attack Vector Pills */}
+          <div className="border-t border-border/60 pt-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
+              Attack Probes:
+            </span>
+            {probes.map((pr, idx) => {
+              const isCurrent = pr.id === activeProbe.id;
+              const result = executedProbes[pr.id];
+              return (
+                <button
+                  key={pr.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProbeId(pr.id);
+                    if (!result) setTerminalLogs(pr.liveTrace || []);
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer',
+                    isCurrent
+                      ? 'bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs'
+                      : 'bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'size-4 rounded-full flex items-center justify-center font-mono text-[9px]',
+                      result?.status === 'defended'
+                        ? 'bg-emerald-500 text-white'
+                        : isCurrent
+                          ? 'bg-destructive text-white'
+                          : 'bg-muted-foreground/20 text-muted-foreground'
+                    )}
+                  >
+                    {result?.status === 'defended' ? '✓' : idx + 1}
+                  </span>
+                  <span className="truncate max-w-[150px]">{pr.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Forensic Deep-Dive Dropdowns */}
+          <div className="space-y-2 border-t border-border/60 pt-3">
+            {/* Live Socket & Terminal Output Dropdown */}
+            <details className="group/terminal rounded-lg border border-border/70 bg-muted/15 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Terminal className="size-3.5 text-destructive" />
+                  <span>Live Socket &amp; HTTP Terminal Stream ({activeProbe.target})</span>
+                </span>
+                <ChevronDown className="size-3.5 transition-transform group-open/terminal:rotate-180" />
+              </summary>
+              <div className="mt-3 space-y-3 pt-2 border-t border-border/50">
                 {/* PowerShell Verification Command */}
                 <div className="rounded-lg border border-border bg-card shadow-xs overflow-hidden">
                   <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3.5 py-1.5">
-                    <div className="flex items-center gap-2">
-                      <Terminal className="size-3.5 text-destructive" />
-                      <span className="font-mono text-[11px] font-semibold text-foreground">
-                        PowerShell Verification Command (Copy &amp; Paste to Run)
-                      </span>
-                    </div>
+                    <span className="font-mono text-[10px] font-semibold text-foreground">
+                      PowerShell / cURL Verification Command
+                    </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => copyPowerShell(activeProbe.powershellCommand || activeProbe.command)}
-                      className="h-6 gap-1 px-2 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="h-5 gap-1 px-1.5 text-[9px] text-destructive"
                     >
-                      {copiedPs ? <Check className="size-3" /> : <Copy className="size-3" />}
-                      <span>{copiedPs ? 'Copied' : 'Copy Command'}</span>
+                      {copiedPs ? <Check className="size-2.5" /> : <Copy className="size-2.5" />}
+                      <span>{copiedPs ? 'Copied' : 'Copy'}</span>
                     </Button>
                   </div>
-                  <div className="p-3 bg-muted/15 font-mono text-xs text-foreground overflow-x-auto leading-relaxed select-text">
-                    <pre className="whitespace-pre-wrap">{activeProbe.powershellCommand || activeProbe.command}</pre>
-                  </div>
-                  <div className="border-t border-border/60 bg-muted/30 px-3.5 py-1 text-[10px] text-muted-foreground">
-                    Run this command in Windows PowerShell or bash to verify the finding directly.
-                  </div>
+                  <pre className="p-2.5 font-mono text-[11px] overflow-x-auto text-foreground leading-relaxed whitespace-pre-wrap select-text">
+                    {activeProbe.powershellCommand || activeProbe.command}
+                  </pre>
                 </div>
 
                 {/* Terminal Stream */}
@@ -742,7 +823,7 @@ export function InteractiveAgents({
                       </span>
                     )}
                   </div>
-                  <div className="max-h-56 space-y-1 overflow-auto select-text">
+                  <div className="max-h-52 space-y-1 overflow-auto select-text">
                     {terminalLogs.map((log, i) => (
                       <div
                         key={i}
@@ -761,77 +842,67 @@ export function InteractiveAgents({
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
-                Select a probe to inspect live execution trace.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+            </details>
 
-      {/* VERIFIER VIEW */}
-      {activeTab === 'verifier' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
-            <div>
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <ShieldCheck className="size-4 text-primary" />
-                Evidence Proofs &amp; Cryptographic Signatures
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                All AST nodes, diagram entities, and evidence tokens are cryptographically hashed using SHA-256 for audit immutability.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={verifying}
-              onClick={reVerifyAllEvidence}
-              className="gap-2 text-xs"
-            >
-              <RefreshCw className={cn('size-3.5', verifying && 'animate-spin')} />
-              <span>{verifying ? 'Re-Verifying Hashes...' : 'Re-verify Signatures'}</span>
-            </Button>
-          </div>
-
-          <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="divide-y divide-border">
-              {evidenceList.map(item => (
-                <div key={item.id} className="p-3.5 text-xs hover:bg-muted/20 transition-colors">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 font-mono text-[11px]">
-                      <span className="font-semibold text-foreground">{item.path}</span>
-                      <span className="text-muted-foreground">Line {item.line}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-mono text-[10px]">
-                      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-bold text-emerald-600 border border-emerald-500/20 flex items-center gap-1">
-                        <CheckCircle2 className="size-3" />
-                        VERIFIED SHA-256
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2 rounded bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground overflow-x-auto">
-                    {item.excerpt}
-                  </div>
-                  <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
-                    <span className="truncate max-w-md">Digest: {item.hashDigest}</span>
-                    <button
-                      onClick={() => copyText(item.hashDigest, item.id)}
-                      className="text-primary hover:underline flex items-center gap-1"
+            {/* Cryptographic Source Code Proofs (SHA-256 Audit) Dropdown */}
+            {evidenceList.length > 0 && (
+              <details className="group/evidence rounded-lg border border-border/70 bg-muted/15 p-3">
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5 text-primary" />
+                    <span>Cryptographic Source Code Proofs ({evidenceList.length} SHA-256 Verified AST Nodes)</span>
+                  </span>
+                  <ChevronDown className="size-3.5 transition-transform group-open/evidence:rotate-180" />
+                </summary>
+                <div className="mt-3 space-y-3 pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      All AST nodes, diagram entities, and evidence tokens are cryptographically hashed using SHA-256 for audit immutability.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={verifying}
+                      onClick={reVerifyAllEvidence}
+                      className="h-6 gap-1.5 px-2 text-[10px]"
                     >
-                      {copiedHash === item.id ? <Check className="size-2.5" /> : <Copy className="size-2.5" />}
-                      <span>{copiedHash === item.id ? 'Copied' : 'Copy Digest'}</span>
-                    </button>
+                      <RefreshCw className={cn('size-3', verifying && 'animate-spin')} />
+                      <span>{verifying ? 'Re-Verifying...' : 'Re-verify Hashes'}</span>
+                    </Button>
+                  </div>
+
+                  <div className="divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
+                    {evidenceList.map(item => (
+                      <div key={item.id} className="p-3 text-xs hover:bg-muted/20 transition-colors">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 font-mono text-[11px]">
+                            <span className="font-semibold text-foreground">{item.path}</span>
+                            <span className="text-muted-foreground">Line {item.line}</span>
+                          </div>
+                          <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-bold text-emerald-600 border border-emerald-500/20 text-[10px] flex items-center gap-1 font-mono">
+                            <CheckCircle2 className="size-3" />
+                            VERIFIED SHA-256
+                          </span>
+                        </div>
+                        <div className="mt-1.5 rounded bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground overflow-x-auto">
+                          {item.excerpt}
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between font-mono text-[10px] text-muted-foreground">
+                          <span className="truncate max-w-md">Digest: {item.hashDigest}</span>
+                          <button
+                            onClick={() => copyText(item.hashDigest, item.id)}
+                            className="text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedHash === item.id ? <Check className="size-2.5" /> : <Copy className="size-2.5" />}
+                            <span>{copiedHash === item.id ? 'Copied' : 'Copy Digest'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-              {evidenceList.length === 0 && (
-                <div className="p-6 text-center text-xs text-muted-foreground">
-                  No evidence items recorded in this scan.
-                </div>
-              )}
-            </div>
+              </details>
+            )}
           </div>
         </div>
       )}
