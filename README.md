@@ -6,7 +6,8 @@
 
 **Evidence-First Autonomous Security Graph, Agentic Defense, and Multi-Tenant Isolation Platform**
 
-[![Tests](https://img.shields.io/badge/tests-72%20passed-10b981.svg?style=flat-square)](https://github.com/ritvikindupuri/Traceveil)
+[![Tests](https://img.shields.io/badge/tests-93%20passed-10b981.svg?style=flat-square)](https://github.com/ritvikindupuri/Traceveil)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ed.svg?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square)](https://react.dev/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154.svg?style=flat-square)](https://tanstack.com/start)
@@ -26,6 +27,7 @@ Traceveil bridges raw code repositories, live production web applications, conta
 
 ## Key Features
 
+* **Architecture Diagram Threat Modeling & AI Synthesis**: Upload draw.io XML diagrams, Cisco Packet Tracer (.pkt/.pka), or network configs, or describe architectures in natural language with AI. The engine synthesizes the attack path and exports a hardened, corrected draw.io file.
 * **Deterministic Attack Graph Engine (Wiz-Style Visualizer)**: Synthesizes toxic risk combinations linking public ingress vectors, workload vulnerabilities, privilege escalations, and crown jewel datastores into an interactive Dagre horizontal topology powered by React Flow.
 * **Conversational Tenant Isolation Copilot (Google Argon 4)**: An interactive security consultant equipped with prompt pills, live probe test widgets, and one-click policy generators synthesizing hardened PostgreSQL Row-Level Security (RLS) rules and Kubernetes zero-trust NetworkPolicies.
 * **Autonomous Red Team Adversary (Google Argon 4)**: Executes real, unsimulated attack commands against target workloads to rigorously test privilege escalation boundaries, sensitive token leakage, and SSRF pivots with live stdout/stderr streams.
@@ -140,56 +142,78 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 
 ---
 
-## Setup Instructions
+## Setup & Deployment Instructions
 
-### Prerequisites
-* **Node.js**: `v20.0.0` or higher
-* **Package Manager**: `npm` (v10+) or `bun`
-* **Git**: `v2.40+`
-* *(Optional)* **Gemini API Key**: Set `GEMINI_API_KEY` for live Google AI agent execution (Traceveil includes an integrated deterministic local security reasoning fallback if omitted).
+### 🐳 Option 1: Quickstart with Docker (Recommended)
 
-### 1. Clone the Repository
+Traceveil is fully dockerized with a production multi-stage Alpine Dockerfile and Docker Compose.
+
+#### 1. Clone the Repository
 ```bash
 git clone https://github.com/ritvikindupuri/Traceveil.git
 cd Traceveil
 ```
 
-### 2. Install Dependencies
+#### 2. Configure Environment Variables
 ```bash
+cp .env.example .env
+```
+*(You can customize port, database keys, or optional Gemini API keys in `.env`).*
+
+#### 3. Launch with Docker Compose
+```bash
+docker compose up -d
+```
+The application will automatically build, configure container healthchecks, and start at **`http://localhost:3000`**.
+
+* **Inspect Container Logs**: `docker compose logs -f`
+* **Stop Container**: `docker compose down`
+* **Persistent Data**: Scan history and encrypted credentials are automatically persisted in the `traceveil-data` Docker volume (`/app/data`).
+
+#### Or Run with Standalone Docker
+```bash
+# Build the production image
+docker build -t traceveil:latest .
+
+# Run the container
+docker run -d \
+  --name traceveil \
+  -p 3000:3000 \
+  --env-file .env \
+  -v traceveil-data:/app/data \
+  --restart unless-stopped \
+  traceveil:latest
+```
+
+---
+
+### 💻 Option 2: Local Development with Node.js
+
+#### Prerequisites
+* **Node.js**: `v20.0.0` or higher (tested on Node 22 & 24)
+* **Package Manager**: `npm` (v10+) or `bun`
+* **Git**: `v2.40+`
+* *(Optional)* **Gemini API Key**: Set `GEMINI_API_KEY` in `.env` for cloud LLM reasoning (Traceveil automatically uses deterministic local security reasoning fallback if omitted).
+
+#### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/ritvikindupuri/Traceveil.git
+cd Traceveil
 npm install
 ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the project root:
+#### 2. Configure Environment Variables
 ```bash
 cp .env.example .env
 ```
 
-Configure the following variables in `.env`:
-```env
-# Google Gemini / Argon Model Access (Optional for cloud LLM execution)
-GEMINI_API_KEY="your-gemini-api-key"
-
-# Cryptographic Session & Vault Secret (Used for AES-256-GCM encryption)
-SESSION_SECRET="generate-a-strong-32-byte-secret-key-here"
-
-# Local Data Directory
-DATA_DIR="./data"
-```
-
-### 4. Initialize Database
-Initialize the embedded SQLite database schema:
-```bash
-npm run db:push
-```
-
-### 5. Start the Development Server
+#### 3. Start the Development Server
 ```bash
 npm run dev
 ```
 The application will start immediately at `http://localhost:3000`.
 
-### 6. Build & Run for Production
+#### 4. Build & Run for Production
 ```bash
 # Build client and server bundles
 npm run build
@@ -198,7 +222,7 @@ npm run build
 npm run start
 ```
 
-### 7. Run Test Suite
+#### 5. Run the Test Suite
 Traceveil includes an extensive test suite verifying cryptographic hashing, graph synthesis, isolation policies, and routing:
 ```bash
 npm test

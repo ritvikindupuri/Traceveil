@@ -1,0 +1,36 @@
+services:
+  traceveil:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traceveil
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SUPABASE_PROJECT_ID=${SUPABASE_PROJECT_ID:-zyzpifrmhqjjdmqories}
+      - SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY:-sb_publishable_jxzqg12dkVUTZqGImXeTdQ_Gq-pz6eR}
+      - SUPABASE_URL=${SUPABASE_URL:-https://zyzpifrmhqjjdmqories.supabase.co}
+      - VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID:-zyzpifrmhqjjdmqories}
+      - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY:-sb_publishable_jxzqg12dkVUTZqGImXeTdQ_Gq-pz6eR}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-https://zyzpifrmhqjjdmqories.supabase.co}
+      - MCP_TOKEN_ENCRYPTION_SECRET=${MCP_TOKEN_ENCRYPTION_SECRET:-traceveil-mcp-token-encryption-master-key-2026-prod}
+      - SESSION_SECRET=${SESSION_SECRET:-traceveil-session-secret-master-encryption-key-2026-prod}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - traceveil-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  traceveil-data:
+    driver: local
