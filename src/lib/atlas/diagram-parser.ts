@@ -45,15 +45,30 @@ interface ClassifiedNode {
  */
 function cleanLabel(raw?: string): string {
   if (!raw) return '';
-  return raw
+  const decoded = raw
     .replace(/<[^>]*>/g, ' ')
+    .replace(/&#x0*a;/gi, '\n')
+    .replace(/&#x0*d;/gi, '\n')
+    .replace(/&#0*10;/g, '\n')
+    .replace(/&#0*13;/g, '\n')
+    .replace(/&#x[0-9a-f]+;/gi, match => {
+      const code = parseInt(match.slice(3, -1), 16);
+      return String.fromCharCode(code);
+    })
+    .replace(/&#[0-9]+;/g, match => {
+      const code = parseInt(match.slice(2, -1), 10);
+      return String.fromCharCode(code);
+    })
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/&#39;/gi, "'");
+
+  // Take primary first line if it's a multiline attribute from draw.io
+  const firstLine = decoded.split(/\r?\n/).map(l => l.trim()).filter(Boolean)[0] || '';
+  return firstLine.replace(/\s+/g, ' ').trim();
 }
 
 /**

@@ -21,6 +21,43 @@ import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/a
 import { generateCorrectedDrawIoXml, getArchitecturalRemediationGuide } from '@/lib/atlas/corrected-diagram';
 import { cn } from '@/lib/utils';
 
+function parseTopologyNode(rawNode: string) {
+  const clean = rawNode
+    .replace(/&#x0*a;/gi, ' ')
+    .replace(/&#x0*d;/gi, ' ')
+    .replace(/&#0*10;/g, ' ')
+    .replace(/&#0*13;/g, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Check for [Private Subnet (...)] prefix
+  const subnetMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+  if (subnetMatch) {
+    return {
+      prefix: subnetMatch[1],
+      label: subnetMatch[2],
+      isSubnet: true,
+    };
+  }
+
+  // Check for (Exposed Public IP) suffix
+  const exposedMatch = clean.match(/^(.*?)\s*\((Exposed Public IP|Public Reads Allowed)\)$/i);
+  if (exposedMatch) {
+    return {
+      label: exposedMatch[1],
+      suffix: exposedMatch[2],
+      isExposed: true,
+    };
+  }
+
+  return { label: clean };
+}
+
 function DiagramRemediationStudio({
   graph,
   patches,
@@ -133,70 +170,102 @@ function DiagramRemediationStudio({
 
           {/* Side by side Before / After flow */}
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Before */}
-            <div className="rounded-lg border border-destructive/25 bg-destructive/[0.03] p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+            {/* Before Card */}
+            <div className="rounded-xl border border-destructive/30 bg-destructive/[0.03] p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between border-b border-destructive/15 pb-2.5">
                 <span className="text-xs font-bold text-destructive flex items-center gap-1.5">
-                  <ShieldAlert className="size-3.5" />
+                  <ShieldAlert className="size-4" />
                   Before (Original Diagram)
                 </span>
-                <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive uppercase">
+                <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive uppercase tracking-wider">
                   Vulnerable
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 py-1 font-mono text-[11px]">
-                {guide.beforeTopology.nodes.map((node, nIdx) => (
-                  <div key={nIdx} className="flex items-center gap-1.5">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded border text-[11px]",
-                      nIdx === guide.beforeTopology.nodes.length - 1
-                        ? "bg-destructive/20 text-destructive border-destructive/40 font-bold"
-                        : "bg-background border-border text-foreground"
-                    )}>
-                      {node}
-                    </span>
-                    {nIdx < guide.beforeTopology.nodes.length - 1 && (
-                      <ArrowRight className="size-3 text-destructive shrink-0" />
-                    )}
-                  </div>
-                ))}
+
+              {/* Clean Node Flow Sequence */}
+              <div className="flex flex-wrap items-center gap-2 py-1">
+                {guide.beforeTopology.nodes.map((node, nIdx) => {
+                  const isLast = nIdx === guide.beforeTopology.nodes.length - 1;
+                  const parsed = parseTopologyNode(node);
+
+                  return (
+                    <div key={nIdx} className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                          isLast
+                            ? "border-destructive/40 bg-destructive/15 text-destructive font-semibold shadow-xs"
+                            : "border-border/80 bg-background text-foreground/90 shadow-2xs"
+                        )}
+                      >
+                        <span className="truncate max-w-[220px]">{parsed.label}</span>
+                        {parsed.suffix && (
+                          <span className="rounded bg-destructive/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-destructive">
+                            {parsed.suffix}
+                          </span>
+                        )}
+                      </div>
+                      {!isLast && (
+                        <ArrowRight className="size-3.5 text-destructive/60 shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {guide.beforeTopology.riskCallout}
-              </p>
+
+              <div className="rounded-lg bg-destructive/10 p-2.5 border border-destructive/20 text-xs text-destructive leading-relaxed">
+                <span className="font-semibold">Risk Impact: </span>
+                <span>{guide.beforeTopology.riskCallout}</span>
+              </div>
             </div>
 
-            {/* After */}
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.03] p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
+            {/* After Card */}
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.03] p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2.5">
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <ShieldCheck className="size-3.5" />
+                  <ShieldCheck className="size-4" />
                   After (Zero-Trust Remediated)
                 </span>
-                <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600 uppercase">
+                <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
                   Secured
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 py-1 font-mono text-[11px]">
-                {guide.afterTopology.nodes.map((node, nIdx) => (
-                  <div key={nIdx} className="flex items-center gap-1.5">
-                    <span className={cn(
-                      "px-2 py-0.5 rounded border text-[11px]",
-                      nIdx === guide.afterTopology.nodes.length - 1
-                        ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40 font-bold"
-                        : "bg-background border-border text-foreground"
-                    )}>
-                      {node}
-                    </span>
-                    {nIdx < guide.afterTopology.nodes.length - 1 && (
-                      <ArrowRight className="size-3 text-emerald-600 shrink-0" />
-                    )}
-                  </div>
-                ))}
+
+              {/* Clean Node Flow Sequence */}
+              <div className="flex flex-wrap items-center gap-2 py-1">
+                {guide.afterTopology.nodes.map((node, nIdx) => {
+                  const isLast = nIdx === guide.afterTopology.nodes.length - 1;
+                  const parsed = parseTopologyNode(node);
+
+                  return (
+                    <div key={nIdx} className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+                          isLast
+                            ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-semibold shadow-xs"
+                            : "border-border/80 bg-background text-foreground/90 shadow-2xs"
+                        )}
+                      >
+                        {parsed.prefix && (
+                          <span className="rounded bg-emerald-500/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
+                            {parsed.prefix}
+                          </span>
+                        )}
+                        <span className="truncate max-w-[220px]">{parsed.label}</span>
+                      </div>
+                      {!isLast && (
+                        <ArrowRight className="size-3.5 text-emerald-600/60 shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {guide.afterTopology.benefitCallout}
-              </p>
+
+              <div className="rounded-lg bg-emerald-500/10 p-2.5 border border-emerald-500/20 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                <span className="font-semibold">Security Benefit: </span>
+                <span>{guide.afterTopology.benefitCallout}</span>
+              </div>
             </div>
           </div>
 
