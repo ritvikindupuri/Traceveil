@@ -1,4 +1,5 @@
 import type { AttackGraph, GraphEntity, GraphRelation, Finding, Evidence, AttackPath, AttackPathStep } from './types';
+import { sanitizeComponentName, sanitizeEdgeLabel, decodeXmlEntities } from './clean-text';
 
 export interface ParsedDiagramResult {
   graph: AttackGraph;
@@ -45,30 +46,7 @@ interface ClassifiedNode {
  */
 function cleanLabel(raw?: string): string {
   if (!raw) return '';
-  const decoded = raw
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&#x0*a;/gi, '\n')
-    .replace(/&#x0*d;/gi, '\n')
-    .replace(/&#0*10;/g, '\n')
-    .replace(/&#0*13;/g, '\n')
-    .replace(/&#x[0-9a-f]+;/gi, match => {
-      const code = parseInt(match.slice(3, -1), 16);
-      return String.fromCharCode(code);
-    })
-    .replace(/&#[0-9]+;/g, match => {
-      const code = parseInt(match.slice(2, -1), 10);
-      return String.fromCharCode(code);
-    })
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'");
-
-  // Take primary first line if it's a multiline attribute from draw.io
-  const firstLine = decoded.split(/\r?\n/).map(l => l.trim()).filter(Boolean)[0] || '';
-  return firstLine.replace(/\s+/g, ' ').trim();
+  return sanitizeComponentName(raw, 50);
 }
 
 /**
@@ -843,7 +821,7 @@ export function analyzeDiagramToAttackGraph(
         id: `edge-${c.id}`,
         source: srcNode.id,
         target: dstNode.id,
-        label: c.value || (isDangerous ? 'Direct Unfiltered Exposure' : 'Traffic Link'),
+        label: sanitizeEdgeLabel(c.value) || (isDangerous ? 'Direct Unfiltered Exposure' : 'Traffic Link'),
         evidenceIds: [evId],
         provenance: 'declared',
         risky: isDangerous,
@@ -1069,19 +1047,20 @@ export function analyzeDiagramToAttackGraph(
           ? 'privilege'
           : 'server';
 
+      const cleanStepName = sanitizeComponentName(n.label);
       attackPathSteps.push({
         id: `step-${idx + 1}`,
         nodeId: n.id,
-        title: idx === 0 ? 'External Perimeter Reconnaissance' : idx === finalChain.length - 1 ? 'Crown Jewel Data Exfiltration' : `Lateral Pivot: ${n.label}`,
-        subtitle: n.label,
+        title: idx === 0 ? 'Perimeter Reconnaissance' : idx === finalChain.length - 1 ? 'Data Exfiltration' : cleanStepName,
+        subtitle: cleanStepName,
         stage,
         badge: `Hop ${idx + 1}`,
         description:
           idx === 0
-            ? 'Adversary probes public IP endpoints and exposed perimeter entrypoints.'
+            ? 'Adversary probes public IP endpoints to map untrusted ingress routes.'
             : idx === finalChain.length - 1
-            ? 'Adversary establishes unauthorized access to core datastore and sensitive customer assets.'
-            : `Adversary traverses uninspected boundary to compromise ${n.label}.`,
+            ? 'Adversary establishes direct unauthorized access to exfiltrate core data assets.'
+            : `Adversary traverses boundary to reach ${cleanStepName}.`,
         evidenceIds: n.evidenceIds,
       });
     });

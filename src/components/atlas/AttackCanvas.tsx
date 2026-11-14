@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import type { AttackGraph, GraphEntity, AttackPath, AttackPathStep, Evidence } from '@/lib/atlas/types';
 import { cn } from '@/lib/utils';
+import { sanitizeComponentName, sanitizeEdgeLabel } from '@/lib/atlas/clean-text';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -154,6 +155,8 @@ function WizNodeComponent({ data, selected }: NodeProps<EntityNode>) {
   const theme = getCategoryColor(isInternet ? 'internet' : isDatabase ? 'target' : rawKind, n.severity);
   const isActive = data.isActiveStep || selected;
   const isAttackPath = data.isAttackPathMode;
+  const cleanLabel = sanitizeComponentName(n.label);
+  const cleanSubtitle = sanitizeComponentName(n.subtitle || n.kind);
 
   return (
     <div
@@ -189,11 +192,11 @@ function WizNodeComponent({ data, selected }: NodeProps<EntityNode>) {
           <Icon className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-foreground leading-snug line-clamp-2 break-words" title={n.label}>
-            {n.label}
+          <div className="text-xs font-semibold text-foreground leading-snug line-clamp-2 break-words" title={cleanLabel}>
+            {cleanLabel}
           </div>
-          <div className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mt-0.5 break-words" title={n.subtitle || n.kind}>
-            {n.subtitle || n.kind}
+          <div className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mt-0.5 break-words" title={cleanSubtitle}>
+            {cleanSubtitle}
           </div>
         </div>
       </div>
@@ -240,7 +243,8 @@ function WizEdge({
 
   const edgeData = data as CustomEdgeData | undefined;
   const isPathEdge = Boolean(edgeData?.isPathEdge);
-  const displayLabel = (label as string) || edgeData?.label;
+  const rawLabel = (label as string) || edgeData?.label;
+  const displayLabel = sanitizeEdgeLabel(rawLabel);
 
   return (
     <>
@@ -282,6 +286,7 @@ export function AttackCanvas({
   search,
   riskOnly = false,
   hideFloatingCard = false,
+  hidePathHeader = false,
   controlledStepIdx,
   onStepChange,
 }: {
@@ -290,6 +295,7 @@ export function AttackCanvas({
   search: string;
   riskOnly: boolean;
   hideFloatingCard?: boolean;
+  hidePathHeader?: boolean;
   controlledStepIdx?: number;
   onStepChange?: (idx: number) => void;
 }) {
@@ -544,7 +550,7 @@ export function AttackCanvas({
   return (
     <div ref={container} className="relative flex flex-col h-full w-full overflow-hidden bg-background">
       {/* Top Wiz-Style Header & Stepper: ONLY VISIBLE WHEN RISK ONLY / ATTACK PATHS IS CLICKED */}
-      {riskOnly && activePath && (
+      {riskOnly && activePath && !hidePathHeader && (
         <div className="z-10 flex flex-wrap items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/5 px-4 py-3 backdrop-blur-md">
           {/* Left: Path Selector Tabs */}
           <div className="flex flex-wrap items-center gap-2">
@@ -618,7 +624,7 @@ export function AttackCanvas({
       )}
 
       {/* Horizontal Step Breadcrumbs: ONLY VISIBLE WHEN RISK ONLY / ATTACK PATHS IS CLICKED */}
-      {riskOnly && activePath && (
+      {riskOnly && activePath && !hidePathHeader && (
         <div className="z-10 flex items-center gap-1 overflow-x-auto border-b border-border/60 bg-muted/30 px-4 py-2 text-xs">
           {normalizedSteps.map((s, idx) => {
             const Icon = stageIcons[s.stage as keyof typeof stageIcons] || Globe;

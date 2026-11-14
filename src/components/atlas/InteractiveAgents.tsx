@@ -20,11 +20,13 @@ import {
   Wrench,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph, AttackPathStep } from '@/lib/atlas/types';
 import { generateRedTeamProbes, computeSha256, type RedTeamProbe, type VerifiedEvidence } from '@/lib/atlas/agent-operations';
 import { executeLiveProbe } from '@/lib/atlas/probe.functions';
+import { sanitizeComponentName } from '@/lib/atlas/clean-text';
 import { cn } from '@/lib/utils';
 
 const AttackCanvas = lazy(() => import('./AttackCanvas').then(m => ({ default: m.AttackCanvas })));
@@ -53,11 +55,8 @@ function buildDiagramAttackerSteps(graph: AttackGraph): DiagramAttackerStep[] {
   if (rawSteps.length > 0) {
     rawSteps.forEach((s: AttackPathStep, idx: number) => {
       const node = nodes.find(n => n.id === s.nodeId);
-      const compName = node?.label || s.title.replace(/^(?:Lateral Pivot:\s*|External Perimeter Reconnaissance|Crown Jewel Data Exfiltration:\s*)/i, '').trim() || 'Perimeter';
-      const f = findings.find(item =>
-        item.title.toLowerCase().includes(compName.toLowerCase()) ||
-        item.evidenceIds?.some(evId => s.evidenceIds?.includes(evId))
-      );
+      const rawCompName = node?.label || s.title.replace(/^(?:Lateral Pivot:\s*|External Perimeter Reconnaissance|Crown Jewel Data Exfiltration:\s*)/i, '').trim() || 'Perimeter';
+      const compName = sanitizeComponentName(rawCompName, 32);
 
       const isFirst = idx === 0;
       const isLast = idx === rawSteps.length - 1;
@@ -68,52 +67,52 @@ function buildDiagramAttackerSteps(graph: AttackGraph): DiagramAttackerStep[] {
       const isAlb = compName.toLowerCase().includes('alb') || compName.toLowerCase().includes('load balancer') || compName.toLowerCase().includes('ingress') || compName.toLowerCase().includes('cloudfront');
 
       let title = s.title;
-      let severity: 'critical' | 'high' | 'medium' = f?.severity || (isDb ? 'critical' : isStorage ? 'high' : isFirst ? 'medium' : 'high');
+      let severity: 'critical' | 'high' | 'medium' = isDb ? 'critical' : isStorage ? 'high' : isFirst ? 'medium' : 'high';
       let attackerObjective = s.subtitle || 'Probe network reachability';
-      let attackerAnalysis = s.description;
-      let exploitMethod = 'Direct network probing';
-      let architecturalFault = f?.title || 'Unsegmented communication path in architecture';
-      let remediationAction = f?.fix || s.remediation || 'Place component in isolated private subnet and enforce security group ingress rules.';
+      let attackerAnalysis = 'Adversary traverses boundary to access this component.';
+      let exploitMethod = 'Direct network traversal';
+      let architecturalFault = 'Unsegmented communication path';
+      let remediationAction = 'Isolate in private subnet and enforce ingress whitelist.';
 
       if (isFirst) {
-        title = `Step 1: External Perimeter Reconnaissance (${compName})`;
-        attackerObjective = 'Discover public-facing endpoints and uninspected ingress routes.';
-        attackerAnalysis = `As an external adversary, I initiate reconnaissance against the public perimeter. I map all public IP routes leading directly into ${compName} without passing through a Zero-Trust identity perimeter or VPN bastion.`;
-        exploitMethod = 'Port scanning, DNS enumeration, and ingress boundary mapping';
-        architecturalFault = 'Untrusted public perimeter connects directly into internal workload tiers.';
-        remediationAction = 'Enforce an isolated DMZ perimeter gateway and require authenticated Bastion access.';
+        title = `Perimeter Reconnaissance (${compName})`;
+        attackerObjective = 'Discover public ingress routes.';
+        attackerAnalysis = `Adversary probes public IP endpoints to map exposed ingress routes leading into ${compName}.`;
+        exploitMethod = 'Perimeter enumeration & port mapping';
+        architecturalFault = 'Untrusted perimeter directly reaches internal workloads.';
+        remediationAction = 'Enforce DMZ perimeter gateway and restrict public access.';
       } else if (isDb) {
-        title = `Fault: Direct Public Database Exposure (${compName})`;
+        title = `Database Exposure (${compName})`;
         severity = 'critical';
-        attackerObjective = 'Bypass application layer and directly dump production database tables.';
-        attackerAnalysis = `CRITICAL ARCHITECTURAL FLAW: ${compName} is directly exposed without an isolated Private Subnet boundary. As an attacker, I bypass the web tier entirely. I probe database port 5432 directly from the public internet, execute credential brute-forcing, and exfiltrate customer data tables.`;
-        exploitMethod = 'Direct TCP socket connect on database port → SQL brute-force / auth bypass';
-        architecturalFault = `${compName} lacks private subnet encapsulation and security group ingress whitelisting.`;
-        remediationAction = `Move ${compName} into an isolated Private Subnet. Sever direct internet ingress edges and allow traffic solely from authorized application compute nodes.`;
+        attackerObjective = 'Bypass application layer to access production data.';
+        attackerAnalysis = `Adversary bypasses application controls to connect directly to database port 5432 and exfiltrate records.`;
+        exploitMethod = 'Direct database socket connection & SQL access';
+        architecturalFault = `${compName} lacks private subnet isolation.`;
+        remediationAction = `Move ${compName} into an isolated Private Subnet without public ingress.`;
       } else if (isStorage) {
-        title = `Fault: Public Object Storage Exposure (${compName})`;
+        title = `Storage Exposure (${compName})`;
         severity = 'high';
-        attackerObjective = 'Enumerate and exfiltrate unencrypted files and backups.';
-        attackerAnalysis = `I discover that ${compName} has direct public access enabled without an S3 Public Access Block. I query bucket endpoints over standard HTTPS and download private assets, documents, and backups.`;
-        exploitMethod = 'Direct REST API enumeration & anonymous GetObject requests';
-        architecturalFault = `${compName} lacks public access block and private VPC endpoint constraints.`;
-        remediationAction = `Apply Terraform aws_s3_bucket_public_access_block and enforce access via private VPC endpoints only.`;
+        attackerObjective = 'Enumerate and exfiltrate documents.';
+        attackerAnalysis = `Adversary queries ${compName} directly over HTTPS to download unprotected assets and backups.`;
+        exploitMethod = 'Direct REST API & anonymous GetObject requests';
+        architecturalFault = `${compName} lacks public access block and VPC endpoint constraints.`;
+        remediationAction = `Apply S3 Public Access Block and enforce VPC endpoint access.`;
       } else if (isAlb || !isWaf) {
-        title = `Fault: Missing Perimeter WAF Filter (${compName})`;
+        title = `Missing WAF Guard (${compName})`;
         severity = 'medium';
-        attackerObjective = 'Send unfiltered web exploits and automated bot traffic.';
-        attackerAnalysis = `I inspect the ingress layer on ${compName}. There is no Cloud WAF attached. Any SQL injection, XSS, or HTTP request smuggling payloads I send will reach downstream compute workloads completely uninspected.`;
-        exploitMethod = 'HTTP request smuggling & automated web attack payload injection';
-        architecturalFault = `Ingress gateway lacks AWS WAF WebACL inspection.`;
-        remediationAction = `Attach an AWS WAF WebACL to the load balancer with OWASP Top 10 rule sets enabled.`;
+        attackerObjective = 'Route web attack payloads uninspected.';
+        attackerAnalysis = `Adversary routes unfiltered web exploit payloads through ${compName} due to missing WAF inspection.`;
+        exploitMethod = 'Web exploit payload injection';
+        architecturalFault = `Ingress gateway lacks WAF inspection.`;
+        remediationAction = `Attach Cloud WAF with OWASP Core Rules enabled.`;
       } else if (isLast) {
-        title = `Final Impact: Crown-Jewel Data Exfiltration`;
+        title = `Crown-Jewel Exfiltration`;
         severity = 'critical';
-        attackerObjective = 'Exfiltrate sensitive assets without detection.';
-        attackerAnalysis = `Having walked through the unsegmented paths in your diagram, I have achieved my objective: full unauthenticated access to your core data assets. No internal microsegmentation or detection alerts were able to sever the attack path.`;
-        exploitMethod = 'Automated data dump & outbound egress exfiltration';
-        architecturalFault = `End-to-end unsegmented attack path across the architecture topology.`;
-        remediationAction = `Implement Zero-Trust network microsegmentation and private subnet containers.`;
+        attackerObjective = 'Exfiltrate sensitive assets.';
+        attackerAnalysis = `Adversary completes unauthorized exfiltration of crown-jewel assets across unsegmented paths.`;
+        exploitMethod = 'Automated data dump & outbound egress';
+        architecturalFault = `End-to-end unsegmented traversal path.`;
+        remediationAction = `Enforce Zero-Trust microsegmentation.`;
       }
 
       steps.push({
@@ -132,25 +131,9 @@ function buildDiagramAttackerSteps(graph: AttackGraph): DiagramAttackerStep[] {
       });
     });
   } else if (findings.length > 0) {
-    // Generate sequential steps directly from findings
-    steps.push({
-      id: 'step-recon',
-      stepNumber: 1,
-      nodeId: nodes[0]?.id || 'internet',
-      componentName: nodes[0]?.label || 'Public Internet',
-      title: 'Step 1: External Perimeter Reconnaissance',
-      severity: 'medium',
-      attackerObjective: 'Scan public attack surface for unsegmented ingress paths.',
-      attackerAnalysis: 'As an external threat actor, I map the diagram perimeter and identify exposed routes into internal tiers.',
-      exploitMethod: 'Perimeter scanning & DNS enumeration',
-      architecturalFault: 'Direct untrusted ingress into architecture topology.',
-      remediationAction: 'Enforce perimeter isolation and private subnet routing.',
-      evidenceIds: [],
-    });
-
     findings.forEach((f, idx) => {
-      const compName = f.title.match(/\(([^)]+)\)/)?.[1] || 'Target Component';
-      const node = nodes.find(n => n.label.toLowerCase() === compName.toLowerCase()) || nodes[idx + 1] || nodes[0];
+      const compName = sanitizeComponentName(f.title, 32);
+      const node = nodes.find(n => sanitizeComponentName(n.label).toLowerCase() === compName.toLowerCase()) || nodes[idx] || nodes[0];
       const isDb = f.rule.includes('db') || f.rule.includes('database') || compName.toLowerCase().includes('sql') || compName.toLowerCase().includes('rds');
 
       steps.push({
@@ -160,25 +143,24 @@ function buildDiagramAttackerSteps(graph: AttackGraph): DiagramAttackerStep[] {
         componentName: compName,
         title: `Fault: ${f.title}`,
         severity: isDb ? 'critical' : f.severity,
-        attackerObjective: `Exploit ${f.rule} to breach ${compName}.`,
-        attackerAnalysis: `As an attacker, I locate ${compName} in your diagram. ${f.fix} Because this protection is absent, I can exploit direct network reachability to compromise this asset without resistance.`,
-        exploitMethod: isDb ? 'Direct port 5432/3306 connect & SQL brute-force' : 'Direct API access & uninspected route traversal',
+        attackerObjective: `Exploit ${f.rule} to reach ${compName}.`,
+        attackerAnalysis: `Adversary leverages ${f.rule} exposure to directly access and compromise ${compName}.`,
+        exploitMethod: isDb ? 'Direct database port connection' : 'Direct API traversal',
         architecturalFault: f.title,
         remediationAction: f.fix,
         evidenceIds: f.evidenceIds || [],
       });
     });
   } else {
-    // Fallback if no findings
     steps.push({
       id: 'step-clean',
       stepNumber: 1,
       nodeId: nodes[0]?.id || 'diagram',
       componentName: 'Architecture',
-      title: 'Adversary Perimeter Reconnaissance',
+      title: 'Perimeter Reconnaissance',
       severity: 'medium',
       attackerObjective: 'Evaluate diagram for security boundaries.',
-      attackerAnalysis: 'The adversary scans the architecture diagram. Perimeter boundaries and segmentation rules are analyzed.',
+      attackerAnalysis: 'Adversary scans diagram topology to evaluate boundary segmentation.',
       exploitMethod: 'Topological path traversal',
       architecturalFault: 'No high-severity architectural faults identified in current diagram.',
       remediationAction: 'Continue following Zero-Trust subnet isolation principles.',
@@ -191,7 +173,7 @@ function buildDiagramAttackerSteps(graph: AttackGraph): DiagramAttackerStep[] {
 
 /**
  * Clean, focused Red Team Assessment view for Architecture Diagrams.
- * Shows the agent walking through architectural faults like an attacker.
+ * Shows the adversary walking through architectural faults step-by-step.
  */
 function DiagramRedTeamStudio({
   graph,
@@ -209,17 +191,18 @@ function DiagramRedTeamStudio({
     if (!isPlaying || steps.length <= 1) return;
     const interval = setInterval(() => {
       setActiveStepIdx(prev => (prev + 1) % steps.length);
-    }, 3800);
+    }, 3600);
     return () => clearInterval(interval);
   }, [isPlaying, steps.length]);
 
   const currentStep = steps[activeStepIdx] || steps[0];
+  const cleanTargetName = sanitizeComponentName(currentStep?.componentName, 28);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* 1. Main Architecture Diagram Canvas (Full Width) */}
       <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
-        {/* Sleek Top Bar on Canvas */}
+        {/* Streamlined Top Bar on Canvas */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="flex size-7 items-center justify-center rounded-md bg-destructive/15 text-destructive ring-1 ring-destructive/30">
@@ -227,11 +210,11 @@ function DiagramRedTeamStudio({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-foreground">
-                Adversary Walking Diagram Faults
+                Adversary Simulation
               </span>
-              <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-destructive">
+              <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">
                 <Radio className="size-2 animate-pulse text-destructive" />
-                Targeting: {currentStep.componentName}
+                Target: {cleanTargetName}
               </span>
             </div>
           </div>
@@ -248,7 +231,7 @@ function DiagramRedTeamStudio({
                   setActiveStepIdx(prev => Math.max(0, prev - 1));
                 }}
                 className="h-6 px-2 text-[11px]"
-                title="Previous Fault"
+                title="Previous Step"
               >
                 <ChevronLeft className="size-3 mr-0.5" />
                 Prev
@@ -265,7 +248,7 @@ function DiagramRedTeamStudio({
                   setActiveStepIdx(prev => Math.min(steps.length - 1, prev + 1));
                 }}
                 className="h-6 px-2 text-[11px]"
-                title="Next Fault"
+                title="Next Step"
               >
                 Next
                 <ChevronRight className="size-3 ml-0.5" />
@@ -306,7 +289,7 @@ function DiagramRedTeamStudio({
         </div>
 
         {/* Canvas Area */}
-        <div className="h-[520px] w-full relative bg-muted/5">
+        <div className="h-[500px] w-full relative bg-muted/5">
           <ClientOnly fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
             <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
               <AttackCanvas
@@ -314,6 +297,7 @@ function DiagramRedTeamStudio({
                 search=""
                 riskOnly={true}
                 hideFloatingCard={true}
+                hidePathHeader={true}
                 controlledStepIdx={activeStepIdx}
                 onSelect={() => {}}
               />
@@ -322,72 +306,78 @@ function DiagramRedTeamStudio({
         </div>
       </div>
 
-      {/* 2. Unified Adversary Briefing Bar (Directly Underneath) */}
+      {/* 2. Streamlined Adversary Briefing Strip (Directly Underneath) */}
       <div className="rounded-xl border border-destructive/30 bg-card p-4 space-y-3 shadow-xs">
-        {/* Attacker Action & Analysis */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-          <div className="space-y-1 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-destructive animate-pulse" />
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-destructive">
-                Attacker Action · Step {activeStepIdx + 1}: {currentStep.componentName}
-              </span>
-              <span className={cn(
-                "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
-                currentStep.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
-                currentStep.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
-                'bg-amber-500/15 text-amber-500'
-              )}>
-                {currentStep.severity}
-              </span>
-            </div>
-            <p className="text-xs text-foreground/90 font-medium leading-relaxed">
-              {currentStep.attackerAnalysis}
-            </p>
+        {/* Top row: Active step title + severity badge + Fix button */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-destructive animate-pulse" />
+            <span className="font-mono text-xs font-bold text-destructive">
+              Step {activeStepIdx + 1}: {cleanTargetName}
+            </span>
+            <span className={cn(
+              "rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase",
+              currentStep.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
+              currentStep.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
+              'bg-amber-500/15 text-amber-500'
+            )}>
+              {currentStep.severity}
+            </span>
           </div>
 
-          <div className="flex sm:flex-col gap-2 shrink-0 sm:items-end">
-            <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
-              <span className="font-semibold text-amber-500">Flaw:</span>
-              <span className="text-muted-foreground truncate max-w-[260px]">{currentStep.architecturalFault}</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-1.5 text-[11px]">
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">Fix:</span>
-              <span className="text-muted-foreground truncate max-w-[260px]">{currentStep.remediationAction}</span>
-            </div>
-          </div>
+          {onNavigateToRemediation && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onNavigateToRemediation}
+              className="h-6 gap-1 text-[11px] px-2 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-500 font-medium"
+            >
+              <Wrench className="size-3" />
+              <span>Remediate</span>
+            </Button>
+          )}
         </div>
 
-        {/* Step Navigation Breadcrumb / Pills */}
-        <div className="border-t border-border/60 pt-3 flex flex-wrap items-center gap-1.5">
+        {/* Crisp 1-sentence action summary */}
+        <p className="text-xs text-foreground/90 font-medium leading-relaxed">
+          {currentStep.attackerAnalysis}
+        </p>
+
+        {/* Step Navigation Vector Trail */}
+        <div className="border-t border-border/60 pt-2.5 flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
-            Attack Vector:
+            Vector Trail:
           </span>
           {steps.map((st, idx) => {
             const isCurrent = idx === activeStepIdx;
+            const cleanName = sanitizeComponentName(st.componentName, 22);
             return (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => {
-                  setIsPlaying(false);
-                  setActiveStepIdx(idx);
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer",
-                  isCurrent
-                    ? "bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs"
-                    : "bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              <div key={st.id} className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setActiveStepIdx(idx);
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer",
+                    isCurrent
+                      ? "bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs"
+                      : "bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                  )}
+                >
+                  <span className={cn(
+                    "size-4 rounded-full flex items-center justify-center font-mono text-[9px]",
+                    isCurrent ? "bg-destructive text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                  )}>
+                    {idx + 1}
+                  </span>
+                  <span className="truncate max-w-[140px]">{cleanName}</span>
+                </button>
+                {idx < steps.length - 1 && (
+                  <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
                 )}
-              >
-                <span className={cn(
-                  "size-4 rounded-full flex items-center justify-center font-mono text-[9px]",
-                  isCurrent ? "bg-destructive text-white" : "bg-muted-foreground/20 text-muted-foreground"
-                )}>
-                  {idx + 1}
-                </span>
-                <span className="truncate max-w-[140px]">{st.componentName}</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -689,6 +679,7 @@ export function InteractiveAgents({
                 search=""
                 riskOnly={true}
                 hideFloatingCard={true}
+                hidePathHeader={true}
                 controlledStepIdx={activeProbeIdx}
                 onSelect={() => {}}
               />

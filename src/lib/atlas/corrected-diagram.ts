@@ -1,4 +1,5 @@
 import type { AttackGraph, GraphEntity, GraphRelation } from './types';
+import { sanitizeComponentName } from './clean-text';
 
 /**
  * Generates a valid, complete draw.io XML file containing the remediated & hardened architecture.
@@ -329,50 +330,7 @@ export interface ArchitecturalRemediationGuide {
 
 export function cleanComponentLabel(raw: string): string {
   if (!raw) return 'Target Component';
-  let text = raw
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&#x0*a;/gi, ' ')
-    .replace(/&#x0*d;/gi, ' ')
-    .replace(/&#0*10;/g, ' ')
-    .replace(/&#0*13;/g, ' ')
-    .replace(/&#x[0-9a-f]+;/gi, match => {
-      const code = parseInt(match.slice(3, -1), 16);
-      return String.fromCharCode(code);
-    })
-    .replace(/&#[0-9]+;/g, match => {
-      const code = parseInt(match.slice(2, -1), 10);
-      return String.fromCharCode(code);
-    })
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  // If passed a patch/finding title with parentheses, extract core component name
-  const parenMatch = text.match(/\(([^)]+)\)/);
-  if (parenMatch && parenMatch[1]) {
-    const firstInner = parenMatch[1].split(/[|;\n\r]/)[0].trim();
-    if (firstInner && firstInner.length > 1 && firstInner.length < 50) {
-      return firstInner;
-    }
-  }
-
-  // Strip prefixes like "Remediate: " or "Unsegmented ... Exposure"
-  text = text
-    .replace(/^Remediate:\s*/i, '')
-    .replace(/^(?:Unsegmented|Missing|Exposed|Insecure|Public)\s+[a-z\s]+:\s*/i, '')
-    .split(/[|;\n\r]/)[0]
-    .trim();
-
-  if (text.length > 40) {
-    text = text.slice(0, 40).trim();
-  }
-
-  return text || 'Target Component';
+  return sanitizeComponentName(raw, 40) || 'Target Component';
 }
 
 export function getArchitecturalRemediationGuide(rule: string, rawComponentLabel: string): ArchitecturalRemediationGuide {
