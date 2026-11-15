@@ -552,10 +552,10 @@ export function InteractiveAgents({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* 1. Main Attack Graph Canvas (Full Width) */}
       <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden flex flex-col">
-        {/* Sleek Top Bar on Canvas */}
+        {/* Streamlined Top Bar on Canvas */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="flex size-7 items-center justify-center rounded-md bg-destructive/15 text-destructive ring-1 ring-destructive/30">
@@ -563,12 +563,12 @@ export function InteractiveAgents({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-foreground">
-                Autonomous Red Team · Exploitation Path
+                Adversary Simulation
               </span>
               {activeProbe && (
-                <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 font-mono text-[9px] font-bold uppercase text-destructive">
+                <span className="inline-flex items-center gap-1 rounded bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">
                   <Radio className="size-2 animate-pulse text-destructive" />
-                  Target: {activeProbe.name}
+                  Target: {sanitizeComponentName(activeProbe.name, 28)}
                 </span>
               )}
             </div>
@@ -671,7 +671,7 @@ export function InteractiveAgents({
         </div>
 
         {/* Attack Canvas Area */}
-        <div className="h-[460px] w-full relative bg-muted/5">
+        <div className="h-[480px] w-full relative bg-muted/5">
           <ClientOnly fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
             <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>}>
               <AttackCanvas
@@ -688,85 +688,88 @@ export function InteractiveAgents({
         </div>
       </div>
 
-      {/* 2. Unified Adversary Briefing Bar (Directly Underneath) */}
+      {/* 2. Streamlined Adversary Briefing Strip (Directly Underneath) */}
       {activeProbe && (
-        <div className="rounded-xl border border-destructive/30 bg-card p-4 space-y-3.5 shadow-xs">
+        <div className="rounded-xl border border-destructive/30 bg-card p-4 space-y-3 shadow-xs">
           {/* Top row: Exploit Objective & Vector */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-            <div className="space-y-1 max-w-3xl">
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-destructive animate-pulse" />
-                <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-destructive">
-                  Attacker Action · Probe {activeProbeIdx + 1}: {activeProbe.name}
-                </span>
-                <span className={cn(
-                  'rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
-                  activeProbe.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
-                  activeProbe.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
-                  'bg-amber-500/15 text-amber-500'
-                )}>
-                  {activeProbe.severity}
-                </span>
-              </div>
-              <p className="text-xs text-foreground/90 font-medium leading-relaxed">
-                {activeProbe.impact}
-              </p>
-              {activeProbe.suggestion && (
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  {activeProbe.suggestion}
-                </p>
-              )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-destructive animate-pulse" />
+              <span className="font-mono text-xs font-bold text-destructive">
+                Probe {activeProbeIdx + 1}: {sanitizeComponentName(activeProbe.name, 32)}
+              </span>
+              <span className={cn(
+                'rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase',
+                activeProbe.severity === 'critical' ? 'bg-destructive/20 text-destructive' :
+                activeProbe.severity === 'high' ? 'bg-rose-500/15 text-rose-500' :
+                'bg-amber-500/15 text-amber-500'
+              )}>
+                {activeProbe.severity}
+              </span>
             </div>
 
-            <div className="flex sm:flex-col gap-2 shrink-0 sm:items-end">
-              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
-                <span className="font-semibold text-amber-500">Vector:</span>
-                <span className="text-muted-foreground truncate max-w-[260px] font-mono">{activeProbe.vector}</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 text-[11px]">
-                <span className="font-semibold text-primary">Target:</span>
-                <span className="text-muted-foreground truncate max-w-[260px] font-mono">{activeProbe.target}</span>
-              </div>
+            <div className="flex items-center gap-2">
+              {onNavigateToRemediation && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onNavigateToRemediation}
+                  className="h-6 gap-1 text-[11px] px-2 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-500 font-medium"
+                >
+                  <Wrench className="size-3" />
+                  <span>Remediate</span>
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Attack Vector Pills */}
-          <div className="border-t border-border/60 pt-3 flex flex-wrap items-center gap-1.5">
+          {/* Crisp 1-sentence action summary */}
+          <p className="text-xs text-foreground/90 font-medium leading-relaxed">
+            {activeProbe.impact}
+          </p>
+
+          {/* Step Navigation Vector Trail */}
+          <div className="border-t border-border/60 pt-2.5 flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
-              Attack Probes:
+              Vector Trail:
             </span>
             {probes.map((pr, idx) => {
               const isCurrent = pr.id === activeProbe.id;
               const result = executedProbes[pr.id];
+              const cleanName = sanitizeComponentName(pr.name, 22);
               return (
-                <button
-                  key={pr.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedProbeId(pr.id);
-                    if (!result) setTerminalLogs(pr.liveTrace || []);
-                  }}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer',
-                    isCurrent
-                      ? 'bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs'
-                      : 'bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-                  )}
-                >
-                  <span
+                <div key={pr.id} className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProbeId(pr.id);
+                      if (!result) setTerminalLogs(pr.liveTrace || []);
+                    }}
                     className={cn(
-                      'size-4 rounded-full flex items-center justify-center font-mono text-[9px]',
-                      result?.status === 'defended'
-                        ? 'bg-emerald-500 text-white'
-                        : isCurrent
-                          ? 'bg-destructive text-white'
-                          : 'bg-muted-foreground/20 text-muted-foreground'
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer',
+                      isCurrent
+                        ? 'bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs'
+                        : 'bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
                     )}
                   >
-                    {result?.status === 'defended' ? '✓' : idx + 1}
-                  </span>
-                  <span className="truncate max-w-[150px]">{pr.name}</span>
-                </button>
+                    <span
+                      className={cn(
+                        'size-4 rounded-full flex items-center justify-center font-mono text-[9px]',
+                        result?.status === 'defended'
+                          ? 'bg-emerald-500 text-white'
+                          : isCurrent
+                            ? 'bg-destructive text-white'
+                            : 'bg-muted-foreground/20 text-muted-foreground'
+                      )}
+                    >
+                      {result?.status === 'defended' ? '✓' : idx + 1}
+                    </span>
+                    <span className="truncate max-w-[140px]">{cleanName}</span>
+                  </button>
+                  {idx < probes.length - 1 && (
+                    <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
+                  )}
+                </div>
               );
             })}
           </div>

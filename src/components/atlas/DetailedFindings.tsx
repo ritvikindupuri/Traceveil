@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph, Finding, Evidence } from '@/lib/atlas/types';
+import { decodeXmlEntities } from '@/lib/atlas/clean-text';
 import { cn } from '@/lib/utils';
 
 export function DetailedFindings({
@@ -274,7 +275,7 @@ export function DetailedFindings({
                     />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-semibold text-foreground truncate">{finding.title}</h3>
+                        <h3 className="text-sm font-semibold text-foreground truncate">{decodeXmlEntities(finding.title)}</h3>
                         <span
                           className={cn(
                             'rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider',
@@ -289,7 +290,7 @@ export function DetailedFindings({
                           {details.category}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground truncate">{finding.fix}</p>
+                      <p className="mt-1 text-xs text-muted-foreground truncate">{decodeXmlEntities(finding.fix)}</p>
                     </div>
                   </div>
 

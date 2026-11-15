@@ -19,21 +19,11 @@ import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/agent-operations';
 import { generateCorrectedDrawIoXml, getArchitecturalRemediationGuide } from '@/lib/atlas/corrected-diagram';
+import { decodeXmlEntities, sanitizeComponentName } from '@/lib/atlas/clean-text';
 import { cn } from '@/lib/utils';
 
 function parseTopologyNode(rawNode: string) {
-  const clean = rawNode
-    .replace(/&#x0*a;/gi, ' ')
-    .replace(/&#x0*d;/gi, ' ')
-    .replace(/&#0*10;/g, ' ')
-    .replace(/&#0*13;/g, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
+  const clean = decodeXmlEntities(rawNode);
 
   // Check for [Private Subnet (...)] prefix
   const subnetMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
@@ -447,7 +437,7 @@ function CodeRemediationStudio({
                 >
                   {resolved ? '✓' : idx + 1}
                 </span>
-                <span className="truncate max-w-[200px]">{p.title}</span>
+                <span className="truncate max-w-[200px]">{sanitizeComponentName(p.title, 36)}</span>
                 <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[100px]">
                   {p.filePath.split('/').pop()}
                 </span>
@@ -468,7 +458,7 @@ function CodeRemediationStudio({
                   {patches.findIndex(p => p.id === activePatch.id) + 1}
                 </span>
                 <h3 className="text-sm font-semibold text-foreground">
-                  {activePatch.title}
+                  {sanitizeComponentName(activePatch.title, 55)}
                 </h3>
                 {isApplied && (
                   <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
