@@ -10,7 +10,6 @@ import {supabase} from '@/integrations/supabase/client';
 import {listApplicationScans,archiveApplicationScan} from '@/lib/atlas/records.functions';
 import type {AttackGraph,ScanRecord} from '@/lib/atlas/types';
 import {analyzeDiagramToAttackGraph,synthesizeArchitectureFromPrompt} from '@/lib/atlas/diagram-parser';
-import {buildRepositoryGraph} from '@/lib/atlas/analyze';
 import {cn} from '@/lib/utils';
 import {TenantIsolation} from './TenantIsolation';
 import {GithubCredential} from './GithubCredential';
@@ -145,134 +144,6 @@ const tabs=[{key:'graph',label:'Attack graph',icon:Network},{key:'isolation',lab
     }
   }
 
-  function loadSampleRepo(type: 'cicd' | 'secrets') {
-    if (!consent) {
-      setError('Please authorize analysis using the checkbox below before scanning.');
-      return;
-    }
-    setError('');
-    setSelection(null);
-    setReports({});
-    setStates({});
-    setSaved(false);
-    setTab('graph');
-
-    if (type === 'cicd') {
-      const g = buildRepositoryGraph(
-        'https://github.com/cloudpilot/vulnerable-workflow-demo',
-        'a1b2c3d4e5f6',
-        'main',
-        [
-          {
-            path: '.github/workflows/release.yml',
-            text: 'name: Production Release\non: push\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    permissions: write-all\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm publish\n',
-          },
-          {
-            path: 'Dockerfile',
-            text: 'FROM node:20-alpine\nUSER root\nCMD ["node", "server.js"]\n',
-          },
-          {
-            path: 'deploy/k8s.yaml',
-            text: 'apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      containers:\n        - name: app\n          securityContext:\n            privileged: true\n',
-          },
-        ],
-        3,
-        []
-      );
-      setGraph(g);
-      setUrl('https://github.com/cloudpilot/vulnerable-workflow-demo');
-    } else {
-      const g = buildRepositoryGraph(
-        'https://github.com/acme-corp/payment-gateway-service',
-        'f9e8d7c6b5a4',
-        'main',
-        [
-          {
-            path: 'config/auth.ts',
-            text: 'export const AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";\nexport const GITHUB_TOKEN = "ghp_123456789012345678901234567890123456";\n',
-          },
-          {
-            path: 'deploy/ingress.tf',
-            text: 'resource "aws_security_group_rule" "ingress" {\n  cidr_blocks = ["0.0.0.0/0"]\n  from_port = 22\n  to_port = 22\n  protocol = "tcp"\n}\n',
-          },
-        ],
-        2,
-        []
-      );
-      setGraph(g);
-      setUrl('https://github.com/acme-corp/payment-gateway-service');
-    }
-  }
-
-  function loadSampleApp(type: 'juice' | 'bank') {
-    if (!consent) {
-      setError('Please authorize analysis using the checkbox below before scanning.');
-      return;
-    }
-    setError('');
-    setSelection(null);
-    setReports({});
-    setStates({});
-    setSaved(false);
-    setTab('graph');
-
-    const targetUrl = type === 'juice' ? 'https://juice-shop.herokuapp.com' : 'https://bank-portal.traceveil.internal';
-    const host = type === 'juice' ? 'juice-shop.herokuapp.com' : 'bank-portal.traceveil.internal';
-    const now = new Date().toISOString();
-    const rootEvId = 'ev-root';
-    const cspEvId = 'ev-csp';
-    const hstsEvId = 'ev-hsts';
-
-    const g: AttackGraph = {
-      target: targetUrl,
-      commit: 'live-prod-8f2c',
-      branch: 'production (live)',
-      nodes: [
-        { id: 'public-internet', label: 'Public Internet', kind: 'internet', category: 'actor', subtitle: 'External Attack Surface', badge: '0.0.0.0/0', evidenceIds: [rootEvId] },
-        { id: 'live-app', label: `${host} Web Server`, kind: 'server', category: 'compute', subtitle: 'Edge Reverse Proxy / Nginx', badge: 'Public Host', evidenceIds: [rootEvId] },
-        { id: 'finding-node-csp', label: 'Missing Content-Security-Policy', kind: 'exposure', category: 'compute', subtitle: 'Absence of CSP script and frame restrictions', badge: 'Toxic Exposure', severity: 'high', evidenceIds: [cspEvId] },
-        { id: 'client-context', label: 'Client Browser Context', kind: 'identity', category: 'actor', subtitle: 'Client-Side Cookie & Token Context', badge: 'Client Boundary', evidenceIds: [cspEvId] },
-        { id: 'backend-datastore', label: 'Production Database & API', kind: 'database', category: 'data', subtitle: 'Crown Jewel Customer Records', badge: 'Crown Jewel', evidenceIds: [rootEvId] },
-      ],
-      edges: [
-        { id: 'e1', source: 'public-internet', target: 'live-app', label: 'Public TLS Ingress (443)', category: 'network', evidenceIds: [rootEvId] },
-        { id: 'e2', source: 'live-app', target: 'finding-node-csp', label: 'Unrestricted Script Ingress', category: 'network', evidenceIds: [cspEvId], risky: true },
-        { id: 'e3', source: 'finding-node-csp', target: 'client-context', label: 'XSS & Session Hijack', category: 'trust', evidenceIds: [cspEvId], risky: true },
-        { id: 'e4', source: 'client-context', target: 'backend-datastore', label: 'Token Replay & Data Dump', category: 'trust', evidenceIds: [rootEvId], risky: true },
-      ],
-      findings: [
-        { id: 'f-csp', rule: 'missing-csp', severity: 'high', title: 'Missing Content-Security-Policy (CSP) Protection', fix: 'Configure a strict Content-Security-Policy response header restricting script-src, style-src, frame-ancestors to authorized origins.', evidenceIds: [cspEvId] },
-        { id: 'f-hsts', rule: 'missing-hsts', severity: 'medium', title: 'Missing Strict-Transport-Security (HSTS)', fix: 'Add Strict-Transport-Security header: max-age=31536000; includeSubDomains; preload.', evidenceIds: [hstsEvId] },
-      ],
-      evidence: [
-        { id: rootEvId, path: '/ (Headers)', line: 1, excerpt: `HTTP Status 200 OK\nServer: nginx/1.24.0\nTarget: ${targetUrl}`, url: targetUrl, collectedAt: now },
-        { id: cspEvId, path: '/ (Headers)', line: 12, excerpt: 'Missing Header: Content-Security-Policy\nAllows inline scripts and framing from arbitrary origins.', url: targetUrl, collectedAt: now },
-        { id: hstsEvId, path: '/ (Headers)', line: 14, excerpt: 'Missing Header: Strict-Transport-Security\nVulnerable to SSL stripping and plaintext protocol downgrade.', url: targetUrl, collectedAt: now },
-      ],
-      attackPaths: [
-        {
-          id: 'path-live-1',
-          title: 'Public Internet → Edge Ingress → Missing CSP → Session Hijacking → Database Exfiltration',
-          severity: 'high',
-          summary: `Publicly accessible endpoint at ${targetUrl} lacks Content-Security-Policy protection. Attackers can hijack client session contexts to exfiltrate backend database records.`,
-          steps: [
-            { id: 's1', nodeId: 'public-internet', title: 'Public Internet Ingress', subtitle: 'External Attack Surface', stage: 'internet', badge: '0.0.0.0/0', description: `Anyone on the public internet can resolve and connect directly to ${targetUrl}.`, evidenceIds: [rootEvId] },
-            { id: 's2', nodeId: 'live-app', title: 'Edge Web Server', subtitle: 'Inspected Web Target', stage: 'server', badge: 'Public Host', description: `Edge server responds to external HTTP requests without strict perimeter filter controls.`, evidenceIds: [rootEvId] },
-            { id: 's3', nodeId: 'finding-node-csp', title: 'Missing CSP Security Header', subtitle: 'Perimeter Security Gap', stage: 'vulnerability', badge: 'HIGH RISK', description: 'Missing Content-Security-Policy permits arbitrary script execution and cross-site framing.', remediation: 'Configure strict CSP headers restricting script-src and frame-ancestors.', evidenceIds: [cspEvId] },
-            { id: 's4', nodeId: 'client-context', title: 'Client Session Context', subtitle: 'Session & Auth Storage', stage: 'privilege', badge: 'Client Boundary', description: 'Adversary leverages lack of framing/script restrictions to harvest user tokens and session cookies.', evidenceIds: [cspEvId] },
-            { id: 's5', nodeId: 'backend-datastore', title: 'Target Backend Database', subtitle: 'Crown Jewel API & Data', stage: 'target', badge: 'Crown Jewel', description: 'Compromised session context enables lateral access to backend APIs and customer records.', remediation: 'Implement strict CSP headers and partitioned HTTP-only session cookies.', evidenceIds: [rootEvId] },
-          ],
-          nodeIds: ['public-internet', 'live-app', 'finding-node-csp', 'client-context', 'backend-datastore'],
-          edgeIds: ['e1', 'e2', 'e3', 'e4'],
-        },
-      ],
-      coverage: { inspected: 4, total: 4, skipped: 0, gaps: [] },
-      collectedAt: now,
-    };
-
-    setGraph(g);
-    setUrl(targetUrl);
-  }
 
  function exportGraph(){if(!graph)return;const blob=new Blob([JSON.stringify({graph,reports},null,2)],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`traceveil-${graph.commit.slice(0,8)}.json`;link.click();URL.revokeObjectURL(link.href);}
  async function openHistory(){try{setHistory(await list() as unknown as ScanRecord[]);}catch{setError('Could not load scan history');}}
@@ -433,32 +304,6 @@ const tabs=[{key:'graph',label:'Attack graph',icon:Network},{key:'isolation',lab
             </Button>
           )}
         </form>
-        <div className="pt-2 flex flex-wrap items-center gap-2 border-t border-border/50">
-          <span className="text-[11px] text-muted-foreground">or test with realistic sample:</span>
-          {mode === 'repo' ? (
-            <>
-              <Button key="repo-cicd" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleRepo('cicd')}>
-                <GitBranch className="size-3 text-primary" />
-                <span>CI/CD Supply Chain (GitHub Actions)</span>
-              </Button>
-              <Button key="repo-secrets" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleRepo('secrets')}>
-                <GitBranch className="size-3 text-primary" />
-                <span>Exposed Credentials in Git</span>
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button key="app-juice" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleApp('juice')}>
-                <Globe className="size-3 text-primary" />
-                <span>OWASP Juice Shop (Live Perimeter)</span>
-              </Button>
-              <Button key="app-bank" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleApp('bank')}>
-                <Globe className="size-3 text-primary" />
-                <span>Cloud Banking Portal (Perimeter Gap)</span>
-              </Button>
-            </>
-          )}
-        </div>
       </div>
     )}
     <label className="mt-3 flex items-start gap-2 text-[10px] text-muted-foreground">
