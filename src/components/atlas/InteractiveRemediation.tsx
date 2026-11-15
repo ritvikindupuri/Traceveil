@@ -14,6 +14,13 @@ import {
   ArrowRight,
   ChevronDown,
   ShieldAlert,
+  Globe,
+  Database,
+  Server,
+  Radio,
+  HardDrive,
+  Cpu,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
@@ -21,6 +28,19 @@ import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/a
 import { generateCorrectedDrawIoXml, getArchitecturalRemediationGuide } from '@/lib/atlas/corrected-diagram';
 import { decodeXmlEntities, sanitizeComponentName } from '@/lib/atlas/clean-text';
 import { cn } from '@/lib/utils';
+
+function getTopologyNodeIcon(label: string) {
+  const l = (label || '').toLowerCase();
+  if (l.includes('internet') || l.includes('public') || l.includes('user') || l.includes('client') || l.includes('world') || l.includes('external')) return Globe;
+  if (l.includes('waf') || l.includes('shield') || l.includes('firewall') || l.includes('guard')) return ShieldCheck;
+  if (l.includes('database') || l.includes('rds') || l.includes('sql') || l.includes('postgres') || l.includes('mysql') || l.includes('mongo') || l.includes('dynamo')) return Database;
+  if (l.includes('storage') || l.includes('s3') || l.includes('bucket') || l.includes('blob') || l.includes('disk')) return HardDrive;
+  if (l.includes('load balancer') || l.includes('alb') || l.includes('nlb') || l.includes('gateway') || l.includes('proxy')) return Layers;
+  if (l.includes('traffic') || l.includes('route') || l.includes('edge') || l.includes('dns') || l.includes('stream') || l.includes('ingress')) return Radio;
+  if (l.includes('lambda') || l.includes('compute') || l.includes('container') || l.includes('k8s') || l.includes('pod') || l.includes('backend') || l.includes('app') || l.includes('workload')) return Cpu;
+  if (l.includes('auth') || l.includes('iam') || l.includes('secret') || l.includes('key')) return Lock;
+  return Server;
+}
 
 function parseTopologyNode(rawNode: string) {
   const clean = decodeXmlEntities(rawNode);
@@ -177,6 +197,7 @@ function DiagramRemediationStudio({
                 {guide.beforeTopology.nodes.map((node, nIdx) => {
                   const isLast = nIdx === guide.beforeTopology.nodes.length - 1;
                   const parsed = parseTopologyNode(node);
+                  const NodeIcon = getTopologyNodeIcon(parsed.label);
 
                   return (
                     <div key={nIdx} className="flex items-center gap-2">
@@ -188,6 +209,12 @@ function DiagramRemediationStudio({
                             : "border-border/80 bg-background text-foreground/90 shadow-2xs"
                         )}
                       >
+                        <NodeIcon
+                          className={cn(
+                            "size-3.5 shrink-0",
+                            isLast ? "text-destructive" : "text-muted-foreground"
+                          )}
+                        />
                         <span className="truncate max-w-[220px]">{parsed.label}</span>
                         {parsed.suffix && (
                           <span className="rounded bg-destructive/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-destructive">
@@ -226,6 +253,7 @@ function DiagramRemediationStudio({
                 {guide.afterTopology.nodes.map((node, nIdx) => {
                   const isLast = nIdx === guide.afterTopology.nodes.length - 1;
                   const parsed = parseTopologyNode(node);
+                  const NodeIcon = getTopologyNodeIcon(parsed.label);
 
                   return (
                     <div key={nIdx} className="flex items-center gap-2">
@@ -237,6 +265,12 @@ function DiagramRemediationStudio({
                             : "border-border/80 bg-background text-foreground/90 shadow-2xs"
                         )}
                       >
+                        <NodeIcon
+                          className={cn(
+                            "size-3.5 shrink-0",
+                            isLast ? "text-emerald-600 dark:text-emerald-400" : "text-emerald-600/70 dark:text-emerald-400/70"
+                          )}
+                        />
                         {parsed.prefix && (
                           <span className="rounded bg-emerald-500/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-200">
                             {parsed.prefix}

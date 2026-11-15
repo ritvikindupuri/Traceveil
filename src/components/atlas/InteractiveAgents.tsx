@@ -20,7 +20,6 @@ import {
   Wrench,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph, AttackPathStep } from '@/lib/atlas/types';
@@ -342,45 +341,6 @@ function DiagramRedTeamStudio({
         <p className="text-xs text-foreground/90 font-medium leading-relaxed">
           {currentStep.attackerAnalysis}
         </p>
-
-        {/* Step Navigation Vector Trail */}
-        <div className="border-t border-border/60 pt-2.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
-            Vector Trail:
-          </span>
-          {steps.map((st, idx) => {
-            const isCurrent = idx === activeStepIdx;
-            const cleanName = sanitizeComponentName(st.componentName, 22);
-            return (
-              <div key={st.id} className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPlaying(false);
-                    setActiveStepIdx(idx);
-                  }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer",
-                    isCurrent
-                      ? "bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs"
-                      : "bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  )}
-                >
-                  <span className={cn(
-                    "size-4 rounded-full flex items-center justify-center font-mono text-[9px]",
-                    isCurrent ? "bg-destructive text-white" : "bg-muted-foreground/20 text-muted-foreground"
-                  )}>
-                    {idx + 1}
-                  </span>
-                  <span className="truncate max-w-[140px]">{cleanName}</span>
-                </button>
-                {idx < steps.length - 1 && (
-                  <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
-                )}
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
@@ -727,52 +687,6 @@ export function InteractiveAgents({
           <p className="text-xs text-foreground/90 font-medium leading-relaxed">
             {activeProbe.impact}
           </p>
-
-          {/* Step Navigation Vector Trail */}
-          <div className="border-t border-border/60 pt-2.5 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] uppercase font-mono text-muted-foreground mr-1">
-              Vector Trail:
-            </span>
-            {probes.map((pr, idx) => {
-              const isCurrent = pr.id === activeProbe.id;
-              const result = executedProbes[pr.id];
-              const cleanName = sanitizeComponentName(pr.name, 22);
-              return (
-                <div key={pr.id} className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProbeId(pr.id);
-                      if (!result) setTerminalLogs(pr.liveTrace || []);
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition border cursor-pointer',
-                      isCurrent
-                        ? 'bg-destructive/15 border-destructive text-destructive font-semibold shadow-xs'
-                        : 'bg-muted/30 border-border/70 text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'size-4 rounded-full flex items-center justify-center font-mono text-[9px]',
-                        result?.status === 'defended'
-                          ? 'bg-emerald-500 text-white'
-                          : isCurrent
-                            ? 'bg-destructive text-white'
-                            : 'bg-muted-foreground/20 text-muted-foreground'
-                      )}
-                    >
-                      {result?.status === 'defended' ? '✓' : idx + 1}
-                    </span>
-                    <span className="truncate max-w-[140px]">{cleanName}</span>
-                  </button>
-                  {idx < probes.length - 1 && (
-                    <ArrowRight className="size-3 text-muted-foreground/40 shrink-0" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
           {/* Forensic Deep-Dive Dropdowns */}
           <div className="space-y-2 border-t border-border/60 pt-3">
