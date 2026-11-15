@@ -486,8 +486,11 @@ export function AttackCanvas({
     layout.setGraph({ rankdir: 'LR', nodesep: 56, ranksep: 260 });
     layout.setDefaultEdgeLabel(() => ({}));
 
+    const validEntityIds = new Set(entities.map(n => n.id));
+    const layoutRelations = relations.filter(e => validEntityIds.has(e.source) && validEntityIds.has(e.target));
+
     entities.forEach(n => layout.setNode(n.id, { width: 320, height: 100 }));
-    relations.forEach(e => layout.setEdge(e.source, e.target));
+    layoutRelations.forEach(e => layout.setEdge(e.source, e.target));
     dagre.layout(layout);
 
     const mappedNodes = entities.map((n, idx) => {

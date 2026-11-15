@@ -10,6 +10,7 @@ import {supabase} from '@/integrations/supabase/client';
 import {listApplicationScans,archiveApplicationScan} from '@/lib/atlas/records.functions';
 import type {AttackGraph,ScanRecord} from '@/lib/atlas/types';
 import {analyzeDiagramToAttackGraph,synthesizeArchitectureFromPrompt} from '@/lib/atlas/diagram-parser';
+import {buildRepositoryGraph} from '@/lib/atlas/analyze';
 import {cn} from '@/lib/utils';
 import {TenantIsolation} from './TenantIsolation';
 import {GithubCredential} from './GithubCredential';
@@ -144,11 +145,327 @@ const tabs=[{key:'graph',label:'Attack graph',icon:Network},{key:'isolation',lab
     }
   }
 
+  function loadSampleRepo(type: 'cicd' | 'secrets') {
+    if (!consent) {
+      setError('Please authorize analysis using the checkbox below before scanning.');
+      return;
+    }
+    setError('');
+    setSelection(null);
+    setReports({});
+    setStates({});
+    setSaved(false);
+    setTab('graph');
+
+    if (type === 'cicd') {
+      const g = buildRepositoryGraph(
+        'https://github.com/cloudpilot/vulnerable-workflow-demo',
+        'a1b2c3d4e5f6',
+        'main',
+        [
+          {
+            path: '.github/workflows/release.yml',
+            text: 'name: Production Release\non: push\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    permissions: write-all\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm publish\n',
+          },
+          {
+            path: 'Dockerfile',
+            text: 'FROM node:20-alpine\nUSER root\nCMD ["node", "server.js"]\n',
+          },
+          {
+            path: 'deploy/k8s.yaml',
+            text: 'apiVersion: apps/v1\nkind: Deployment\nspec:\n  template:\n    spec:\n      containers:\n        - name: app\n          securityContext:\n            privileged: true\n',
+          },
+        ],
+        3,
+        []
+      );
+      setGraph(g);
+      setUrl('https://github.com/cloudpilot/vulnerable-workflow-demo');
+    } else {
+      const g = buildRepositoryGraph(
+        'https://github.com/acme-corp/payment-gateway-service',
+        'f9e8d7c6b5a4',
+        'main',
+        [
+          {
+            path: 'config/auth.ts',
+            text: 'export const AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";\nexport const GITHUB_TOKEN = "ghp_123456789012345678901234567890123456";\n',
+          },
+          {
+            path: 'deploy/ingress.tf',
+            text: 'resource "aws_security_group_rule" "ingress" {\n  cidr_blocks = ["0.0.0.0/0"]\n  from_port = 22\n  to_port = 22\n  protocol = "tcp"\n}\n',
+          },
+        ],
+        2,
+        []
+      );
+      setGraph(g);
+      setUrl('https://github.com/acme-corp/payment-gateway-service');
+    }
+  }
+
+  function loadSampleApp(type: 'juice' | 'bank') {
+    if (!consent) {
+      setError('Please authorize analysis using the checkbox below before scanning.');
+      return;
+    }
+    setError('');
+    setSelection(null);
+    setReports({});
+    setStates({});
+    setSaved(false);
+    setTab('graph');
+
+    const targetUrl = type === 'juice' ? 'https://juice-shop.herokuapp.com' : 'https://bank-portal.traceveil.internal';
+    const host = type === 'juice' ? 'juice-shop.herokuapp.com' : 'bank-portal.traceveil.internal';
+    const now = new Date().toISOString();
+    const rootEvId = 'ev-root';
+    const cspEvId = 'ev-csp';
+    const hstsEvId = 'ev-hsts';
+
+    const g: AttackGraph = {
+      target: targetUrl,
+      commit: 'live-prod-8f2c',
+      branch: 'production (live)',
+      nodes: [
+        { id: 'public-internet', label: 'Public Internet', kind: 'internet', category: 'actor', subtitle: 'External Attack Surface', badge: '0.0.0.0/0', evidenceIds: [rootEvId] },
+        { id: 'live-app', label: `${host} Web Server`, kind: 'server', category: 'compute', subtitle: 'Edge Reverse Proxy / Nginx', badge: 'Public Host', evidenceIds: [rootEvId] },
+        { id: 'finding-node-csp', label: 'Missing Content-Security-Policy', kind: 'exposure', category: 'compute', subtitle: 'Absence of CSP script and frame restrictions', badge: 'Toxic Exposure', severity: 'high', evidenceIds: [cspEvId] },
+        { id: 'client-context', label: 'Client Browser Context', kind: 'identity', category: 'actor', subtitle: 'Client-Side Cookie & Token Context', badge: 'Client Boundary', evidenceIds: [cspEvId] },
+        { id: 'backend-datastore', label: 'Production Database & API', kind: 'database', category: 'data', subtitle: 'Crown Jewel Customer Records', badge: 'Crown Jewel', evidenceIds: [rootEvId] },
+      ],
+      edges: [
+        { id: 'e1', source: 'public-internet', target: 'live-app', label: 'Public TLS Ingress (443)', category: 'network', evidenceIds: [rootEvId] },
+        { id: 'e2', source: 'live-app', target: 'finding-node-csp', label: 'Unrestricted Script Ingress', category: 'network', evidenceIds: [cspEvId], risky: true },
+        { id: 'e3', source: 'finding-node-csp', target: 'client-context', label: 'XSS & Session Hijack', category: 'trust', evidenceIds: [cspEvId], risky: true },
+        { id: 'e4', source: 'client-context', target: 'backend-datastore', label: 'Token Replay & Data Dump', category: 'trust', evidenceIds: [rootEvId], risky: true },
+      ],
+      findings: [
+        { id: 'f-csp', rule: 'missing-csp', severity: 'high', title: 'Missing Content-Security-Policy (CSP) Protection', fix: 'Configure a strict Content-Security-Policy response header restricting script-src, style-src, frame-ancestors to authorized origins.', evidenceIds: [cspEvId] },
+        { id: 'f-hsts', rule: 'missing-hsts', severity: 'medium', title: 'Missing Strict-Transport-Security (HSTS)', fix: 'Add Strict-Transport-Security header: max-age=31536000; includeSubDomains; preload.', evidenceIds: [hstsEvId] },
+      ],
+      evidence: [
+        { id: rootEvId, path: '/ (Headers)', line: 1, excerpt: `HTTP Status 200 OK\nServer: nginx/1.24.0\nTarget: ${targetUrl}`, url: targetUrl, collectedAt: now },
+        { id: cspEvId, path: '/ (Headers)', line: 12, excerpt: 'Missing Header: Content-Security-Policy\nAllows inline scripts and framing from arbitrary origins.', url: targetUrl, collectedAt: now },
+        { id: hstsEvId, path: '/ (Headers)', line: 14, excerpt: 'Missing Header: Strict-Transport-Security\nVulnerable to SSL stripping and plaintext protocol downgrade.', url: targetUrl, collectedAt: now },
+      ],
+      attackPaths: [
+        {
+          id: 'path-live-1',
+          title: 'Public Internet → Edge Ingress → Missing CSP → Session Hijacking → Database Exfiltration',
+          severity: 'high',
+          summary: `Publicly accessible endpoint at ${targetUrl} lacks Content-Security-Policy protection. Attackers can hijack client session contexts to exfiltrate backend database records.`,
+          steps: [
+            { id: 's1', nodeId: 'public-internet', title: 'Public Internet Ingress', subtitle: 'External Attack Surface', stage: 'internet', badge: '0.0.0.0/0', description: `Anyone on the public internet can resolve and connect directly to ${targetUrl}.`, evidenceIds: [rootEvId] },
+            { id: 's2', nodeId: 'live-app', title: 'Edge Web Server', subtitle: 'Inspected Web Target', stage: 'server', badge: 'Public Host', description: `Edge server responds to external HTTP requests without strict perimeter filter controls.`, evidenceIds: [rootEvId] },
+            { id: 's3', nodeId: 'finding-node-csp', title: 'Missing CSP Security Header', subtitle: 'Perimeter Security Gap', stage: 'vulnerability', badge: 'HIGH RISK', description: 'Missing Content-Security-Policy permits arbitrary script execution and cross-site framing.', remediation: 'Configure strict CSP headers restricting script-src and frame-ancestors.', evidenceIds: [cspEvId] },
+            { id: 's4', nodeId: 'client-context', title: 'Client Session Context', subtitle: 'Session & Auth Storage', stage: 'privilege', badge: 'Client Boundary', description: 'Adversary leverages lack of framing/script restrictions to harvest user tokens and session cookies.', evidenceIds: [cspEvId] },
+            { id: 's5', nodeId: 'backend-datastore', title: 'Target Backend Database', subtitle: 'Crown Jewel API & Data', stage: 'target', badge: 'Crown Jewel', description: 'Compromised session context enables lateral access to backend APIs and customer records.', remediation: 'Implement strict CSP headers and partitioned HTTP-only session cookies.', evidenceIds: [rootEvId] },
+          ],
+          nodeIds: ['public-internet', 'live-app', 'finding-node-csp', 'client-context', 'backend-datastore'],
+          edgeIds: ['e1', 'e2', 'e3', 'e4'],
+        },
+      ],
+      coverage: { inspected: 4, total: 4, skipped: 0, gaps: [] },
+      collectedAt: now,
+    };
+
+    setGraph(g);
+    setUrl(targetUrl);
+  }
+
  function exportGraph(){if(!graph)return;const blob=new Blob([JSON.stringify({graph,reports},null,2)],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`traceveil-${graph.commit.slice(0,8)}.json`;link.click();URL.revokeObjectURL(link.href);}
  async function openHistory(){try{setHistory(await list() as unknown as ScanRecord[]);}catch{setError('Could not load scan history');}}
  return <div className="atlas-shell"><aside className={cn('atlas-sidebar',sidebar&&'atlas-sidebar-open')}><Link to="/" className="flex items-center gap-3 px-5 pt-6 pb-4"><Logo className="size-8"/><span className="text-lg font-semibold">Traceveil</span></Link><nav className="space-y-1 px-3">{visibleTabs.map(t=><Button key={t.key} variant="ghost" className={cn('h-10 w-full justify-start gap-3 text-xs',tab===t.key&&'bg-accent text-primary')} onClick={()=>{setTab(t.key);setSidebar(false);}}><t.icon className="size-4"/>{t.label}{t.key==='findings'&&graph&&<span className="ml-auto font-mono">{graph.findings.length}</span>}</Button>)}</nav><div className="mt-auto border-t border-border p-3"><Button variant="ghost" className="w-full justify-start text-xs" onClick={()=>user?void openHistory():setAccount(true)}><History className="size-4"/>Scan history</Button><Button asChild variant="ghost" className="w-full justify-start text-xs text-muted-foreground"><Link to="/mcp-audits"><Layers className="size-4"/>MCP audits <ArrowUpRight className="ml-auto size-3"/></Link></Button><div className="mt-4 flex items-center justify-between px-2"><span className="text-xs text-muted-foreground">{user?'Private workspace':'Your workspace'}</span>{user?<Button variant="ghost" size="icon" aria-label="Sign out" title="Sign out" onClick={()=>void supabase.auth.signOut()}><LogOut className="size-4"/></Button>:<Button variant="outline" size="sm" onClick={()=>setAccount(true)}>Sign in</Button>}</div></div></aside>
  <main className="atlas-main"><header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-5"><div className="flex min-w-0 items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Toggle navigation" onClick={()=>setSidebar(v=>!v)}><PanelLeftClose className="size-4"/></Button><span className="text-xs text-muted-foreground">Workspace</span><span className="text-muted-foreground">/</span><h1 className="truncate text-sm font-medium">{visibleTabs.find(t=>t.key===tab)?.label||'Workspace'}</h1></div><div className="flex items-center gap-2">{graph&&<Button variant="outline" size="sm" onClick={clearSession} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground" title="Archive session to history and start fresh"><RotateCcw className="size-3.5"/><span>Clear session</span></Button>}<GithubCredential key={user?.id??"signed-out"} signedIn={Boolean(user)} onSignIn={()=>setAccount(true)}/>{saved&&<span className="hidden items-center gap-1 text-[10px] text-primary sm:flex"><Check className="size-3"/>Saved</span>}<Button variant="ghost" size="icon" aria-label="Export evidence" title="Export evidence" disabled={!graph} onClick={exportGraph}><Download className="size-4"/></Button></div></header>
-  <section className="shrink-0 border-b border-border px-5 py-4"><div className="mb-3 flex items-center justify-between"><div className="flex gap-1"><Button variant={mode==='repo'?'secondary':'ghost'} size="sm" onClick={()=>setMode('repo')}><GitBranch className="size-3.5"/>Repository</Button><Button variant={mode==='app'?'secondary':'ghost'} size="sm" onClick={()=>setMode('app')}><Globe className="size-3.5"/>Live application</Button><Button variant={mode==='diagram'?'secondary':'ghost'} size="sm" onClick={()=>setMode('diagram')}><Layers className="size-3.5"/>Architecture / Diagram</Button></div>{graph&&<div className="flex items-center gap-2"><span className="hidden font-mono text-[10px] text-muted-foreground sm:block">{graph.commit.slice(0,8)} · {graph.branch}</span><Button variant="ghost" size="sm" onClick={clearSession} className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"><RotateCcw className="size-3"/><span>New scan</span></Button></div>}</div>{mode==='diagram'?(<div className="space-y-3"><div className="flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 p-1 w-fit"><Button type="button" variant={diagramSubTab==='ai'?'secondary':'ghost'} size="sm" onClick={()=>setDiagramSubTab('ai')} className={cn('h-8 gap-1.5 text-xs font-medium',diagramSubTab==='ai'&&'bg-background shadow-xs')}><Sparkles className="size-3.5 text-primary"/><span>Describe Architecture with AI</span></Button><Button type="button" variant={diagramSubTab==='upload'?'secondary':'ghost'} size="sm" onClick={()=>setDiagramSubTab('upload')} className={cn('h-8 gap-1.5 text-xs font-medium',diagramSubTab==='upload'&&'bg-background shadow-xs')}><FileUp className="size-3.5 text-primary"/><span>Upload Diagram File</span></Button></div>{diagramSubTab==='ai'?(<div className="rounded-lg border border-border/80 bg-card p-3.5 shadow-xs"><div className="mb-2 flex items-center justify-between"><div className="flex items-center gap-2"><Sparkles className="size-4 text-primary animate-pulse"/><span className="text-xs font-semibold">AI Conversational Architecture Studio</span><span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[9px] font-medium text-primary">Natural Language &rarr; Topology</span></div><span className="text-[10px] text-muted-foreground">Generates full architecture in seconds</span></div><div className="flex gap-2"><input aria-label="Describe architecture" type="text" value={architecturePrompt} onChange={e=>setArchitecturePrompt(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();handleSynthesizeArchitecture();}}} placeholder="e.g. CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices" className="h-10 min-w-0 flex-1 rounded border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-1 focus:ring-ring"/><Button type="button" disabled={!architecturePrompt.trim()||running} onClick={()=>handleSynthesizeArchitecture()} className="h-10 gap-1.5 px-4 text-xs font-medium"><Sparkles className="size-3.5"/><span>Synthesize & Analyze</span></Button></div><div className="mt-2.5 flex flex-wrap items-center gap-1.5"><span className="text-[10px] text-muted-foreground">Quick inspiration:</span>{PROMPT_SUGGESTIONS.map(s=><button key={s.label} type="button" onClick={()=>{setArchitecturePrompt(s.prompt);handleSynthesizeArchitecture(s.prompt);}} className="rounded border border-border/60 bg-muted/40 px-2 py-1 text-[10px] text-muted-foreground transition hover:border-primary/50 hover:bg-accent/40 hover:text-foreground">{s.label}</button>)}</div></div>):(<div className="rounded-lg border border-border/80 bg-card p-3.5 shadow-xs space-y-3"><div className="flex flex-wrap items-center gap-3"><label className="flex h-10 cursor-pointer items-center gap-2 rounded border border-dashed border-input bg-background px-4 font-mono text-xs hover:border-primary/50 hover:bg-accent/40"><FileUp className="size-4 text-primary"/><span>Upload diagram (.drawio, .xml, .pkt, .pka, .cfg)</span><input type="file" accept=".drawio,.xml,.pkt,.pka,.cfg,.conf,.ios,.txt" className="hidden" onChange={handleFileUpload}/></label><span className="text-xs text-muted-foreground">Accepts draw.io XML, Cisco Packet Tracer (.pkt/.pka), and Cisco IOS configs (.cfg)</span></div><div className="pt-2 flex flex-wrap items-center gap-2 border-t border-border/50"><span className="text-[11px] text-muted-foreground">or test with realistic sample:</span>{Object.entries(SAMPLE_TEMPLATES).map(([key,t])=><Button key={key} type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={()=>void loadAndAnalyzeDiagram(t.content,t.filename)}><Layers className="size-3 text-primary"/>{t.name}</Button>)}</div></div>)}</div>):(<form onSubmit={scan} className="flex flex-wrap gap-2"><input aria-label="Target URL" type="url" required placeholder={mode==='repo'?'https://github.com/owner/repository':'https://your-application.com'} value={url} onChange={e=>{const val=e.target.value;setUrl(val);if(val.includes('github.com')&&mode!=='repo')setMode('repo');else if(val.startsWith('http')&&!val.includes('github.com')&&mode!=='app')setMode('app');}} className="h-10 min-w-0 flex-1 rounded border border-input bg-card px-3 font-mono text-xs outline-none focus:ring-1 focus:ring-ring"/>{running?<Button type="button" variant="secondary" onClick={()=>controller.current?.abort()}><Square className="size-3"/>Stop</Button>:<Button type="submit" disabled={!url||!consent}><ScanLine className="size-4"/>Scan <ArrowRight className="size-3"/></Button>}</form>)}<label className="mt-3 flex items-start gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-0.5 accent-primary"/>I authorize read-only analysis and AI processing of collected, redacted evidence.</label></section>
+  <section className="shrink-0 border-b border-border px-5 py-4">
+    <div className="mb-3 flex items-center justify-between">
+      <div className="flex gap-1">
+        <Button variant={mode === 'repo' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('repo')}>
+          <GitBranch className="size-3.5" />
+          Repository
+        </Button>
+        <Button variant={mode === 'app' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('app')}>
+          <Globe className="size-3.5" />
+          Live application
+        </Button>
+        <Button variant={mode === 'diagram' ? 'secondary' : 'ghost'} size="sm" onClick={() => setMode('diagram')}>
+          <Layers className="size-3.5" />
+          Architecture / Diagram
+        </Button>
+      </div>
+      {graph && (
+        <div className="flex items-center gap-2">
+          <span className="hidden font-mono text-[10px] text-muted-foreground sm:block">
+            {graph.commit.slice(0, 8)} · {graph.branch}
+          </span>
+          <Button variant="ghost" size="sm" onClick={clearSession} className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground">
+            <RotateCcw className="size-3" />
+            <span>New scan</span>
+          </Button>
+        </div>
+      )}
+    </div>
+    {mode === 'diagram' ? (
+      <div className="space-y-3">
+        <div className="flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 p-1 w-fit">
+          <Button
+            type="button"
+            variant={diagramSubTab === 'ai' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setDiagramSubTab('ai')}
+            className={cn('h-8 gap-1.5 text-xs font-medium', diagramSubTab === 'ai' && 'bg-background shadow-xs')}
+          >
+            <Sparkles className="size-3.5 text-primary" />
+            <span>Describe Architecture with AI</span>
+          </Button>
+          <Button
+            type="button"
+            variant={diagramSubTab === 'upload' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setDiagramSubTab('upload')}
+            className={cn('h-8 gap-1.5 text-xs font-medium', diagramSubTab === 'upload' && 'bg-background shadow-xs')}
+          >
+            <FileUp className="size-3.5 text-primary" />
+            <span>Upload Diagram File</span>
+          </Button>
+        </div>
+        {diagramSubTab === 'ai' ? (
+          <div className="rounded-lg border border-border/80 bg-card p-3.5 shadow-xs">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-primary animate-pulse" />
+                <span className="text-xs font-semibold">AI Conversational Architecture Studio</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[9px] font-medium text-primary">Natural Language &rarr; Topology</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">Generates full architecture in seconds</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                aria-label="Describe architecture"
+                type="text"
+                value={architecturePrompt}
+                onChange={e => setArchitecturePrompt(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSynthesizeArchitecture();
+                  }
+                }}
+                placeholder="e.g. CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices"
+                className="h-10 min-w-0 flex-1 rounded border border-input bg-background px-3 font-mono text-xs outline-none focus:ring-1 focus:ring-ring"
+              />
+              <Button
+                type="button"
+                disabled={!architecturePrompt.trim() || running}
+                onClick={() => handleSynthesizeArchitecture()}
+                className="h-10 gap-1.5 px-4 text-xs font-medium"
+              >
+                <Sparkles className="size-3.5" />
+                <span>Synthesize & Analyze</span>
+              </Button>
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground">Quick inspiration:</span>
+              {PROMPT_SUGGESTIONS.map(s => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => {
+                    setArchitecturePrompt(s.prompt);
+                    handleSynthesizeArchitecture(s.prompt);
+                  }}
+                  className="rounded border border-border/60 bg-muted/40 px-2 py-1 text-[10px] text-muted-foreground transition hover:border-primary/50 hover:bg-accent/40 hover:text-foreground"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/80 bg-card p-3.5 shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex h-10 cursor-pointer items-center gap-2 rounded border border-dashed border-input bg-background px-4 font-mono text-xs hover:border-primary/50 hover:bg-accent/40">
+                <FileUp className="size-4 text-primary" />
+                <span>Upload diagram (.drawio, .xml, .pkt, .pka, .cfg)</span>
+                <input type="file" accept=".drawio,.xml,.pkt,.pka,.cfg,.conf,.ios,.txt" className="hidden" onChange={handleFileUpload} />
+              </label>
+              <span className="text-xs text-muted-foreground">Accepts draw.io XML, Cisco Packet Tracer (.pkt/.pka), and Cisco IOS configs (.cfg)</span>
+            </div>
+            <div className="pt-2 flex flex-wrap items-center gap-2 border-t border-border/50">
+              <span className="text-[11px] text-muted-foreground">or test with realistic sample:</span>
+              {Object.entries(SAMPLE_TEMPLATES).map(([key, t]) => (
+                <Button key={key} type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => void loadAndAnalyzeDiagram(t.content, t.filename)}>
+                  <Layers className="size-3 text-primary" />
+                  {t.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    ) : (
+      <div className="space-y-3">
+        <form onSubmit={scan} className="flex flex-wrap gap-2">
+          <input
+            aria-label="Target URL"
+            type="url"
+            required
+            placeholder={mode === 'repo' ? 'https://github.com/owner/repository' : 'https://your-application.com'}
+            value={url}
+            onChange={e => {
+              const val = e.target.value;
+              setUrl(val);
+              if (val.includes('github.com') && mode !== 'repo') setMode('repo');
+              else if (val.startsWith('http') && !val.includes('github.com') && mode !== 'app') setMode('app');
+            }}
+            className="h-10 min-w-0 flex-1 rounded border border-input bg-card px-3 font-mono text-xs outline-none focus:ring-1 focus:ring-ring"
+          />
+          {running ? (
+            <Button type="button" variant="secondary" onClick={() => controller.current?.abort()}>
+              <Square className="size-3" />
+              Stop
+            </Button>
+          ) : (
+            <Button type="submit" disabled={!url || !consent}>
+              <ScanLine className="size-4" />
+              Scan <ArrowRight className="size-3" />
+            </Button>
+          )}
+        </form>
+        <div className="pt-2 flex flex-wrap items-center gap-2 border-t border-border/50">
+          <span className="text-[11px] text-muted-foreground">or test with realistic sample:</span>
+          {mode === 'repo' ? (
+            <>
+              <Button key="repo-cicd" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleRepo('cicd')}>
+                <GitBranch className="size-3 text-primary" />
+                <span>CI/CD Supply Chain (GitHub Actions)</span>
+              </Button>
+              <Button key="repo-secrets" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleRepo('secrets')}>
+                <GitBranch className="size-3 text-primary" />
+                <span>Exposed Credentials in Git</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button key="app-juice" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleApp('juice')}>
+                <Globe className="size-3 text-primary" />
+                <span>OWASP Juice Shop (Live Perimeter)</span>
+              </Button>
+              <Button key="app-bank" type="button" variant="outline" size="sm" className="h-8 text-[11px] gap-1.5" onClick={() => loadSampleApp('bank')}>
+                <Globe className="size-3 text-primary" />
+                <span>Cloud Banking Portal (Perimeter Gap)</span>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+    <label className="mt-3 flex items-start gap-2 text-[10px] text-muted-foreground">
+      <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 accent-primary" />
+      I authorize read-only analysis and AI processing of collected, redacted evidence.
+    </label>
+  </section>
  {error&&<div role="alert" className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-xs text-destructive">{error}</div>}
  {running&&<div role="status" className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-2 font-mono text-[10px] text-primary"><Loader2 className="size-3 animate-spin"/>{graph?'Agents analyzing collected evidence':progress}</div>}
  {tab==='isolation'&&<TenantIsolation signedIn={Boolean(user)} onSignIn={()=>setAccount(true)} target={graph?.target || url} graph={graph}/>}
