@@ -199,32 +199,41 @@ npm test
 
 ## Usage Guide
 
-### 1. Launching the Workspace Console
+### 1. Launching the Workspace Console & Session Controls
 * Open your browser and navigate to `http://localhost:3000/console`.
-* You will be greeted by the Traceveil investigation workspace with the sidebar tabs: **Attack graph**, **Tenant isolation**, **Findings**, **Agents & Red team**, **Remediation studio**, and **Firewalls & Rules**.
+* You will be greeted by the Traceveil investigation workspace with the sidebar tabs: **Attack graph**, **Tenant isolation**, **Findings**, **Agents & Red team**, **Remediation studio**, and **Firewalls & Rules**, plus **MCP audits** in the bottom sidebar.
+* **Top Bar Controls**:
+  * **Clear Session / New Scan** (`RotateCcw` icon): Archives the active investigation to local SQLite history and resets the canvas for a fresh scan without losing records.
+  * **Export Evidence** (`Download` icon): Generates a timestamped JSON evidence artifact (`traceveil-<commit>.json`) containing the full topology graph, findings, and agent reports.
+  * **GitHub Credentials Vault**: Secure modal for saving your GitHub Personal Access Token (PAT), encrypted with AES-256-GCM symmetric encryption for scanning private repositories.
+  * **Scan History Drawer**: Open the **Scan history** drawer from the bottom sidebar to review, re-open, or search prior repository, web application, or diagram scans.
 
-### 2. Scanning a Target
+---
+
+### 2. Scanning a Target (Three Ingestion Modes)
 Traceveil supports three comprehensive target modes via the mode switcher above the scan bar:
 
 #### Mode A: GitHub Repository Scan
-1. Click the **Repository** button.
+1. Click the **Repository** button (`GitBranch` icon).
 2. Enter any public or private repository URL (e.g. `https://github.com/owner/repo`).
-3. If scanning a private repository: Click **GitHub Credentials** in the top bar, enter your GitHub Personal Access Token (PAT), and click **Save Credential**. Your token is encrypted with AES-256-GCM and stored locally.
+3. If scanning a private repository: Click **GitHub Credentials** in the top bar, enter your GitHub Personal Access Token (PAT), and click **Save Credential**.
 4. Check the box to authorize read-only analysis and click **Scan**.
-5. Watch the real-time progress stream as the deterministic engine clones the commit tree, parses manifests, and synthesizes the topology.
+5. Watch the real-time progress stream as the deterministic engine clones the commit tree, parses AST manifests (`package.json`, `requirements.txt`, Dockerfiles, Kubernetes manifests), and synthesizes the topology.
 
 #### Mode B: Live Web Application Scan
-1. Click the **Live application** button.
+1. Click the **Live application** button (`Globe` icon).
 2. Enter the target web domain or URL (e.g. `https://example.com` or `http://localhost:3000`).
 3. Check the authorization checkbox and click **Scan**.
 4. The scanner probes TLS parameters, HTTP response headers, CSP/HSTS configurations, and sensitive paths (`/.env`, `/.git/HEAD`, `/robots.txt`) in real time.
 
-#### Mode C: Architecture Diagram Threat Modeling & AI Synthesis
-1. Click the **Architecture Diagrams** button.
+#### Mode C: Architecture Diagram Threat Modeling & AI Studio
+1. Click the **Architecture / Diagram** button (`Layers` icon).
 2. Choose between two flexible input workflows:
-   * **AI Conversational Architecture Studio**: Type a natural language description of your architecture (e.g. *"CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices"*), or pick a quick inspiration prompt, and click **Synthesize & Analyze**.
-   * **Upload Diagram File**: Upload an existing draw.io XML diagram, Cisco Packet Tracer file (`.pkt`/`.pka`), or Cisco IOS configuration (`.cfg`/`.conf`), or load one of the built-in realistic templates (*AWS Cloud*, *Cisco Hybrid Branch*, *Azure Microservices*).
-3. The engine parses the topology, identifies unsegmented routes and toxic paths, and enables 1-click export of hardened, corrected draw.io architecture diagrams.
+   * **Describe Architecture with AI (`Sparkles` icon)**: Type a natural language description of your architecture (e.g. *"CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices"*), or click one of the quick inspiration prompt pills (*AWS 3-Tier Cloud*, *Cisco Enterprise DMZ*, *Kubernetes Microservices*, *Serverless Cloud*), and click **Synthesize & Analyze**.
+   * **Upload Diagram File (`FileUp` icon)**: Upload an existing draw.io XML diagram, Cisco Packet Tracer file (`.pkt`/`.pka`), or Cisco IOS configuration (`.cfg`/`.conf`), or load one of the built-in realistic templates (*AWS Cloud*, *Cisco DMZ Network*, *Kubernetes Multi-Tier*).
+3. The engine parses the topology, identifies unsegmented routes and toxic paths, and enables 1-click export of hardened, corrected draw.io architecture diagrams. In diagram mode, irrelevant runtime tabs (such as container isolation) automatically hide to keep the threat modeling workflow clean.
+
+---
 
 ### 3. Navigating Attack Surfaces & Wiz-Style Attack Paths
 * **Topology Exploration**: Drag, pan, and zoom on the interactive React Flow canvas. Declared assets appear in neutral badges, while risky conditions are highlighted with warning indicators.
@@ -234,16 +243,40 @@ Traceveil supports three comprehensive target modes via the mode switcher above 
   3. Use the horizontal breadcrumb stepper at the top or click **Next Step** in the floating walkthrough card to step through each phase of the attack.
   4. Clicking any step auto-centers the canvas on the active node and opens the **Evidence Drawer** showing the exact HTTP headers, code lines, and remediation recommendations.
 
-### 4. Collaborating with the Tenant Isolation Copilot
-1. Select the **Tenant isolation** tab from the left sidebar.
-2. Review the suggested prompt pills in the conversation:
+---
+
+### 4. Reviewing & Filtering Security Findings
+1. Select the **Findings** tab from the left sidebar (with live finding count badge).
+2. **Severity Filtering**: Filter findings instantly by clicking the **All**, **High**, **Medium**, or **Low** pills.
+3. **Full-Text Search**: Filter in real-time by finding ID, title, description, or rule tag.
+4. **Plain-English Vulnerability Explanations**: Each finding card provides:
+   * **Category & Severity Badge**: Clear classification (e.g., Network Ingress Exposure, Unrestricted IAM, Plaintext Secret Leak).
+   * **Plain-English Impact**: Clear explanation of the underlying root cause, how an adversary can exploit it, and the exact blast radius.
+   * **Technical Evidence**: File paths, line numbers, raw source snippets, or HTTP response headers.
+   * **Direct Jump to Patch**: Click **`[Remediate Finding]`** to navigate directly to the hardened code diff in the Remediation Studio.
+
+---
+
+### 5. Collaborating with the Tenant Isolation Copilot
+1. Select the **Tenant isolation** tab from the left sidebar (available for repository and live web targets).
+2. **Context-Aware Prompt Suggestions**: Review suggested questions tailored to the active scan:
    * *"How do I isolate workspaces in Supabase / PostgreSQL?"*
    * *"Prevent IDOR on our customer billing APIs"*
    * *"Run live cross-tenant boundary verification probes"*
 3. Click any pill or type a natural language prompt in the input bar.
-4. The agent will respond with detailed analysis, generate executable probe verification widgets, and output copyable PostgreSQL RLS rules or Kubernetes zero-trust NetworkPolicy YAML manifests.
+4. **Live Isolation Probes & Verification**: The agent responds with a live 4-probe test grid:
+   * Valid tenant token (HTTP 200)
+   * Cross-tenant read attempt (HTTP 403 Forbidden)
+   * Tampered/expired JWT (HTTP 401 Unauthorized)
+   * Unauthenticated anonymous request (HTTP 401 Unauthorized)
+5. **Triple-Layer Code Defense Tabs**:
+   * **PostgreSQL RLS**: Complete SQL Row Level Security policies with `USING` and `WITH CHECK` clauses.
+   * **API Middleware**: Fail-closed boundary middleware returning HTTP 403 on tenant mismatch.
+   * **CI Runner (.mjs)**: Automated test runner script with a 1-click **`[Download Script]`** button to integrate tenant boundary verification into your CI/CD pipeline.
 
-### 5. Running Red Team Walkthroughs & Streamlined Remediation
+---
+
+### 6. Running Red Team Walkthroughs & Streamlined Remediation
 
 #### A. Interactive Red Team Studio (Adversary Simulation)
 1. Select the **Agents & Red team** tab from the left sidebar.
@@ -269,9 +302,37 @@ Traceveil supports three comprehensive target modes via the mode switcher above 
    * Toggle **Mark as Resolved** to track your remediation progress.
 5. **For Architecture Diagrams**: Download a hardened draw.io architecture diagram with isolated subnets and attached WAF/security controls by clicking **`[Download Hardened .drawio Diagram]`**.
 
-### 6. Continuous Perimeter Monitoring & MCP Tool Auditing
-* **Firewalls & Rules**: Click **Firewalls & Rules** to view perimeter watchdog telemetry, historical drift alerts, and configured firewall rules.
-* **MCP Tool Audits**: Click **MCP audits** in the bottom left sidebar to paste JSON/YAML Model Context Protocol manifests, evaluate prompt injection vectors, and set fail-closed destination rules.
+---
+
+### 7. Configuring Firewalls & Multi-Layer Defense Planning
+1. Select the **Firewalls & Rules** tab from the left sidebar.
+2. **For Repositories & Live Web Applications**:
+   * **Multi-Layer Defense Stack**:
+     * **Layer 1: Network Firewall**: Kubernetes zero-trust `NetworkPolicy` manifests (`k8s-isolation-policy.yaml`) dropping unauthorized ingress and isolating database egress.
+     * **Layer 2: CI/CD PR Gate**: GitHub Actions security gate workflow (`.github/workflows/traceveil-guard.yml`) blocking PRs with leaked secrets or vulnerable dependencies.
+     * **Layer 3: Runtime Security**: CNCF Falco detection rules (`falco_rules.local.yaml`) monitoring container shell spawns and abnormal socket connections.
+   * **Continuous Perimeter Watchdog**: Built-in 60-second automated drift check monitoring live HTTP endpoints for newly exposed paths or header drift.
+   * **Live Policy Enforcement**: Deploy and test policies live with one-click enforcement and rollback controls.
+   * **Linked Repository**: Connect a GitHub repository to a live web application target for end-to-end cloud-to-code remediation.
+3. **For Architecture Diagrams**:
+   * **Visual Architectural Boundaries**: Clean graphic cards highlighting Layer 1 (Perimeter WAF Filter), Layer 2 (Subnet Isolation), and Layer 3 (Least-Privilege IAM).
+   * **1-Click Download**: Click **`[Download Hardened draw.io (.drawio)]`** to export the secured diagram.
+   * **Expandable IaC Drawer**: Expand the drawer to inspect raw Kubernetes NetworkPolicies and Terraform/CloudFormation rules.
+
+---
+
+### 8. Auditing MCP Tool Servers & Agent Transcripts
+1. Click **MCP audits** in the bottom left sidebar or navigate to `http://localhost:3000/mcp-audits`.
+2. **Choose Audit Mode**:
+   * **Tool definitions**: Paste Model Context Protocol `tools/list` JSON or YAML manifests.
+   * **MCP endpoint**: Audit live remote HTTP/SSE MCP servers (e.g. `https://mcp.example.com/mcp`).
+   * **Agent transcript**: Paste conversational LLM session logs to detect indirect prompt injection and tool poisoning.
+3. **Tri-Agent Evaluation**: Three autonomous agents analyze the submission simultaneously:
+   * **Semantic risk**: Detects tool poisoning, unauthorized system prompts, and privilege escalation.
+   * **Adversarial fuzzing**: Simulates malicious injection vectors and parameter manipulation payloads.
+   * **Blast radius**: Identifies unauthorized filesystem access, external network egress, and token exfiltration.
+4. **Visual Tool Topology & Exfiltration Matrix**: Inspect interactive visual maps classifying tools as Safe, Risky, Poisoned, or Untrusted, with full destination endpoint analysis.
+5. **Policy Builder & Gateway Enforcement**: Configure gateway policies (Strict Fail-Closed, Standard Guarded, or Permissive) and proxy tool traffic securely through Traceveil's MCP Relay Gateway (`http://localhost:3000/api/relay/mcp`).
 
 ---
 
