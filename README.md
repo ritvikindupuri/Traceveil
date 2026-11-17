@@ -44,35 +44,6 @@ Traceveil bridges raw code repositories, live production web applications, conta
   <img src="docs/architecture/traceveil-architecture.png" alt="How a Traceveil investigation run works" width="838" />
 </p>
 
-<p align="center">
-  <em>Figure 1. Three left-to-right lanes. Tags mark Browser vs Server vs Host. Dashed lanes are optional Console paths. AI agents use a generic robot mark; official logos are only for real products. Icon credits: <a href="docs/architecture/ATTRIBUTION.md">ATTRIBUTION.md</a>. Regenerate with <code>python3 docs/architecture/generate.py</code>.</em>
-</p>
-
-<details>
-<summary>Mermaid fallback</summary>
-
-```mermaid
-flowchart LR
-  you[You] --> console[Console]
-  console --> scan["POST /api/application-scan"]
-  scan --> github[GitHub collector]
-  scan --> live[Live HTTPS probes]
-  console --> diagram["Diagram parser & AI studio"]
-  github --> graph[Graph engine]
-  live --> graph
-  diagram --> graph
-  scan --> store[Local JSON store]
-  graph --> agents[Report agents]
-  agents --> canvas[Results canvas]
-  console -.-> isolation[Isolation agent]
-  isolation <-.-> gemini[Google Gemini]
-  console -.-> mcpPage[MCP audits]
-  mcpPage -.-> mcpScan["POST /api/scan"]
-  mcpScan -.-> guard["POST /api/guard"]
-```
-
-</details>
-
 ### How it works, step by step
 
 Numbered steps match the callouts on the diagram.
