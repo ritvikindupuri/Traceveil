@@ -6,7 +6,7 @@
 
 **Evidence-First Autonomous Security Graph, Agentic Defense, and Multi-Tenant Isolation Platform**
 
-[![Tests](https://img.shields.io/badge/tests-93%20passed-10b981.svg?style=flat-square)](https://github.com/ritvikindupuri/Traceveil)
+[![Tests](https://img.shields.io/badge/tests-98%20passed-10b981.svg?style=flat-square)](https://github.com/ritvikindupuri/Traceveil)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ed.svg?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square)](https://react.dev/)
@@ -101,7 +101,7 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 
 - **Not SQLite / not hosted Supabase.** `drizzle/schema.ts` is blank. Runtime persistence is the JSON file behind a Supabase-shaped client (`src/lib/server/db.server.ts`). `.env` still lists unused `SUPABASE_*` keys.
 - **Application-scan “agents” do not call Gemini.** `src/lib/atlas/agents.server.ts` only formats templates. Gemini is used by tenant-isolation chat (`callFrontierModel`), which maps the `argon-4` label to `gemini-1.5-pro`.
-- **Remediation “open a PR” is a client-side scripted terminal**, not `gh pr create` (`InteractiveRemediation.tsx`). Diffs can be copied or downloaded.
+- **Remediation provides direct unified diffs and downloadable `.patch` files**, ready for manual or automated `git apply` (`InteractiveRemediation.tsx`), along with downloadable hardened `.drawio` XML files for architecture diagrams.
 - **`enforcePolicyLive` only appends logs** to an in-memory map. It does not apply Kubernetes NetworkPolicies or Falco rules. YAML in the defense tab is generated text for copy/download.
 - **`createIsolationPlan` / `importIsolationResult` / the exported CI runner are not wired to the UI.** Tenant isolation in the console is the chat agent. That agent’s four “live probes” are hardcoded pass results, not HTTP.
 - **MCP audit relay is fail-closed** unless `MCP_AUDIT_RELAY_VERIFIED=true` and the URL/secret are set. It may proxy inventory collection for allowlisted hosts; it refuses `tools/call`. The Node relay in `services/mcp-audit-proxy/` is a separately deployed service, not started by this web process. Runtime execution is `/api/guard` talking to the allowlisted host directly.
@@ -234,10 +234,10 @@ npm test
 
 ### 1. Launching the Workspace Console
 * Open your browser and navigate to `http://localhost:3000/console`.
-* You will be greeted by the Traceveil investigation workspace with the sidebar tabs: **Attack Surface**, **Tenant Isolation**, **Findings**, **Security Agents**, **Remediation**, and **Autonomous Defense**.
+* You will be greeted by the Traceveil investigation workspace with the sidebar tabs: **Attack graph**, **Tenant isolation**, **Findings**, **Agents & Red team**, **Remediation studio**, and **Firewalls & Rules**.
 
 ### 2. Scanning a Target
-Traceveil supports two distinct target modes via the mode switcher above the scan bar:
+Traceveil supports three comprehensive target modes via the mode switcher above the scan bar:
 
 #### Mode A: GitHub Repository Scan
 1. Click the **Repository** button.
@@ -249,8 +249,15 @@ Traceveil supports two distinct target modes via the mode switcher above the sca
 #### Mode B: Live Web Application Scan
 1. Click the **Live application** button.
 2. Enter the target web domain or URL (e.g. `https://example.com` or `http://localhost:3000`).
-3. Click **Scan**.
-4. The scanner probes TLS parameters, HTTP response headers, CSP/HSTS configurations, and sensitive paths in real time.
+3. Check the authorization checkbox and click **Scan**.
+4. The scanner probes TLS parameters, HTTP response headers, CSP/HSTS configurations, and sensitive paths (`/.env`, `/.git/HEAD`, `/robots.txt`) in real time.
+
+#### Mode C: Architecture Diagram Threat Modeling & AI Synthesis
+1. Click the **Architecture Diagrams** button.
+2. Choose between two flexible input workflows:
+   * **AI Conversational Architecture Studio**: Type a natural language description of your architecture (e.g. *"CloudFront -> ALB -> ECS Fargate -> Postgres RDS in private subnet, plus a public S3 bucket for invoices"*), or pick a quick inspiration prompt, and click **Synthesize & Analyze**.
+   * **Upload Diagram File**: Upload an existing draw.io XML diagram, Cisco Packet Tracer file (`.pkt`/`.pka`), or Cisco IOS configuration (`.cfg`/`.conf`), or load one of the built-in realistic templates (*AWS Cloud*, *Cisco Hybrid Branch*, *Azure Microservices*).
+3. The engine parses the topology, identifies unsegmented routes and toxic paths, and enables 1-click export of hardened, corrected draw.io architecture diagrams.
 
 ### 3. Navigating Attack Surfaces & Wiz-Style Attack Paths
 * **Topology Exploration**: Drag, pan, and zoom on the interactive React Flow canvas. Declared assets appear in neutral badges, while risky conditions are highlighted with warning indicators.
@@ -269,19 +276,34 @@ Traceveil supports two distinct target modes via the mode switcher above the sca
 3. Click any pill or type a natural language prompt in the input bar.
 4. The agent will respond with detailed analysis, generate executable probe verification widgets, and output copyable PostgreSQL RLS rules or Kubernetes zero-trust NetworkPolicy YAML manifests.
 
-### 5. Running Red Team Simulations & Automated Remediation
-1. Navigate to the **Security agents** tab to inspect the autonomous Red Team report. Review real executed exploit commands, observed process behaviors, and escape assessment verdicts.
-2. Click the **Remediation** tab to inspect generated code patches.
+### 5. Running Red Team Walkthroughs & Streamlined Remediation
 
-#### How to Create Real Live PRs on Your Repository
-1. In the top navigation bar of `http://localhost:3000/console`, click **GitHub Credentials**.
-2. Paste a GitHub Personal Access Token (classic or fine-grained) with `repo` (content and pull request write) permissions and click **Save Credential**.
-3. Go to the **Remediation** tab, enter your repository URL, and click **Agent Auto-Fix (PR & Merge)**.
-4. The agent will push the real branch, open the real Pull Request on GitHub, and clicking **View on GitHub** will navigate directly to your live GitHub PR. (If no token is supplied, Traceveil seamlessly generates and downloads a cryptographically signed `.patch` bundle ready for manual `git apply`).
+#### A. Interactive Red Team Studio (Adversary Simulation)
+1. Select the **Agents & Red team** tab from the left sidebar.
+2. **Active Step Navigation**: Walk through the adversary's attack path step-by-step using the `[Prev]` and `[Next]` stepper controls, or click `[Auto-Walk]` to watch the simulation scrub through the chain automatically. The attack canvas highlights the active node and connection at each hop.
+3. **Adversary Briefing Strip**: Directly below the canvas, inspect the active step's:
+   * **MITRE ATT&CK Technique**: Formal technique attribution (e.g., `T1190`, `T1539`, `T1567`, `T1195.002`).
+   * **Objective & Technical Analysis**: Deep technical breakdown of how the adversary moves laterally and the blast radius.
+   * **Attack Vector & Impact**: Specific attack vectors and security impact ratings.
+4. **Red Team Execution Proof & Terminal**:
+   * Inspect the exact runnable command (`curl`, `nmap`, `git log`, `aws s3`, `psql`) and raw stdout/response proof captured for that step.
+   * Click **`[Copy Proof]`** to copy the command and output to your clipboard.
+   * For live HTTP web targets, click **`[Run Live Probe]`** to execute an active live network probe and stream the real response headers, DNS resolution, and latency directly into the terminal window.
+5. Click **`[Remediate]`** to jump directly to the fix for this step.
 
+#### B. Streamlined Remediation Studio
+1. Select the **Remediation studio** tab from the left sidebar.
+2. **Finding Selector Pills**: Click horizontal pills at the top to toggle between discovered vulnerabilities.
+3. **Hardened Code Diffs**: Review high-contrast before/after code blocks highlighting the exact lines to add or remove in green and red.
+4. **1-Click Export & Direct Execution**:
+   * Click **`[Copy Diff]`** to copy the diff snippet.
+   * Click **`[Download .patch]`** to download a standard unified diff file ready for `git apply fix.patch`.
+   * Expand the **PowerShell CLI Command** drawer for copy-and-paste terminal execution commands.
+   * Toggle **Mark as Resolved** to track your remediation progress.
+5. **For Architecture Diagrams**: Download a hardened draw.io architecture diagram with isolated subnets and attached WAF/security controls by clicking **`[Download Hardened .drawio Diagram]`**.
 
 ### 6. Continuous Perimeter Monitoring & MCP Tool Auditing
-* **Autonomous Defense**: Click **Autonomous defense** to view the 60-second perimeter watchdog telemetry, historical drift alerts, and configured firewall rules.
+* **Firewalls & Rules**: Click **Firewalls & Rules** to view perimeter watchdog telemetry, historical drift alerts, and configured firewall rules.
 * **MCP Tool Audits**: Click **MCP audits** in the bottom left sidebar to paste JSON/YAML Model Context Protocol manifests, evaluate prompt injection vectors, and set fail-closed destination rules.
 
 ---
