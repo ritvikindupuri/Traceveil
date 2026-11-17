@@ -57,8 +57,10 @@ flowchart LR
   console --> scan["POST /api/application-scan"]
   scan --> github[GitHub collector]
   scan --> live[Live HTTPS probes]
+  console --> diagram["Diagram parser & AI studio"]
   github --> graph[Graph engine]
   live --> graph
+  diagram --> graph
   scan --> store[Local JSON store]
   graph --> agents[Report agents]
   agents --> canvas[Results canvas]
@@ -77,7 +79,7 @@ Numbered steps match the callouts on the diagram.
 
 1. **Sign in; session stays here.** The public `/` landing page opens the account dialog. `POST /api/auth` creates or checks a user with scrypt password hashes and a 30-day session token stored in `data/traceveil-store.json`. The browser keeps that token in `localStorage` (`traceveil_auth_session`) and, once signed in, routes into `/console`.
 
-2. **Pick repo or live app.** The workspace scan bar takes a URL plus the consent checkbox (`aiConsent: true`). Repository vs live-application is a UI mode, but the server decides the collector with `url.toLowerCase().includes('github.com')`.
+2. **Choose target: Repository, Live app, or Architecture diagram.** The workspace scan bar accepts a target URL, diagram upload, or AI natural language architecture prompt with the consent checkbox (`aiConsent: true`). For URLs, the server routes to either GitHub repository cloning or live HTTPS boundary probing. For architecture diagrams (.drawio, Cisco .pkt, .cfg) or AI prompts, the client-side topology parser compiles declared components directly into verifiable graph entities.
 
 3. **Authenticated scan starts.** `POST /api/application-scan` requires a bearer session, bounds the body to 2,500 bytes, and calls `consume_audit_quota` (always granted by the local store). Progress, the graph, the saved record id, and agent deltas stream back as NDJSON.
 
