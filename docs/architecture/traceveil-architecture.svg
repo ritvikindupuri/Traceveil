@@ -61,6 +61,15 @@
 <text x="876.02" y="591.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Four GETs on port 443</text>
 <rect x="853.98" y="603.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
 <text x="876.02" y="616.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
+<rect x="780.47" y="308.00" width="195.00" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
+<circle cx="877.97" cy="336.00" r="18.00" fill="#6366F1"/>
+<g transform="translate(861.41 319.44) scale(1.3800)">
+<path d="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+<text x="877.97" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Diagram &amp; AI studio</text>
+<text x="877.97" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >.drawio, Cisco, AI prompt</text>
+<rect x="851.95" y="411.00" width="52.05" height="19.00" rx="7" fill="#EEF2FF" stroke="#4338CA" stroke-width="0.8"/>
+<text x="877.97" y="424.00" font-size="10" font-weight="600" fill="#4338CA" text-anchor="middle" >Browser</text>
 <rect x="1035.75" y="308.00" width="179.41" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
 <circle cx="1125.45" cy="336.00" r="18.00" fill="#7C3AED"/>
 <g transform="translate(1108.89 319.44) scale(1.3800)">
@@ -76,8 +85,8 @@
 <path d="M12 2.5a1 1 0 0 1 1 1V5h3.5A2.5 2.5 0 0 1 19 7.5v8A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-8A2.5 2.5 0 0 1 7.5 5H11V3.5a1 1 0 0 1 1-1z M9 10.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z M9.5 14h5a.75.75 0 0 1 0 1.5h-5A.75.75 0 0 1 9.5 14z" fill="#FFFFFF" fill-rule="evenodd"/>
 <path d="M8 18.5v1.2A2.3 2.3 0 0 0 10.3 22h3.4A2.3 2.3 0 0 0 16 19.7v-1.2" fill="#FFFFFF" />
 </g>
-<text x="1348.68" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Report agents</text>
-<text x="1348.68" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Four template write-ups</text>
+<text x="1348.68" y="378.00" font-size="18" font-weight="700" fill="#0F172A" text-anchor="middle" >Agents &amp; Red team</text>
+<text x="1348.68" y="399.00" font-size="13" font-weight="400" fill="#64748B" text-anchor="middle" >Proof, probes &amp; patches</text>
 <rect x="1326.63" y="411.00" width="44.09" height="19.00" rx="7" fill="#F0FDF4" stroke="#166534" stroke-width="0.8"/>
 <text x="1348.68" y="424.00" font-size="10" font-weight="600" fill="#166534" text-anchor="middle" >Server</text>
 <rect x="1482.20" y="308.00" width="185.05" height="132.00" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1.3" />
@@ -150,20 +159,22 @@
 <text x="156.72" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >1</text>
 <text x="179.72" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Sign in; session stays here</text>
 <path d="M 442.50 312.00 L 512.50 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
-<rect x="376.28" y="268.00" width="132.61" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
-<circle cx="361.28" cy="280.50" r="9.00" fill="#EA580C"/>
-<text x="361.28" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >2</text>
-<text x="384.28" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Pick repo or live app</text>
+<rect x="366.28" y="268.00" width="152.61" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
+<circle cx="351.28" cy="280.50" r="9.00" fill="#EA580C"/>
+<text x="351.28" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >2</text>
+<text x="374.28" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Pick repo, app, or diagram</text>
 <rect x="548.50" y="268.00" width="163.38" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
 <circle cx="533.50" cy="280.50" r="9.00" fill="#EA580C"/>
 <text x="533.50" y="284.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >3</text>
 <text x="556.50" y="285.00" font-size="12" font-weight="500" fill="#9A3412"  >Authenticated scan starts</text>
 <path d="M 711.47 312.00 L 744.47 312.00 L 744.47 192.00 L 777.47 192.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
 <path d="M 744.47 312.00 L 744.47 566.00 L 777.47 566.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<path d="M 744.47 312.00 L 777.47 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
+<path d="M 978.47 312.00 L 1032.75 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
 <rect x="780.47" y="455.00" width="164.34" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
 <circle cx="765.47" cy="467.50" r="9.00" fill="#EA580C"/>
 <text x="765.47" y="471.00" font-size="10" font-weight="700" fill="#FFFFFF" text-anchor="middle" >4</text>
-<text x="788.47" y="472.00" font-size="12" font-weight="500" fill="#9A3412"  >GitHub files or live HTTPS</text>
+<text x="788.47" y="472.00" font-size="12" font-weight="500" fill="#9A3412"  >Repo, live HTTPS, or diagram</text>
 <path d="M 982.75 192.00 L 1007.75 192.00 L 1007.75 312.00 L 1032.75 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
 <path d="M 974.58 566.00 L 1007.75 566.00 L 1007.75 312.00" fill="none" stroke="#475569" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#arrow)"  />
 <rect x="1043.75" y="268.00" width="164.23" height="25.00" rx="8" fill="#FFF7ED" stroke="#FDBA74" stroke-width="1"/>
