@@ -6,12 +6,6 @@
 
 **Evidence-First Autonomous Security Graph, Agentic Defense, and Multi-Tenant Isolation Platform**
 
-[![Tests](https://img.shields.io/badge/tests-98%20passed-10b981.svg?style=flat-square)](https://github.com/ritvikindupuri/Traceveil)
-[![Docker](https://img.shields.io/badge/docker-ready-2496ed.svg?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
-[![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square)](https://react.dev/)
-[![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154.svg?style=flat-square)](https://tanstack.com/start)
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Argon%204%20%7C%20Gemini%201.5-8e75ff.svg?style=flat-square)](https://deepmind.google/technologies/gemini/)
 
 </div>
 
