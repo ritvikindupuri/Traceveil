@@ -65,11 +65,11 @@ export async function analyzeGraph(
     },
     {
       id: 'verifier',
-      name: 'Code proof verifier',
+      name: 'Code evidence verifier',
       generate: () => {
         const lines: string[] = [
           `• Code verification: confirmed against commit snapshot ${graph.commit.slice(0, 8)}.`,
-          `• Verified source proof contains ${graph.evidence.length} concrete code excerpts.`,
+          `• Verified source evidence contains ${graph.evidence.length} concrete code excerpts.`,
         ];
         if (graph.findings.length > 0) {
           lines.push(`• All ${graph.findings.length} findings map directly to recorded evidence IDs in inspected files.`);
