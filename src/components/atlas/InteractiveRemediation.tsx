@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useServerFn } from '@tanstack/react-start';
 import {
   Wrench,
   CheckCircle2,
@@ -21,12 +22,18 @@ import {
   HardDrive,
   Cpu,
   Lock,
+  GitPullRequest,
+  GitBranch,
+  ExternalLink,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { AttackGraph } from '@/lib/atlas/types';
 import { generateRemediationPatches, type RemediationPatch } from '@/lib/atlas/agent-operations';
 import { generateCorrectedDrawIoXml, getArchitecturalRemediationGuide } from '@/lib/atlas/corrected-diagram';
 import { decodeXmlEntities, sanitizeComponentName } from '@/lib/atlas/clean-text';
+import { executeLiveRemediationPR, type LiveRemediationResult } from '@/lib/atlas/remediation.functions';
 import { cn } from '@/lib/utils';
 
 function getTopologyNodeIcon(label: string) {
@@ -321,8 +328,27 @@ function CodeRemediationStudio({
   const [selectedPatchId, setSelectedPatchId] = useState<string>(patches[0]?.id || '');
   const [appliedState, setAppliedState] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [copiedPsId, setCopiedPsId] = useState<string | null>(null);
-  const [copiedAllPs, setCopiedAllPs] = useState(false);
+
+  // GitHub Repository Binding (Auto-detected for GitHub scans, configurable for Live Web Apps)
+  const isGithubTarget = graph.target.includes('github.com');
+  const [repoUrl, setRepoUrl] = useState<string>(() => {
+    if (isGithubTarget) return graph.target;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`traceveil_linked_repo_${graph.target}`);
+      if (saved) return saved;
+    }
+    return '';
+  });
+  const [isEditingRepo, setIsEditingRepo] = useState(false);
+  const [savedRepoNotice, setSavedRepoNotice] = useState(false);
+
+  // PR Generation State
+  const executePRServerFn = useServerFn(executeLiveRemediationPR);
+  const [runningPatchId, setRunningPatchId] = useState<string | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [prResults, setPrResults] = useState<Record<string, LiveRemediationResult>>({});
+  const [customToken, setCustomToken] = useState('');
+  const [showTokenInput, setShowTokenInput] = useState(false);
 
   const appliedCount = Object.values(appliedState).filter(Boolean).length;
   const totalCount = patches.length;
@@ -330,6 +356,86 @@ function CodeRemediationStudio({
 
   const activePatch = patches.find(p => p.id === selectedPatchId) || patches[0];
   const isApplied = Boolean(appliedState[activePatch?.id]);
+  const activePRResult = activePatch ? prResults[activePatch.id] : undefined;
+
+  const cleanRepoName = repoUrl
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/^git@github\.com:/, '')
+    .replace(/\.git$/, '')
+    .replace(/\/$/, '') || 'your-org/your-repo';
+
+  function saveLinkedRepo(url: string) {
+    const trimmed = url.trim();
+    setRepoUrl(trimmed);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`traceveil_linked_repo_${graph.target}`, trimmed);
+    }
+    setIsEditingRepo(false);
+    setSavedRepoNotice(true);
+    setTimeout(() => setSavedRepoNotice(false), 2500);
+  }
+
+  async function handleCreatePR(patch: RemediationPatch) {
+    const effectiveRepo = repoUrl.trim();
+    if (!effectiveRepo) {
+      setIsEditingRepo(true);
+      return;
+    }
+
+    setRunningPatchId(patch.id);
+    try {
+      const res = await executePRServerFn({
+        data: {
+          repoUrl: effectiveRepo,
+          patchId: patch.id,
+          title: patch.title,
+          filePath: patch.filePath,
+          line: patch.line,
+          diff: patch.diff,
+          remediatedCode: patch.remediatedCode,
+          customToken: customToken.trim() || undefined,
+        },
+      });
+      setPrResults(prev => ({ ...prev, [patch.id]: res }));
+      if (res.ok && res.isRealPR) {
+        setAppliedState(prev => ({ ...prev, [patch.id]: true }));
+      }
+    } catch (err: unknown) {
+      setPrResults(prev => ({
+        ...prev,
+        [patch.id]: {
+          ok: false,
+          isRealPR: false,
+          prUrl: `https://github.com/${cleanRepoName}/pulls`,
+          branchName: 'failed',
+          commitSha: 'failed',
+          logs: [
+            {
+              type: 'error',
+              output: [err instanceof Error ? err.message : 'Failed to execute PR agent.'],
+            },
+          ],
+          status: 'failed',
+          error: err instanceof Error ? err.message : 'Unknown error during PR creation',
+        },
+      }));
+    } finally {
+      setRunningPatchId(null);
+    }
+  }
+
+  async function handleCreateAllPRs() {
+    if (!repoUrl.trim()) {
+      setIsEditingRepo(true);
+      return;
+    }
+    setBatchRunning(true);
+    for (const p of patches) {
+      await handleCreatePR(p);
+    }
+    setBatchRunning(false);
+  }
 
   function toggleApply(patchId: string) {
     setAppliedState(prev => ({
@@ -342,26 +448,6 @@ function CodeRemediationStudio({
     void navigator.clipboard.writeText(diff);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  }
-
-  function copyPowerShell(cmd: string, id: string) {
-    void navigator.clipboard.writeText(cmd);
-    setCopiedPsId(id);
-    setTimeout(() => setCopiedPsId(null), 2000);
-  }
-
-  function copyAllPowerShellCommands() {
-    const header = `# ========================================================\n# Traceveil Security Remediation Script (PowerShell)\n# Target: ${graph.target}\n# Generated: ${new Date().toISOString()}\n# ========================================================\n\nWrite-Host "Starting Traceveil Security Remediation..." -ForegroundColor Cyan\n\n`;
-    const body = patches
-      .map(
-        (p, idx) =>
-          `# [${idx + 1}/${patches.length}] ${p.title}\n# Suggestion: ${p.suggestion}\n# Target File: ${p.filePath}:${p.line}\n${p.powershellCommand}\n`
-      )
-      .join('\n');
-    const footer = `\nWrite-Host "[✓] Traceveil remediation commands executed." -ForegroundColor Green\n`;
-    void navigator.clipboard.writeText(header + body + footer);
-    setCopiedAllPs(true);
-    setTimeout(() => setCopiedAllPs(false), 2000);
   }
 
   function downloadPatch(patch: RemediationPatch) {
@@ -389,23 +475,23 @@ function CodeRemediationStudio({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* 1. Single Clean Header */}
+      {/* 1. Header with Draftable PR Creation */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 shadow-xs">
         <div className="flex items-center gap-3.5">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/30">
-            <Wrench className="size-6" />
+            <GitPullRequest className="size-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground">
-                Code Remediation &amp; Hardening Studio
+                Autonomous Remediation &amp; Pull Request Studio
               </h2>
               <span className="rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[9px] font-bold text-primary uppercase">
-                {totalCount} {totalCount === 1 ? 'Fix' : 'Fixes'} Available
+                {totalCount} {totalCount === 1 ? 'Fix' : 'Fixes'} Ready
               </span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Target: <strong className="font-mono text-foreground">{graph.target}</strong> · Precision source-code diffs and direct terminal hardening fixes.
+              Target: <strong className="font-mono text-foreground">{graph.target}</strong> · Synthesize verified code patches and draft live GitHub Pull Requests.
             </p>
           </div>
         </div>
@@ -414,11 +500,16 @@ function CodeRemediationStudio({
           <Button
             size="sm"
             variant="default"
-            onClick={copyAllPowerShellCommands}
-            className="gap-1.5 text-xs shadow-xs"
+            disabled={batchRunning}
+            onClick={handleCreateAllPRs}
+            className="gap-1.5 text-xs shadow-xs bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
           >
-            {copiedAllPs ? <Check className="size-3.5 text-emerald-400" /> : <Terminal className="size-3.5" />}
-            <span>{copiedAllPs ? 'Copied All Commands!' : 'Copy All PowerShell Fixes'}</span>
+            {batchRunning ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <GitPullRequest className="size-3.5" />
+            )}
+            <span>{batchRunning ? 'Creating Pull Requests...' : 'Agent Auto-Fix: Open PRs for All'}</span>
           </Button>
 
           <Button
@@ -432,6 +523,80 @@ function CodeRemediationStudio({
           </Button>
         </div>
       </div>
+
+      {/* 2. Target GitHub Repository Binding (Configurable for Live Web Apps) */}
+      {!isGithubTarget ? (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-2xs space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <GitBranch className="size-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-semibold text-foreground">
+                  Link Target GitHub Repository for Pull Requests
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Connect your source codebase to enable the agent to push fix branches and open draft Pull Requests for this live application.
+                </p>
+              </div>
+            </div>
+
+            {savedRepoNotice && (
+              <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 border border-emerald-500/20">
+                <Check className="size-3" /> Linked to {cleanRepoName}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[280px]">
+              <input
+                type="text"
+                value={repoUrl}
+                onChange={e => setRepoUrl(e.target.value)}
+                placeholder="e.g. https://github.com/your-org/your-app"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => saveLinkedRepo(repoUrl)}
+              className="h-9 gap-1.5 text-xs cursor-pointer"
+            >
+              <Check className="size-3.5" />
+              <span>Link Repository</span>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between rounded-lg border border-border/80 bg-muted/20 px-4 py-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <GitBranch className="size-3.5 text-primary" />
+            <span className="text-muted-foreground">Connected GitHub Codebase:</span>
+            {isEditingRepo ? (
+              <input
+                type="text"
+                value={repoUrl}
+                onChange={e => setRepoUrl(e.target.value)}
+                onBlur={() => saveLinkedRepo(repoUrl)}
+                className="h-6 w-72 rounded border border-input bg-background px-2 font-mono text-xs text-foreground"
+                autoFocus
+              />
+            ) : (
+              <strong className="font-mono text-foreground">{cleanRepoName}</strong>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditingRepo(v => !v)}
+            className="text-[11px] text-muted-foreground hover:text-foreground cursor-pointer underline"
+          >
+            {isEditingRepo ? 'Done' : 'Change repo'}
+          </button>
+        </div>
+      )}
 
       {/* 2. Horizontal Finding Selector Pills */}
       <div className="space-y-2">
@@ -592,40 +757,183 @@ function CodeRemediationStudio({
             </div>
           </div>
 
-          {/* Collapsible PowerShell Terminal Command & Scripting */}
-          <details className="group/terminal rounded-lg border border-border/70 bg-muted/15 p-3">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Terminal className="size-3.5 text-primary" />
-                PowerShell CLI Command (Direct Terminal Execution)
-              </span>
-              <ChevronDown className="size-3.5 transition-transform group-open/terminal:rotate-180" />
-            </summary>
-            <div className="mt-3 space-y-2 pt-2 border-t border-border/50">
-              <div className="rounded border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5">
-                  <span className="font-mono text-[10px] font-semibold text-foreground">
-                    PowerShell Command
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyPowerShell(activePatch.powershellCommand, activePatch.id)}
-                    className="h-5 gap-1 px-1.5 text-[9px] text-primary"
-                  >
-                    {copiedPsId === activePatch.id ? <Check className="size-2.5" /> : <Copy className="size-2.5" />}
-                    <span>{copiedPsId === activePatch.id ? 'Copied' : 'Copy'}</span>
-                  </Button>
+          {/* 5. Autonomous Pull Request Generator Card (Replaces PowerShell CLI) */}
+          <div className="rounded-xl border border-border/80 bg-muted/15 p-4 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <GitPullRequest className="size-4" />
                 </div>
-                <pre className="p-2.5 font-mono text-[11px] overflow-x-auto text-foreground leading-relaxed whitespace-pre-wrap">
-                  {activePatch.powershellCommand}
-                </pre>
+                <div>
+                  <h4 className="text-xs font-bold text-foreground">
+                    Autonomous GitHub Pull Request Generator
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground">
+                    The agent pushes a dedicated fix branch and opens a verified draft Pull Request on <code className="font-mono text-primary font-semibold">{cleanRepoName}</code>.
+                  </p>
+                </div>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Run this command in Windows PowerShell or pwsh terminal to apply or verify this remediation directly.
-              </p>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={runningPatchId === activePatch.id}
+                  onClick={() => handleCreatePR(activePatch)}
+                  className="gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs font-semibold cursor-pointer"
+                >
+                  {runningPatchId === activePatch.id ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <GitPullRequest className="size-3.5" />
+                  )}
+                  <span>
+                    {runningPatchId === activePatch.id
+                      ? 'Synthesizing PR...'
+                      : activePRResult?.isRealPR
+                        ? 'Re-Open PR'
+                        : 'Create GitHub Pull Request'}
+                  </span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowTokenInput(v => !v)}
+                  className="h-8 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Configure custom GitHub Personal Access Token"
+                >
+                  <Lock className="size-3" />
+                  <span>{showTokenInput ? 'Hide Token' : 'Custom Token'}</span>
+                </Button>
+              </div>
             </div>
-          </details>
+
+            {/* Optional Custom Token Drawer */}
+            {showTokenInput && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground">GitHub Personal Access Token (PAT)</span>
+                  <span className="text-[10px] text-muted-foreground">Saved credentials in vault will be used if left blank</span>
+                </div>
+                <input
+                  type="password"
+                  value={customToken}
+                  onChange={e => setCustomToken(e.target.value)}
+                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (needs 'repo' scope)"
+                  className="h-8 w-full rounded border border-input bg-background px-2.5 font-mono text-xs focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* Pull Request Output Banner */}
+            {activePRResult && (
+              <div
+                className={cn(
+                  'rounded-lg border p-3.5 text-xs space-y-2.5',
+                  activePRResult.isRealPR
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
+                    : activePRResult.status === 'needs_auth'
+                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-950 dark:text-amber-100'
+                      : 'border-destructive/40 bg-destructive/10 text-destructive'
+                )}
+              >
+                {activePRResult.isRealPR ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <div>
+                        <span className="font-bold text-xs">
+                          Pull Request #{activePRResult.prNumber} Opened Successfully!
+                        </span>
+                        <div className="font-mono text-[10px] text-emerald-800 dark:text-emerald-300 mt-0.5">
+                          Branch: {activePRResult.branchName} · Commit: {activePRResult.commitSha}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => window.open(activePRResult.prUrl, '_blank')}
+                      className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-semibold cursor-pointer"
+                    >
+                      <ExternalLink className="size-3.5" />
+                      <span>View Live PR on GitHub</span>
+                    </Button>
+                  </div>
+                ) : activePRResult.status === 'needs_auth' ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="size-4 text-amber-600 shrink-0" />
+                        <span className="font-bold text-xs">
+                          GitHub Token with 'repo' Scope Required for Live Push
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            window.open(
+                              `https://github.com/${cleanRepoName}/compare?expand=1`,
+                              '_blank'
+                            )
+                          }
+                          className="h-7 gap-1 text-[11px] bg-background text-foreground"
+                        >
+                          <ExternalLink className="size-3" />
+                          <span>Draft PR on GitHub Web</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadPatch(activePatch)}
+                          className="h-7 gap-1 text-[11px] bg-background text-foreground"
+                        >
+                          <Download className="size-3" />
+                          <span>Download .patch</span>
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
+                      To automatically commit and open PRs directly via the agent, click <strong>GitHub Credentials</strong> in the top header or expand <strong>Custom Token</strong> above to enter your Personal Access Token.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="size-4 text-destructive shrink-0" />
+                    <span>Error creating Pull Request: {activePRResult.error || 'Check repository access.'}</span>
+                  </div>
+                )}
+
+                {/* Collapsible Agent Execution Log */}
+                {activePRResult.logs && activePRResult.logs.length > 0 && (
+                  <details className="rounded border border-border/60 bg-background/60 p-2.5 text-[11px] font-mono">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-semibold flex items-center justify-between">
+                      <span>View Agent Git Execution Terminal Trace</span>
+                      <ChevronDown className="size-3" />
+                    </summary>
+                    <div className="mt-2 space-y-1.5 text-foreground leading-relaxed">
+                      {activePRResult.logs.map((log, lIdx) => (
+                        <div key={lIdx} className="space-y-0.5">
+                          {log.command && (
+                            <div className="text-primary font-bold">$ {log.command}</div>
+                          )}
+                          {log.output.map((out, oIdx) => (
+                            <div key={oIdx} className="text-muted-foreground pl-2 text-[10px]">
+                              {out}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
