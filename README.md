@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square)](https://react.dev/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154.svg?style=flat-square)](https://tanstack.com/start)
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Argon%204%20%7C%20Gemini%201.5-8e75ff.svg?style=flat-square)](https://deepmind.google/technologies/gemini/)
+[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%201.5-8e75ff.svg?style=flat-square)](https://deepmind.google/technologies/gemini/)
 
 </div>
 
@@ -20,7 +20,7 @@
 
 **Traceveil** is an enterprise-grade cloud-native security and agentic defense platform engineered to eliminate security hallucination. Traditional Cloud Security Posture Management (CSPM) tools and generic AI security copilots frequently report theoretical vulnerabilities disconnected from code reality. Traceveil enforces a strict **deterministic evidence baseline**: every entity, threat relationship, and remediation step is bound directly to verifiable Git commit SHAs, parsed container specifications, exact source code line numbers, or raw HTTP/TLS wire probes.
 
-Traceveil bridges raw code repositories, live production web applications, containerized runtimes, and Model Context Protocol (MCP) tool pipelines into unified, multi-stage **Wiz-Style Toxic Attack Graphs**. Powered by a specialized multi-agent AI matrix running **Google Argon 4**, **Gemini 1.5 Pro**, and **Gemini 1.5 Flash**, Traceveil automates the entire security lifecycle—from adversarial red teaming and conversational multi-tenant isolation triage to one-click GitHub Pull Request generation and 60-second autonomous perimeter watchdog loops.
+Traceveil bridges raw code repositories, live production web applications, containerized runtimes, and Model Context Protocol (MCP) tool pipelines into unified, multi-stage **Wiz-Style Toxic Attack Graphs**. Combining deterministic evidence-binding rules with **Gemini 1.5 Pro** (with a deterministic offline fallback), Traceveil covers the security lifecycle—from red-team probes and conversational multi-tenant isolation triage to one-click GitHub Pull Request generation and a 60-second perimeter drift check.
 
 ---
 
@@ -28,12 +28,12 @@ Traceveil bridges raw code repositories, live production web applications, conta
 
 * **Architecture Diagram Threat Modeling & AI Synthesis**: Upload draw.io XML diagrams, Cisco Packet Tracer (.pkt/.pka), or network configs, or describe architectures in natural language with AI. The engine synthesizes the attack path and exports a hardened, corrected draw.io file.
 * **Deterministic Attack Graph Engine (Wiz-Style Visualizer)**: Synthesizes toxic risk combinations linking public ingress vectors, workload vulnerabilities, privilege escalations, and crown jewel datastores into an interactive Dagre horizontal topology powered by React Flow.
-* **Conversational Tenant Isolation Copilot (Google Argon 4)**: An interactive security consultant equipped with prompt pills, live probe test widgets, and one-click policy generators synthesizing hardened PostgreSQL Row-Level Security (RLS) rules and Kubernetes zero-trust NetworkPolicies.
-* **Autonomous Red Team Adversary (Google Argon 4)**: Executes real, unsimulated attack commands against target workloads to rigorously test privilege escalation boundaries, sensitive token leakage, and SSRF pivots with live stdout/stderr streams.
-* **Automated Code Remediation & GitHub Pull Requests (Google Gemini 1.5 Pro)**: Automatically analyzes discovered toxic paths, drafts unified git diff patches, generates structured security advisories, and opens pull requests on GitHub with a real-time execution terminal feed.
-* **Continuous 60-Second Perimeter Watchdog (Google Gemini 1.5 Flash)**: An autonomous background monitoring agent that scans target endpoints every minute, alerting security teams to perimeter drift such as missing Content Security Policies (CSP), HSTS downgrades, or accidental `.env` exposures.
+* **Conversational Tenant Isolation Copilot (Gemini 1.5 Pro, with offline fallback)**: An interactive security consultant equipped with prompt pills, live probe test widgets, and one-click policy generators synthesizing hardened PostgreSQL Row-Level Security (RLS) rules and Kubernetes zero-trust NetworkPolicies.
+* **Red Team Probes**: Runs safe HTTP checks against live targets for exposed endpoints, sensitive token leakage, and SSRF indicators, with live request/response logs.
+* **Automated Code Remediation & GitHub Pull Requests**: Analyzes discovered toxic paths, drafts rule-generated unified git diff patches, generates structured security advisories, and opens pull requests on GitHub with a real-time execution terminal feed.
+* **60-Second Perimeter Watchdog**: An in-browser drift check that re-scans target endpoints every 60 seconds while the console is open, alerting security teams to perimeter drift such as missing Content Security Policies (CSP), HSTS downgrades, or accidental `.env` exposures.
 * **Model Context Protocol (MCP) Guardrails Auditor**: Deeply inspects MCP tool manifests and execution transcripts to catch prompt injection, tool poisoning, schema tampering, and parameter escalation with fail-closed proxy relay protection.
-* **Self-Contained Local Database & Cryptographic Vault**: Zero-cloud-dependency SQLite engine running in Write-Ahead Logging (WAL) mode with Drizzle ORM, Node `crypto.scrypt` password hashing, and AES-256-GCM authenticated encryption for private GitHub Personal Access Tokens (PATs).
+* **Self-Contained Local Database & Cryptographic Vault**: Zero-cloud-dependency JSON file store with atomic writes, Node `crypto.scrypt` password hashing, and AES-256-GCM authenticated encryption for private GitHub Personal Access Tokens (PATs).
 
 ---
 
@@ -79,7 +79,7 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 - **MCP audit relay is fail-closed** unless `MCP_AUDIT_RELAY_VERIFIED=true` and the URL/secret are set. It may proxy inventory collection for allowlisted hosts; it refuses `tools/call`. The Node relay in `services/mcp-audit-proxy/` is a separately deployed service, not started by this web process. Runtime execution is `/api/guard` talking to the allowlisted host directly.
 - **Endpoint *collection* is not limited to the allowlist**; `/api/scan` may fetch the typed URL. *Runtime* `/api/guard` is allowlist-only. Saving a connection cannot add hosts.
 - **`src/integrations/supabase/cron-auth.ts` is unused.** Password reset (`action: 'reset-password'`) returns a stub message and does not send mail.
-- **GitHub PAT encryption needs `MCP_TOKEN_ENCRYPTION_SECRET`.** Without it, save/load throws “Credential storage unavailable.” Collection can still use `GITHUB_TOKEN` / `GH_TOKEN` on the server.
+- **GitHub PAT encryption should use `MCP_TOKEN_ENCRYPTION_SECRET`** (or `SESSION_SECRET`). If neither is set, a built-in default key is used, which is not suitable for production. Collection can still use `GITHUB_TOKEN` / `GH_TOKEN` on the server.
 
 ---
 
@@ -92,9 +92,7 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 
 ### Artificial Intelligence & LLM Engine
 * **SDK**: `@google/genai` (Google Gen AI SDK)
-* **High-Complexity Reasoning & Red Teaming**: Google Argon 4
-* **Precision Code Patching & PR Synthesis**: Google Gemini 1.5 Pro
-* **High-Frequency Perimeter Monitoring**: Google Gemini 1.5 Flash
+* **Tenant Isolation Reasoning**: Google Gemini 1.5 Pro (`argon-4` is an internal label mapped to Gemini 1.5 Pro; a deterministic local template is used when no API key is set)
 * **Deterministic Fallback Engine**: Local rule-based security reasoning engine
 
 ### Backend & Server Architecture
@@ -103,9 +101,8 @@ These modules exist in the tree but are unused, simulated, fail-closed, or not o
 * **Data Transport**: Server-Sent Events (SSE) streaming with NDJSON (Newline Delimited JSON)
 
 ### Storage & Security Vault
-* **Database**: Embedded SQLite with WAL (Write-Ahead Logging) mode
-* **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
-* **Cryptographic Vault**: AES-256-GCM symmetric encryption with HKDF key expansion
+* **Database**: Self-contained JSON file store (`data/traceveil-store.json`) behind a Supabase-shaped client
+* **Cryptographic Vault**: AES-256-GCM symmetric encryption with a SHA-256-derived key
 * **Authentication**: Node.js `crypto.scrypt` password hashing and secure HTTP session cookies
 
 ### Container Infrastructure & Sandboxes
@@ -208,7 +205,7 @@ npm test
 * Open your browser and navigate to `http://localhost:3000/console`.
 * You will be greeted by the Traceveil investigation workspace with the sidebar tabs: **Attack graph**, **Tenant isolation**, **Findings**, **Agents & Red team**, **Remediation studio**, and **Firewalls & Rules**, plus **MCP audits** in the bottom sidebar.
 * **Top Bar Controls**:
-  * **Clear Session / New Scan** (`RotateCcw` icon): Archives the active investigation to local SQLite history and resets the canvas for a fresh scan without losing records.
+  * **Clear Session / New Scan** (`RotateCcw` icon): Archives the active investigation to local scan history and resets the canvas for a fresh scan without losing records.
   * **Export Evidence** (`Download` icon): Generates a timestamped JSON evidence artifact (`traceveil-<commit>.json`) containing the full topology graph, findings, and agent reports.
   * **GitHub Credentials Vault**: Secure modal for saving your GitHub Personal Access Token (PAT), encrypted with AES-256-GCM symmetric encryption for scanning private repositories.
   * **Scan History Drawer**: Open the **Scan history** drawer from the bottom sidebar to review, re-open, or search prior repository, web application, or diagram scans.
